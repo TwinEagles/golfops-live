@@ -6,6 +6,7 @@ import { getGolfOpsAccess } from "@/lib/permissions";
 
 type AppNavProps = {
   active:
+    | "operations"
     | "tee-sheet"
     | "tv"
     | "changes"
@@ -70,14 +71,21 @@ export default async function AppNav({
   */
   const canUpload = canTeeSheet;
 
+  const canOperations =
+    access?.isAdmin ||
+    canTeeSheet ||
+    canChanges ||
+    canProShop ||
+    canGolfCarts;
+
   const datedSuffix =
     selectedDate
       ? `?date=${selectedDate}`
       : "";
 
   const homeHref =
-    canTeeSheet
-      ? `/dashboard${datedSuffix}`
+    canOperations
+      ? "/operations"
       : canTv
         ? `/tv${datedSuffix}`
         : canChanges
@@ -228,6 +236,15 @@ export default async function AppNav({
 
         <div className="hidden min-w-0 items-center gap-2 lg:flex">
           <nav className="flex items-center gap-1 text-sm">
+            {canOperations && (
+              <Link
+                href="/operations"
+                className={navClass("operations")}
+              >
+                Operations
+              </Link>
+            )}
+
             {canTeeSheet && (
               <Link
                 href={`/dashboard${datedSuffix}`}
@@ -423,6 +440,12 @@ export default async function AppNav({
 
           <div className="absolute right-0 top-full z-[100] mt-2 w-[min(290px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
             <nav className="grid gap-1 text-sm">
+              {canOperations && (
+                <Link href="/operations" className={navClass("operations")}>
+                  Operations
+                </Link>
+              )}
+
               {canTeeSheet && (
                 <Link href={`/dashboard${datedSuffix}`} className={navClass("tee-sheet")}>
                   Tee Sheet
