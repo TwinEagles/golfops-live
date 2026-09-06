@@ -1,0 +1,848 @@
+@import "tailwindcss";
+
+/*
+  GolfOps Live global theme system
+
+  The application still contains a number
+  of existing Tailwind slate/white utility
+  classes. The variables below establish
+  the real theme palette, while the
+  compatibility rules near the bottom
+  translate those existing utility classes
+  into the selected GolfOps Live theme.
+
+  Status colors such as green, amber, red,
+  cyan and purple intentionally remain
+  unchanged so operational alerts retain
+  their meaning.
+*/
+
+:root,
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --background: #f5f5f5;
+  --foreground: #111827;
+
+  --golfops-bg: #f5f5f5;
+  --golfops-nav: #ffffff;
+  --golfops-surface: #ffffff;
+  --golfops-surface-soft: #f0f0f0;
+  --golfops-surface-muted: #f0f0f0;
+
+  --golfops-open-slot-a: #ffffff;
+  --golfops-open-slot-b: #f0f0f0;
+
+  --golfops-text: #111827;
+  --golfops-text-secondary: #111827;
+  --golfops-text-muted: #6b7280;
+  --golfops-text-dim: #9ca3af;
+
+  --golfops-border: #e0e0e0;
+  --golfops-border-strong: #e0e0e0;
+
+  --golfops-accent: #2563eb;
+  --golfops-accent-hover: #1d4ed8;
+  --golfops-accent-soft: #f0f0f0;
+  --golfops-accent-text: #2563eb;
+
+  --golfops-nav-text: #6b7280;
+
+  --golfops-input-bg: #ffffff;
+  --golfops-scroll-track: #e5e7eb;
+  --golfops-scroll-thumb: #9ca3af;
+  --golfops-scroll-thumb-hover: #6b7280;
+  --golfops-bag-gold: #111827;
+  --golfops-course-label: #2563eb;
+  --golfops-hole-number: #111827;
+  --golfops-hole-bg: rgba(0,0,0,0.08);
+
+  --golfops-shadow:
+    0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+html[data-theme="navy"] {
+  color-scheme: dark;
+
+  --background: #0b1220;
+  --foreground: #e9eefc;
+
+  --golfops-bg: #0b1220;
+  --golfops-nav: #111a2f;
+  --golfops-surface: #121c33;
+  --golfops-surface-soft: #16223d;
+  --golfops-surface-muted: #16223d;
+
+  --golfops-open-slot-a: #121c33;
+  --golfops-open-slot-b: #16223d;
+
+  --golfops-text: #e9eefc;
+  --golfops-text-secondary: #e9eefc;
+  --golfops-text-muted: #9ca3af;
+  --golfops-text-dim: #6b7280;
+
+  --golfops-border: #1c2845;
+  --golfops-border-strong: #1c2845;
+
+  --golfops-accent: #3b82f6;
+  --golfops-accent-hover: #2563eb;
+  --golfops-accent-soft: #16223d;
+  --golfops-accent-text: #3b82f6;
+
+  --golfops-nav-text: #9ca3af;
+
+  --golfops-input-bg: #0b1220;
+  --golfops-scroll-track: #1f2937;
+  --golfops-scroll-thumb: #4b5563;
+  --golfops-scroll-thumb-hover: #6b7280;
+  --golfops-bag-gold: #ffd700;
+  --golfops-course-label: #8ab4f8;
+  --golfops-hole-number: #fbbf24;
+  --golfops-hole-bg: rgba(255,255,255,0.15);
+
+  --golfops-shadow:
+    0 1px 3px rgb(0 0 0 / 0.34);
+}
+
+html[data-theme="midnight"] {
+  color-scheme: dark;
+
+  --background: #09090b;
+  --foreground: #fafafa;
+
+  --golfops-bg: #09090b;
+  --golfops-nav: #18181b;
+  --golfops-surface: #1c1c20;
+  --golfops-surface-soft: #202024;
+  --golfops-surface-muted: #202024;
+
+  --golfops-open-slot-a: #1c1c20;
+  --golfops-open-slot-b: #202024;
+
+  --golfops-text: #fafafa;
+  --golfops-text-secondary: #fafafa;
+  --golfops-text-muted: #a1a1aa;
+  --golfops-text-dim: #71717a;
+
+  --golfops-border: #2e2e33;
+  --golfops-border-strong: #2e2e33;
+
+  --golfops-accent: #6366f1;
+  --golfops-accent-hover: #4f46e5;
+  --golfops-accent-soft: #202024;
+  --golfops-accent-text: #6366f1;
+
+  --golfops-nav-text: #a1a1aa;
+
+  --golfops-input-bg: #0f0f12;
+  --golfops-scroll-track: #18181b;
+  --golfops-scroll-thumb: #3f3f46;
+  --golfops-scroll-thumb-hover: #52525b;
+  --golfops-bag-gold: #ffd700;
+  --golfops-course-label: #a78bfa;
+  --golfops-hole-number: #c4b5fd;
+  --golfops-hole-bg: rgba(255,255,255,0.12);
+
+  --golfops-shadow:
+    0 1px 3px rgb(0 0 0 / 0.34);
+}
+
+html[data-theme="forest"] {
+  color-scheme: dark;
+
+  --background: #0a1410;
+  --foreground: #ecfdf5;
+
+  --golfops-bg: #0a1410;
+  --golfops-nav: #0f1f18;
+  --golfops-surface: #112a1f;
+  --golfops-surface-soft: #153525;
+  --golfops-surface-muted: #153525;
+
+  --golfops-open-slot-a: #112a1f;
+  --golfops-open-slot-b: #153525;
+
+  --golfops-text: #ecfdf5;
+  --golfops-text-secondary: #ecfdf5;
+  --golfops-text-muted: #86efac;
+  --golfops-text-dim: #4ade80;
+
+  --golfops-border: #1e4d35;
+  --golfops-border-strong: #1e4d35;
+
+  --golfops-accent: #22c55e;
+  --golfops-accent-hover: #16a34a;
+  --golfops-accent-soft: #153525;
+  --golfops-accent-text: #22c55e;
+
+  --golfops-nav-text: #86efac;
+
+  --golfops-input-bg: #0a1410;
+  --golfops-scroll-track: #14291e;
+  --golfops-scroll-thumb: #2d6b48;
+  --golfops-scroll-thumb-hover: #3a8a5c;
+  --golfops-bag-gold: #ffd700;
+  --golfops-course-label: #6ee7b7;
+  --golfops-hole-number: #86efac;
+  --golfops-hole-bg: rgba(255,255,255,0.12);
+
+  --golfops-shadow:
+    0 1px 3px rgb(0 0 0 / 0.34);
+}
+
+html[data-theme="slate"] {
+  color-scheme: dark;
+
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+
+  --golfops-bg: #0f172a;
+  --golfops-nav: #1e293b;
+  --golfops-surface: #1e293b;
+  --golfops-surface-soft: #273548;
+  --golfops-surface-muted: #273548;
+
+  --golfops-open-slot-a: #1e293b;
+  --golfops-open-slot-b: #273548;
+
+  --golfops-text: #f1f5f9;
+  --golfops-text-secondary: #f1f5f9;
+  --golfops-text-muted: #94a3b8;
+  --golfops-text-dim: #64748b;
+
+  --golfops-border: #334155;
+  --golfops-border-strong: #334155;
+
+  --golfops-accent: #38bdf8;
+  --golfops-accent-hover: #0ea5e9;
+  --golfops-accent-soft: #273548;
+  --golfops-accent-text: #38bdf8;
+
+  --golfops-nav-text: #94a3b8;
+
+  --golfops-input-bg: #0f172a;
+  --golfops-scroll-track: #1e293b;
+  --golfops-scroll-thumb: #475569;
+  --golfops-scroll-thumb-hover: #64748b;
+  --golfops-bag-gold: #ffd700;
+  --golfops-course-label: #7dd3fc;
+  --golfops-hole-number: #7dd3fc;
+  --golfops-hole-bg: rgba(255,255,255,0.12);
+
+  --golfops-shadow:
+    0 1px 3px rgb(0 0 0 / 0.34);
+}
+
+html[data-theme="crimson"] {
+  color-scheme: dark;
+
+  --background: #120a0a;
+  --foreground: #fef2f2;
+
+  --golfops-bg: #120a0a;
+  --golfops-nav: #1f1010;
+  --golfops-surface: #251414;
+  --golfops-surface-soft: #2d1818;
+  --golfops-surface-muted: #2d1818;
+
+  --golfops-open-slot-a: #251414;
+  --golfops-open-slot-b: #2d1818;
+
+  --golfops-text: #fef2f2;
+  --golfops-text-secondary: #fef2f2;
+  --golfops-text-muted: #fca5a5;
+  --golfops-text-dim: #f87171;
+
+  --golfops-border: #4a2020;
+  --golfops-border-strong: #4a2020;
+
+  --golfops-accent: #ef4444;
+  --golfops-accent-hover: #dc2626;
+  --golfops-accent-soft: #2d1818;
+  --golfops-accent-text: #ef4444;
+
+  --golfops-nav-text: #fca5a5;
+
+  --golfops-input-bg: #120a0a;
+  --golfops-scroll-track: #1c0e0e;
+  --golfops-scroll-thumb: #6b2020;
+  --golfops-scroll-thumb-hover: #8b2c2c;
+  --golfops-bag-gold: #ffd700;
+  --golfops-course-label: #fca5a5;
+  --golfops-hole-number: #fca5a5;
+  --golfops-hole-bg: rgba(255,255,255,0.1);
+
+  --golfops-shadow:
+    0 1px 3px rgb(0 0 0 / 0.34);
+}
+
+html[data-theme="gold"] {
+  color-scheme: dark;
+
+  --background: #12100a;
+  --foreground: #fefce8;
+
+  --golfops-bg: #12100a;
+  --golfops-nav: #1f1b0f;
+  --golfops-surface: #252012;
+  --golfops-surface-soft: #2d2716;
+  --golfops-surface-muted: #2d2716;
+
+  --golfops-open-slot-a: #252012;
+  --golfops-open-slot-b: #2d2716;
+
+  --golfops-text: #fefce8;
+  --golfops-text-secondary: #fefce8;
+  --golfops-text-muted: #fde047;
+  --golfops-text-dim: #a3952e;
+
+  --golfops-border: #4a3f1e;
+  --golfops-border-strong: #4a3f1e;
+
+  --golfops-accent: #eab308;
+  --golfops-accent-hover: #ca8a04;
+  --golfops-accent-soft: #2d2716;
+  --golfops-accent-text: #eab308;
+
+  --golfops-nav-text: #fde047;
+
+  --golfops-input-bg: #12100a;
+  --golfops-scroll-track: #1c1a0e;
+  --golfops-scroll-thumb: #6b5f1e;
+  --golfops-scroll-thumb-hover: #8b7a2c;
+  --golfops-bag-gold: #ffd700;
+  --golfops-course-label: #93c5fd;
+  --golfops-hole-number: #eab308;
+  --golfops-hole-bg: rgba(255,255,255,0.12);
+
+  --golfops-shadow:
+    0 1px 3px rgb(0 0 0 / 0.34);
+}
+
+@theme inline {
+  --color-background:
+    var(--background);
+
+  --color-foreground:
+    var(--foreground);
+
+  --font-sans:
+    var(--font-geist-sans);
+
+  --font-mono:
+    var(--font-geist-mono);
+}
+
+html {
+  min-height: 100%;
+  background:
+    var(--golfops-bg);
+}
+
+body {
+  min-height: 100%;
+  background:
+    var(--golfops-bg);
+  color:
+    var(--golfops-text);
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+/*
+  Dark-theme polish:
+  create clearer visual layers so the interface
+  feels intentionally designed rather than simply
+  recolored from the light theme.
+*/
+
+html:not([data-theme="light"]) main {
+  background:
+    transparent;
+}
+
+html:not([data-theme="light"]) .shadow-sm,
+html:not([data-theme="light"]) .shadow,
+html:not([data-theme="light"]) .shadow-md {
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.18),
+    0 10px 24px rgb(0 0 0 / 0.08) !important;
+}
+
+html:not([data-theme="light"]) .rounded-xl.border.bg-white,
+html:not([data-theme="light"]) .rounded-lg.border.bg-white,
+html:not([data-theme="light"]) .rounded-md.border.bg-white {
+  background:
+    var(--golfops-surface) !important;
+  border-color:
+    var(--golfops-border) !important;
+}
+
+html:not([data-theme="light"]) .bg-slate-50\/70 {
+  background-color:
+    color-mix(
+      in srgb,
+      var(--golfops-surface-soft) 78%,
+      transparent
+    ) !important;
+}
+
+html:not([data-theme="light"]) .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html:not([data-theme="light"]) .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color:
+    var(--golfops-border) !important;
+}
+
+html:not([data-theme="light"]) .ring-offset-2 {
+  --tw-ring-offset-color:
+    var(--golfops-surface) !important;
+}
+
+/*
+  Navigation and settings tabs should read as one
+  coherent system. The active tab uses the theme
+  accent; inactive tabs stay subtle.
+*/
+
+html:not([data-theme="light"]) nav a {
+  color:
+    var(--golfops-nav-text);
+}
+
+html:not([data-theme="light"]) nav a[aria-current="page"],
+html:not([data-theme="light"]) nav a[data-active="true"] {
+  color: #ffffff !important;
+  background-color:
+    var(--golfops-accent) !important;
+}
+
+html:not([data-theme="light"]) .text-indigo-500 {
+  color:
+    var(--golfops-accent-text) !important;
+}
+
+html:not([data-theme="light"]) nav a.bg-indigo-600,
+html:not([data-theme="light"]) nav button.bg-indigo-600 {
+  background-color:
+    var(--golfops-accent) !important;
+  color:
+    #ffffff !important;
+}
+
+html:not([data-theme="light"]) nav a:hover,
+html:not([data-theme="light"]) nav button:hover {
+  background-color:
+    var(--golfops-surface-soft);
+}
+
+/*
+  Inputs should stand out from cards without looking
+  like bright white islands.
+*/
+
+html:not([data-theme="light"]) input,
+html:not([data-theme="light"]) select,
+html:not([data-theme="light"]) textarea {
+  background-color:
+    var(--golfops-input-bg);
+}
+
+html:not([data-theme="light"]) input:focus,
+html:not([data-theme="light"]) select:focus,
+html:not([data-theme="light"]) textarea:focus {
+  outline: none;
+  border-color:
+    var(--golfops-accent) !important;
+  box-shadow:
+    0 0 0 2px
+      color-mix(
+        in srgb,
+        var(--golfops-accent) 25%,
+        transparent
+      );
+}
+
+/*
+  Keep alert/status panels legible. Their semantic
+  hue remains, but backgrounds are softened in dark
+  modes to avoid bright patches.
+*/
+
+html:not([data-theme="light"]) .bg-red-50 {
+  background-color:
+    rgb(127 29 29 / 0.16) !important;
+}
+
+html:not([data-theme="light"]) .bg-green-50 {
+  background-color:
+    rgb(22 101 52 / 0.16) !important;
+}
+
+html:not([data-theme="light"]) .bg-amber-50 {
+  background-color:
+    rgb(146 64 14 / 0.16) !important;
+}
+
+html:not([data-theme="light"]) .bg-blue-50 {
+  background-color:
+    rgb(30 64 175 / 0.16) !important;
+}
+
+html:not([data-theme="light"]) .bg-purple-50 {
+  background-color:
+    rgb(107 33 168 / 0.16) !important;
+}
+
+/*
+  Preserve readable button contrast.
+*/
+
+html:not([data-theme="light"]) button.bg-slate-900 {
+  background-color:
+    var(--golfops-accent) !important;
+  color:
+    #ffffff !important;
+}
+
+html:not([data-theme="light"]) button.bg-slate-900:hover {
+  background-color:
+    var(--golfops-accent-hover) !important;
+}
+
+/*
+  Reusable semantic helpers for new pages.
+  Existing pages do not need to be rewritten
+  before they can use the theme, but new work
+  should prefer these variables/classes.
+*/
+
+.golfops-page {
+  background:
+    var(--golfops-bg);
+  color:
+    var(--golfops-text);
+}
+
+.golfops-card {
+  background:
+    var(--golfops-surface);
+  border-color:
+    var(--golfops-border);
+  color:
+    var(--golfops-text);
+  box-shadow:
+    var(--golfops-shadow);
+}
+
+.golfops-card-soft {
+  background:
+    var(--golfops-surface-soft);
+  border-color:
+    var(--golfops-border);
+}
+
+.golfops-muted {
+  color:
+    var(--golfops-text-muted);
+}
+
+.golfops-accent {
+  color:
+    var(--golfops-accent);
+}
+
+/*
+  Compatibility layer for the current app.
+
+  This deliberately targets neutral Tailwind
+  colors only. Operational green/red/amber/
+  cyan/purple indicators remain untouched.
+*/
+
+html:not([data-theme="light"]) .bg-white {
+  background-color:
+    var(--golfops-surface) !important;
+}
+
+html:not([data-theme="light"]) .bg-slate-50 {
+  background-color:
+    var(--golfops-surface-soft) !important;
+}
+
+html:not([data-theme="light"]) .bg-slate-100 {
+  background-color:
+    var(--golfops-surface-muted) !important;
+}
+
+html:not([data-theme="light"]) .bg-slate-200 {
+  background-color:
+    var(--golfops-border) !important;
+}
+
+html:not([data-theme="light"]) [class*="bg-[#f5f5f5]"],
+html:not([data-theme="light"]) [class*="bg-[#f4f4f4]"] {
+  background-color:
+    var(--golfops-bg) !important;
+}
+
+html:not([data-theme="light"]) [class*="bg-[#ededed]"] {
+  background-color:
+    var(--golfops-surface-muted) !important;
+}
+
+html:not([data-theme="light"]) .border-slate-100,
+html:not([data-theme="light"]) .border-slate-200,
+html:not([data-theme="light"]) .border-slate-300 {
+  border-color:
+    var(--golfops-border) !important;
+}
+
+html:not([data-theme="light"]) .border-slate-400 {
+  border-color:
+    var(--golfops-border-strong) !important;
+}
+
+html:not([data-theme="light"]) .text-slate-950,
+html:not([data-theme="light"]) .text-slate-900,
+html:not([data-theme="light"]) .text-slate-800 {
+  color:
+    var(--golfops-text) !important;
+}
+
+html:not([data-theme="light"]) .text-slate-700,
+html:not([data-theme="light"]) .text-slate-600 {
+  color:
+    var(--golfops-text-secondary) !important;
+}
+
+html:not([data-theme="light"]) .text-slate-500 {
+  color:
+    var(--golfops-text-muted) !important;
+}
+
+html:not([data-theme="light"]) .text-slate-400,
+html:not([data-theme="light"]) .text-slate-300 {
+  color:
+    var(--golfops-text-dim) !important;
+}
+
+html:not([data-theme="light"]) .bg-indigo-600 {
+  background-color:
+    var(--golfops-accent) !important;
+}
+
+html:not([data-theme="light"]) .hover\:bg-indigo-700:hover {
+  background-color:
+    var(--golfops-accent-hover) !important;
+}
+
+html:not([data-theme="light"]) .bg-indigo-50 {
+  background-color:
+    var(--golfops-accent-soft) !important;
+}
+
+html:not([data-theme="light"]) .text-indigo-600,
+html:not([data-theme="light"]) .text-indigo-700,
+html:not([data-theme="light"]) .text-indigo-800 {
+  color:
+    var(--golfops-accent-text) !important;
+}
+
+html:not([data-theme="light"]) .border-indigo-600 {
+  border-color:
+    var(--golfops-accent) !important;
+}
+
+html:not([data-theme="light"]) .ring-indigo-500 {
+  --tw-ring-color:
+    var(--golfops-accent) !important;
+}
+
+html:not([data-theme="light"]) .ring-offset-white {
+  --tw-ring-offset-color:
+    var(--golfops-surface) !important;
+}
+
+html:not([data-theme="light"]) input,
+html:not([data-theme="light"]) select,
+html:not([data-theme="light"]) textarea {
+  background-color:
+    var(--golfops-surface);
+  border-color:
+    var(--golfops-border);
+  color:
+    var(--golfops-text);
+}
+
+html:not([data-theme="light"]) input::placeholder,
+html:not([data-theme="light"]) textarea::placeholder {
+  color:
+    var(--golfops-text-dim);
+}
+
+html:not([data-theme="light"]) option {
+  background:
+    var(--golfops-surface);
+  color:
+    var(--golfops-text);
+}
+
+/*
+  Common hover states from the current pages.
+*/
+
+html:not([data-theme="light"]) .hover\:bg-slate-50:hover,
+html:not([data-theme="light"]) .hover\:bg-slate-100:hover {
+  background-color:
+    var(--golfops-surface-soft) !important;
+}
+
+html:not([data-theme="light"]) .hover\:text-slate-800:hover,
+html:not([data-theme="light"]) .hover\:text-slate-900:hover {
+  color:
+    var(--golfops-text) !important;
+}
+
+/*
+  App navigation compatibility.
+
+  This catches the common neutral navigation
+  surfaces while allowing the active accent
+  state to continue using the selected theme.
+*/
+
+html:not([data-theme="light"]) nav.bg-white,
+html:not([data-theme="light"]) header.bg-white {
+  background-color:
+    var(--golfops-nav) !important;
+  border-color:
+    var(--golfops-border) !important;
+}
+
+
+/*
+  Tee-sheet open slots
+
+  Keep the diagonal treatment that makes an
+  empty player position immediately obvious,
+  but use theme-aware neutral tones rather
+  than a bright white block in dark themes.
+*/
+
+.golfops-open-slot {
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      var(--golfops-open-slot-a),
+      var(--golfops-open-slot-a) 10px,
+      var(--golfops-open-slot-b) 10px,
+      var(--golfops-open-slot-b) 20px
+    );
+}
+
+/*
+  Preserve printable cart signs as a white
+  print product regardless of the app theme.
+*/
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .print-page,
+  .placard,
+  .placard * {
+    color-scheme: light;
+  }
+}
+
+
+/*
+  Exact Cart Barn Live theme details.
+*/
+
+html {
+  scrollbar-color:
+    var(--golfops-scroll-thumb)
+    var(--golfops-scroll-track);
+}
+
+html * {
+  scrollbar-width: thin;
+  scrollbar-color:
+    var(--golfops-scroll-thumb)
+    var(--golfops-scroll-track);
+}
+
+html *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html *::-webkit-scrollbar-track {
+  background:
+    var(--golfops-scroll-track);
+}
+
+html *::-webkit-scrollbar-thumb {
+  background:
+    var(--golfops-scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid
+    var(--golfops-scroll-track);
+}
+
+html *::-webkit-scrollbar-thumb:hover {
+  background:
+    var(--golfops-scroll-thumb-hover);
+}
+
+.golfops-course-label {
+  color:
+    var(--golfops-course-label);
+}
+
+.golfops-hole-number {
+  color:
+    var(--golfops-hole-number);
+}
+
+.golfops-hole-badge {
+  color:
+    var(--golfops-hole-number);
+  background:
+    var(--golfops-hole-bg);
+}
+
+.golfops-bag-gold {
+  color:
+    var(--golfops-bag-gold);
+}
+
+
+/*
+  Tee Sheet surface refinements.
+  Keep semantic row highlights visible without
+  reintroducing bright light-mode surfaces.
+*/
+
+.golfops-row-highlight {
+  background:
+    color-mix(
+      in srgb,
+      var(--golfops-accent) 9%,
+      var(--golfops-surface)
+    );
+}
+
+html[data-theme="light"] .golfops-row-highlight {
+  background: #ecfeff;
+}

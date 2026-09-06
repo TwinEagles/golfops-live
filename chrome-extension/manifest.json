@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Cart Barn Live 2",
+  "version": "1.0.1",
+  "description": "Automatically sends ForeTees Proshop Print/Report tee sheets to Cart Barn Live 2.",
+
+  "permissions": [
+    "storage"
+  ],
+
+  "host_permissions": [
+    "https://web.foretees.com/*",
+    "https://*.foretees.com/*",
+    "http://localhost:3000/*"
+  ],
+
+  "options_page": "options.html",
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.foretees.com/*",
+        "https://*.foretees.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
