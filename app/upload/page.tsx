@@ -55,8 +55,7 @@ export default function UploadPage() {
           <div className="flex min-h-20 items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">
-                Cart Barn Live 2
-              </h1>
+GolfOps Live              </h1>
 
               <p className="text-sm text-slate-500">
                 TwinEagles Club
