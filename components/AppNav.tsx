@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -201,8 +202,15 @@ export default async function AppNav({
           href={homeHref}
           className="flex shrink-0 items-center gap-3 py-3"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500">
-            TE
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-slate-100">
+            <Image
+              src="/twineagles-logo.png"
+              alt="TwinEagles Club"
+              width={40}
+              height={40}
+              className="h-full w-full object-contain"
+              priority
+            />
           </div>
 
           <div>
