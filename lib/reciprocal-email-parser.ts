@@ -52,31 +52,13 @@ function decodeHtml(
           Number(code)
         )
     )
-    .replace(/\s+/g, " ")
     .trim();
 }
 
-function stripTags(
+function normalizeLine(
   value: string
 ) {
-  return decodeHtml(
-    value
-      .replace(
-        /<br\s*\/?>/gi,
-        " "
-      )
-      .replace(
-        /<[^>]+>/g,
-        " "
-      )
-  );
-}
-
-function normalizedLabel(
-  value: string
-) {
-  return stripTags(value)
-    .toLowerCase()
+  return decodeHtml(value)
     .replace(
       /[’‘]/g,
       "'"
@@ -85,86 +67,110 @@ function normalizedLabel(
     .trim();
 }
 
-function allFieldValues(
-  html: string,
-  label: string
+function emailLines(
+  value: string
 ) {
-  const values: string[] = [];
-
-  const wanted =
-    normalizedLabel(label);
-
   /*
-    This deliberately scans every table
-    cell rather than requiring the label
-    to be plain text.
+    Add line breaks at the end of
+    elements that commonly contain
+    reciprocal form labels and values.
 
-    Outlook may wrap forwarded labels in
-    spans or other formatting elements.
+    This works with:
+      - the original website HTML
+      - Outlook-forwarded HTML
+      - Postmark's plain-text body
   */
 
-  const cellPattern =
-    /<td\b[^>]*>([\s\S]*?)<\/td>/gi;
-
-  for (
-    const match
-    of html.matchAll(
-      cellPattern
-    )
-  ) {
-    const labelText =
-      normalizedLabel(
-        match[1]
-      );
-
-    if (
-      labelText !== wanted
-    ) {
-      continue;
-    }
-
-    const matchIndex =
-      match.index ?? 0;
-
-    const afterLabel =
-      html.slice(
-        matchIndex +
-          match[0].length
-      );
-
-    const valueMatch =
-      afterLabel.match(
-        /^\s*<td\b[^>]*>([\s\S]*?)<\/td>/i
-      );
-
-    if (!valueMatch) {
-      continue;
-    }
-
-    values.push(
-      stripTags(
-        valueMatch[1]
+  const text =
+    value
+      .replace(
+        /<br\s*\/?>/gi,
+        "\n"
       )
-    );
-  }
+      .replace(
+        /<\/(?:td|tr|h6|div|p|li)>/gi,
+        "\n"
+      )
+      .replace(
+        /<[^>]+>/g,
+        " "
+      );
 
-  return values;
+  return text
+    .split(/\r?\n/)
+    .map(normalizeLine)
+    .filter(Boolean);
 }
 
-function fieldValue(
-  html: string,
-  label: string
+function normalizedKey(
+  value: string
 ) {
+  return normalizeLine(value)
+    .toLowerCase();
+}
+
+function isKnownLabel(
+  value: string
+) {
+  const key =
+    normalizedKey(value);
+
   return (
-    allFieldValues(
-      html,
-      label
-    )[0] ?? ""
+    key === "first name" ||
+    key === "last name" ||
+    key === "member number" ||
+    key === "email address" ||
+    key === "number of players" ||
+    key === "preferred date" ||
+    key === "preferred time" ||
+    key ===
+      "time range (i.e. 8-10 am)" ||
+    key === "time range" ||
+    /^course choice #\d+$/
+      .test(key) ||
+    /^group \d+$/
+      .test(key) ||
+    key === "player's name" ||
+    key === "players name"
   );
 }
 
+function fieldValue(
+  lines: string[],
+  label: string
+) {
+  const wanted =
+    normalizedKey(label);
+
+  const index =
+    lines.findIndex(
+      (line) =>
+        normalizedKey(line) ===
+        wanted
+    );
+
+  if (
+    index < 0 ||
+    index + 1 >=
+      lines.length
+  ) {
+    return "";
+  }
+
+  const candidate =
+    lines[index + 1];
+
+  if (
+    isKnownLabel(candidate)
+  ) {
+    return "";
+  }
+
+  return candidate;
+}
+
 function firstMatchingField(
-  html: string,
+  lines: string[],
   labels: string[]
 ) {
   for (
@@ -173,7 +179,7 @@ function firstMatchingField(
   ) {
     const value =
       fieldValue(
-        html,
+        lines,
         label
       );
 
@@ -252,151 +258,122 @@ function parseUsDate(
   ].join("-");
 }
 
-function headingPositions(
-  html: string
-) {
-  const headings: Array<{
-    text: string;
-    index: number;
-  }> = [];
-
-  const pattern =
-    /<h6\b[^>]*>([\s\S]*?)<\/h6>/gi;
-
-  for (
-    const match
-    of html.matchAll(pattern)
-  ) {
-    headings.push({
-      text:
-        normalizedLabel(
-          match[1]
-        ),
-
-      index:
-        match.index ?? 0,
-    });
-  }
-
-  return headings;
-}
-
-function groupSection(
-  html: string,
+function groupPlayers(
+  lines: string[],
   group: number
 ) {
-  const headings =
-    headingPositions(html);
-
-  const wanted =
+  const groupLabel =
     `group ${group}`;
 
-  const startPosition =
-    headings.findIndex(
-      (heading) =>
-        heading.text ===
-        wanted
+  const start =
+    lines.findIndex(
+      (line) =>
+        normalizedKey(line) ===
+        groupLabel
     );
 
-  if (
-    startPosition < 0
-  ) {
-    return "";
+  if (start < 0) {
+    return [];
   }
 
-  const start =
-    headings[
-      startPosition
-    ].index;
-
-  const nextGroup =
-    headings
-      .slice(
-        startPosition + 1
-      )
-      .find(
-        (heading) =>
-          /^group \d+$/
-            .test(
-              heading.text
-            )
-      );
-
-  const end =
-    nextGroup
-      ? nextGroup.index
-      : html.length;
-
-  return html.slice(
-    start,
-    end
-  );
-}
-
-function parsePlayersFromGroup(
-  section: string
-) {
-  const labels = [
-    "Player's Name",
-    "Players Name",
-  ];
+  let end =
+    lines.length;
 
   for (
-    const label
-    of labels
+    let index = start + 1;
+    index < lines.length;
+    index++
   ) {
-    const players =
-      allFieldValues(
-        section,
-        label
-      )
-        .map(
-          (player) =>
-            player.trim()
-        )
-        .filter(Boolean)
-        .slice(0, 4);
-
     if (
-      players.length > 0
+      /^group \d+$/.test(
+        normalizedKey(
+          lines[index]
+        )
+      )
     ) {
-      return players;
+      end = index;
+      break;
     }
   }
 
-  return [];
+  const players:
+    string[] = [];
+
+  for (
+    let index = start + 1;
+    index < end;
+    index++
+  ) {
+    const key =
+      normalizedKey(
+        lines[index]
+      );
+
+    if (
+      key !==
+        "player's name" &&
+      key !==
+        "players name"
+    ) {
+      continue;
+    }
+
+    const candidate =
+      lines[index + 1];
+
+    if (
+      !candidate ||
+      isKnownLabel(
+        candidate
+      )
+    ) {
+      continue;
+    }
+
+    players.push(
+      candidate
+    );
+
+    index++;
+  }
+
+  return players
+    .slice(0, 4);
 }
 
 export function parseReciprocalEmailHtml(
   html: string
 ): ParsedReciprocalEmail {
+  const lines =
+    emailLines(html);
+
   const firstName =
     fieldValue(
-      html,
+      lines,
       "First Name"
     );
 
   const lastName =
     fieldValue(
-      html,
+      lines,
       "Last Name"
     );
 
   const memberNumber =
     fieldValue(
-      html,
+      lines,
       "Member Number"
     );
 
   const emailAddress =
     fieldValue(
-      html,
+      lines,
       "Email Address"
     );
 
   const numberOfPlayersText =
     fieldValue(
-      html,
+      lines,
       "Number of Players"
     );
 
@@ -408,19 +385,19 @@ export function parseReciprocalEmailHtml(
 
   const preferredDateText =
     fieldValue(
-      html,
+      lines,
       "Preferred Date"
     );
 
   const preferredTime =
     fieldValue(
-      html,
+      lines,
       "Preferred Time"
     );
 
   const timeRange =
     firstMatchingField(
-      html,
+      lines,
       [
         "Time Range (i.e. 8-10 AM)",
         "Time Range",
@@ -432,7 +409,7 @@ export function parseReciprocalEmailHtml(
       .map(
         (index) =>
           fieldValue(
-            html,
+            lines,
             `Course Choice #${index}`
           )
       )
@@ -445,11 +422,9 @@ export function parseReciprocalEmailHtml(
           group,
 
           players:
-            parsePlayersFromGroup(
-              groupSection(
-                html,
-                group
-              )
+            groupPlayers(
+              lines,
+              group
             ),
         })
       )
