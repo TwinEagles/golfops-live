@@ -104,6 +104,31 @@ function subtractDays(
   ].join("-");
 }
 
+function meaningfulWords(
+  value: string
+) {
+  const ignoredWords =
+    new Set([
+      "the",
+      "at",
+      "of",
+      "club",
+      "golf",
+      "course",
+      "country",
+    ]);
+
+  return normalize(value)
+    .split(" ")
+    .filter(
+      (word) =>
+        word.length > 1 &&
+        !ignoredWords.has(
+          word
+        )
+    );
+}
+
 function clubMatchScore(
   choice: string,
   club: ClubRow
@@ -151,56 +176,67 @@ function clubMatchScore(
       continue;
     }
 
-    if (
-      candidate.includes(
+    const targetWords =
+      meaningfulWords(
         target
-      ) ||
-      target.includes(
+      );
+
+    const candidateWords =
+      meaningfulWords(
         candidate
+      );
+
+    if (
+      targetWords.length >= 2 &&
+      candidateWords.length >= 2 &&
+      (
+        candidate.includes(
+          target
+        ) ||
+        target.includes(
+          candidate
+        )
       )
     ) {
       best =
         Math.max(
           best,
-          80
+          85
         );
+
+      continue;
     }
 
-    const targetWords =
+    const candidateWordSet =
       new Set(
-        target.split(" ")
-      );
-
-    const candidateWords =
-      new Set(
-        candidate.split(" ")
+        candidateWords
       );
 
     const overlap =
-      [...targetWords]
+      targetWords
         .filter(
           (word) =>
-            candidateWords.has(
+            candidateWordSet.has(
               word
             )
         )
         .length;
 
-    if (overlap > 0) {
+    const requiredOverlap =
+      Math.min(
+        targetWords.length,
+        candidateWords.length
+      );
+
+    if (
+      overlap >= 2 &&
+      overlap ===
+        requiredOverlap
+    ) {
       best =
         Math.max(
           best,
-
-          Math.round(
-            (
-              overlap /
-              Math.max(
-                targetWords.size,
-                candidateWords.size
-              )
-            ) *
-              60
-          )
+          70
         );
     }
   }
@@ -240,7 +276,7 @@ function pickClub(
 
   return (
     best &&
-    best.score >= 40
+    best.score >= 70
       ? best.club
       : null
   );
