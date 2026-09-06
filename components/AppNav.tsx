@@ -195,7 +195,7 @@ export default async function AppNav({
 
   return (
     <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-4">
+      <div className="relative mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-4">
         {/* BRAND */}
 
         <Link
@@ -226,7 +226,7 @@ export default async function AppNav({
 
         {/* NAVIGATION */}
 
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="hidden min-w-0 items-center gap-2 lg:flex">
           <nav className="flex items-center gap-1 text-sm">
             {canTeeSheet && (
               <Link
@@ -404,6 +404,88 @@ export default async function AppNav({
             </button>
           </form>
         </div>
+
+        {/* MOBILE NAVIGATION */}
+        <details className="group relative lg:hidden">
+          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm [&::-webkit-details-marker]:hidden">
+            <span>Menu</span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="h-4 w-4 transition-transform group-open:rotate-180"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+            </svg>
+          </summary>
+
+          <div className="absolute right-0 top-full z-[100] mt-2 w-[min(290px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+            <nav className="grid gap-1 text-sm">
+              {canTeeSheet && (
+                <Link href={`/dashboard${datedSuffix}`} className={navClass("tee-sheet")}>
+                  Tee Sheet
+                </Link>
+              )}
+              {canTv && (
+                <Link href={`/tv${datedSuffix}`} className={navClass("tv")}>
+                  TV
+                </Link>
+              )}
+              {canChanges && (
+                <Link
+                  href={`/changes${datedSuffix}`}
+                  className={[navClass("changes"), "flex items-center justify-between gap-2"].join(" ")}
+                >
+                  <span>Changes</span>
+                  {changeCount > 0 && (
+                    <span className="flex min-w-[22px] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {changeCount > 99 ? "99+" : changeCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+              {canProShop && (
+                <Link href="/proshop" className={proShopClass}>
+                  Pro Shop
+                </Link>
+              )}
+              {canReciprocals && (
+                <Link href="/reciprocals" className={navClass("proshop")}>
+                  Reciprocals
+                </Link>
+              )}
+              {canUpload && (
+                <Link href="/upload" className={navClass("upload")}>
+                  Upload
+                </Link>
+              )}
+              {canBagFinder && (
+                <Link href="/bagfinder" className={navClass("bag-finder")}>
+                  Bag Finder
+                </Link>
+              )}
+              {canGolfCarts && (
+                <Link href="/carts" className={navClass("golf-carts")}>
+                  Golf Carts
+                </Link>
+              )}
+              <Link href="/settings/account" className={navClass("settings")}>
+                Settings
+              </Link>
+            </nav>
+
+            <form action={signOut} className="mt-2 border-t border-slate-200 pt-2">
+              <button
+                type="submit"
+                className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                Log Out
+              </button>
+            </form>
+          </div>
+        </details>
       </div>
     </header>
   );

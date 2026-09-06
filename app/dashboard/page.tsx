@@ -485,14 +485,14 @@ export default async function DashboardPage({
 
       {/* DATE / PRINT BAR */}
       <div className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-muted)]">
-        <div className="mx-auto flex max-w-[1280px] items-center justify-center gap-6 px-4 py-3">
+        <div className="mx-auto flex max-w-[1280px] items-center justify-center gap-1 px-2 py-3 sm:gap-4 sm:px-4 lg:gap-6">
           <Link
             href={`/print/placards?mode=all&date=${selectedDate}`}
             target="_blank"
             title="Print Cart Signs"
             aria-label="Print Cart Signs"
             className="
-              flex h-12 w-12
+              flex h-10 w-10 shrink-0 sm:h-12 sm:w-12
               items-center justify-center
               rounded-lg
               text-[var(--golfops-text-secondary)]
@@ -526,7 +526,7 @@ export default async function DashboardPage({
 
           <Link
             href={`/dashboard?date=${previousDate}`}
-            className="rounded-md px-3 py-1 text-3xl leading-none text-[var(--golfops-text-secondary)] hover:bg-[var(--golfops-surface-soft)]"
+            className="shrink-0 rounded-md px-2 py-1 text-3xl leading-none text-[var(--golfops-text-secondary)] hover:bg-[var(--golfops-surface-soft)] sm:px-3"
           >
             ‹
           </Link>
@@ -539,7 +539,7 @@ export default async function DashboardPage({
 
           <Link
             href={`/dashboard?date=${nextDate}`}
-            className="rounded-md px-3 py-1 text-3xl leading-none text-[var(--golfops-text-secondary)] hover:bg-[var(--golfops-surface-soft)]"
+            className="shrink-0 rounded-md px-2 py-1 text-3xl leading-none text-[var(--golfops-text-secondary)] hover:bg-[var(--golfops-surface-soft)] sm:px-3"
           >
             ›
           </Link>
@@ -705,7 +705,7 @@ export default async function DashboardPage({
         )}
 
         {/* SEARCH / COUNTS */}
-        <div className="mb-3 flex items-center justify-between rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-status,var(--golfops-surface-soft))] px-3 py-2">
+        <div className="mb-3 flex flex-col gap-3 rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-status,var(--golfops-surface-soft))] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-2">
           <form
             action="/dashboard"
             method="GET"
@@ -728,7 +728,7 @@ export default async function DashboardPage({
             />
           </form>
 
-          <div className="ml-4 whitespace-nowrap text-sm">
+          <div className="whitespace-nowrap text-sm sm:ml-4">
             <span className="font-bold text-[var(--golfops-text)]">
               {occupiedPlayers}
             </span>
@@ -799,26 +799,25 @@ export default async function DashboardPage({
                       teeTime.startingHole,
                   ].join("|")}
                   className={[
-                    "relative grid min-h-[112px] overflow-hidden rounded-md border border-[var(--golfops-border)]",
-                    "grid-cols-[90px_repeat(4,minmax(0,1fr))_52px]",
+                    "relative flex min-h-[112px] flex-col overflow-hidden rounded-lg border border-[var(--golfops-border)] md:grid md:grid-cols-[90px_repeat(4,minmax(0,1fr))_52px] md:rounded-md",
                     groupHighlighted
                       ? "golfops-row-highlight"
                       : "bg-[var(--golfops-surface)]",
                   ].join(" ")}
                 >
                   {/* TIME / COURSE / HOLE */}
-                  <div className="flex flex-col items-center justify-center border-r-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-2 text-center">
+                  <div className="flex items-center justify-between gap-3 border-b-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-4 py-3 text-center md:flex-col md:justify-center md:border-b-0 md:border-r-2 md:px-2 md:py-0">
                     <div className="text-base font-bold text-[var(--golfops-text)]">
                       {formatTime(
                         teeTime.teeTime
                       )}
                     </div>
 
-                    <div className="golfops-course-label mt-2 text-sm font-medium">
+                    <div className="golfops-course-label text-sm font-medium md:mt-2">
                       {teeTime.course}
                     </div>
 
-                    <div className="golfops-hole-badge mt-1 rounded px-2 py-0.5 text-xs font-bold">
+                    <div className="golfops-hole-badge rounded px-2 py-0.5 text-xs font-bold md:mt-1">
                       {formatStartingHole(
                         teeTime.startingPosition,
                         teeTime.startingHole
@@ -838,7 +837,7 @@ export default async function DashboardPage({
                         return (
                           <div
                             key={position}
-                            className="golfops-open-slot border-r border-[var(--golfops-border)]"
+                            className="golfops-open-slot min-h-[52px] border-b border-[var(--golfops-border)] md:min-h-0 md:border-b-0 md:border-r"
                           />
                         );
                       }
@@ -846,7 +845,7 @@ export default async function DashboardPage({
                       return (
                         <div
                           key={position}
-                          className="relative border-r border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-3 py-2"
+                          className="relative min-h-[108px] border-b border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-4 py-3 md:min-h-0 md:border-b-0 md:border-r md:px-3 md:py-2"
                         >
                           {/* LARGE BAG NUMBER */}
                           <div className="pr-10 text-xl font-bold leading-none text-[var(--golfops-text)]">
@@ -910,9 +909,16 @@ export default async function DashboardPage({
                   )}
 
                   {/* EDIT / DONE */}
-                  <div className="flex items-center justify-center bg-[var(--golfops-surface)]">
+                  <div className="hidden items-center justify-center bg-[var(--golfops-surface)] md:flex">
                     <TeeTimeEditRow
                       slots={editSlots}
+                    />
+                  </div>
+
+                  <div className="bg-[var(--golfops-surface)] p-2 md:hidden">
+                    <TeeTimeEditRow
+                      slots={editSlots}
+                      mobile
                     />
                   </div>
                 </div>

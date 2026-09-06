@@ -469,3 +469,115 @@ export async function POST(
     },
   });
 }
+
+type DeleteUserBody = {
+  userId?: string;
+};
+
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "You must be signed in." },
+      { status: 401 }
+    );
+  }
+
+  const { data: adminProfile, error: profileError } = await supabase
+    .from("profiles")
+    .select("club_id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (
+    profileError ||
+    !adminProfile?.club_id ||
+    adminProfile.role !== "admin"
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "Admin access required." },
+      { status: 403 }
+    );
+  }
+
+  let body: DeleteUserBody;
+
+  try {
+    body = (await request.json()) as DeleteUserBody;
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Invalid request." },
+      { status: 400 }
+    );
+  }
+
+  const targetUserId =
+    typeof body.userId === "string" ? body.userId.trim() : "";
+
+  if (!targetUserId) {
+    return NextResponse.json(
+      { ok: false, error: "User ID is required." },
+      { status: 400 }
+    );
+  }
+
+  if (targetUserId === user.id) {
+    return NextResponse.json(
+      { ok: false, error: "You cannot remove your own account." },
+      { status: 400 }
+    );
+  }
+
+  const { data: targetProfile, error: targetProfileError } = await supabase
+    .from("profiles")
+    .select("id, club_id")
+    .eq("id", targetUserId)
+    .single();
+
+  if (
+    targetProfileError ||
+    !targetProfile ||
+    targetProfile.club_id !== adminProfile.club_id
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "User was not found for your club." },
+      { status: 404 }
+    );
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error("GolfOps Admin user removal configuration missing.");
+
+    return NextResponse.json(
+      { ok: false, error: "User removal is not configured on the server." },
+      { status: 500 }
+    );
+  }
+
+  const adminSupabase = createAdminClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const { error: deleteUserError } =
+    await adminSupabase.auth.admin.deleteUser(targetUserId);
+
+  if (deleteUserError) {
+    return NextResponse.json(
+      { ok: false, error: deleteUserError.message },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true });
+}

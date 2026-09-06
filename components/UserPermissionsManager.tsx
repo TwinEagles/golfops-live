@@ -89,6 +89,7 @@ export default function UserPermissionsManager({
 
   const [users, setUsers] = useState<GolfOpsUserRow[]>(initialUsers);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -267,6 +268,45 @@ export default function UserPermissionsManager({
     setSavingKey(null);
   }
 
+  async function removeUser(user: GolfOpsUserRow) {
+    if (user.id === currentUserId || savingKey || removingUserId) return;
+
+    const userName = user.display_name || user.email || "this user";
+    const confirmed = window.confirm(
+      `Remove ${userName} from GolfOps Live?\n\nThis permanently deletes their login and access. This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setError(null);
+    setMessage(null);
+    setRemovingUserId(user.id);
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || "Unable to remove user.");
+      }
+
+      setUsers((current) =>
+        current.filter((currentUser) => currentUser.id !== user.id)
+      );
+      setMessage(`${userName} was removed successfully.`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to remove user.");
+    } finally {
+      setRemovingUserId(null);
+    }
+  }
+
   return (
     <div className="space-y-5">
       {error && (
@@ -438,7 +478,7 @@ export default function UserPermissionsManager({
         )}
 
         <div className="overflow-x-auto">
-          <table className="min-w-[1320px] w-full border-collapse text-sm">
+          <table className="min-w-[1430px] w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)]">
                 <th className="sticky left-0 z-10 min-w-[235px] bg-[var(--golfops-surface-soft)] px-5 py-3 text-left font-semibold">
@@ -459,6 +499,10 @@ export default function UserPermissionsManager({
                     {column.label}
                   </th>
                 ))}
+
+                <th className="min-w-[120px] px-4 py-3 text-center font-semibold">
+                  Actions
+                </th>
               </tr>
             </thead>
 
@@ -531,6 +575,26 @@ export default function UserPermissionsManager({
                         </td>
                       );
                     })}
+
+                    <td className="px-4 py-4 text-center">
+                      <button
+                        type="button"
+                        disabled={
+                          isCurrentUser ||
+                          savingKey !== null ||
+                          removingUserId !== null
+                        }
+                        onClick={() => removeUser(user)}
+                        title={
+                          isCurrentUser
+                            ? "You cannot remove your own account."
+                            : `Remove ${user.display_name || "user"}`
+                        }
+                        className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {removingUserId === user.id ? "Removing..." : "Remove"}
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
