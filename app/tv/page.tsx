@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppNav from "@/components/AppNav";
 import TvClock from "../../components/TvClock";
 import TvChangesAutoScroll from "../../components/TvChangesAutoScroll";
+import TvDisplayRefresh from "@/components/TvDisplayRefresh";
 
 type SearchParams = Promise<{
   date?: string;
@@ -596,6 +597,8 @@ export default async function TvPage({
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
+      <TvDisplayRefresh selectedDate={selectedDate} />
+
       <AppNav
         active="tv"
         selectedDate={
