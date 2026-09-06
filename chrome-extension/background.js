@@ -1,5 +1,5 @@
 const APP_URL =
-  "http://localhost:3000";
+  "https://golfops-live.vercel.app";
 
 const STORAGE_KEYS = [
   "access_token",

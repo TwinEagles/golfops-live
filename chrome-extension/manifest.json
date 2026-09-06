@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Cart Barn Live 2",
-  "version": "1.0.1",
-  "description": "Automatically sends ForeTees Proshop Print/Report tee sheets to Cart Barn Live 2.",
+  "name": "GolfOps Live",
+  "version": "1.0.2",
+  "description": "Automatically sends ForeTees Proshop Print/Report tee sheets to GolfOps Live.",
 
   "permissions": [
     "storage"
@@ -11,7 +11,7 @@
   "host_permissions": [
     "https://web.foretees.com/*",
     "https://*.foretees.com/*",
-    "http://localhost:3000/*"
+    "https://golfops-live.vercel.app/*"
   ],
 
   "options_page": "options.html",
