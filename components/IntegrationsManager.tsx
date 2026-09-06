@@ -154,13 +154,15 @@ export default function IntegrationsManager() {
 
                   <GuideBlock
                     title="Send a tee sheet"
-                    steps={[
-                      "Open ForeTees and display the tee sheet you want to import.",
-                      "Use the -ALL- tee sheet view when available.",
-                      "Open the GolfOps Live extension and choose Send Tee Sheet.",
-                      "Return to GolfOps Live and verify the imported date and player count.",
-                    ]}
-                  />
+steps={[
+  "Open ForeTees and select the tee-sheet date you want to import.",
+  "Set Course to -ALL-.",
+  "Click the blue printer icon above the tee sheet.",
+  "Select Bag Report, then Double Line, then Large Font.",
+  "Allow the report page to load while the GolfOps Live extension sends it automatically.",
+  "Wait for the green Import Successful confirmation.",
+  "Return to GolfOps Live and verify the imported date and player count.",
+]}                  />
                 </div>
               </div>
             )}
@@ -170,8 +172,7 @@ export default function IntegrationsManager() {
 
       {/* IPHONE BOOKMARKLET */}
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-6 py-5">
+<section className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">        <div className="border-b border-slate-200 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xl">
               📱
