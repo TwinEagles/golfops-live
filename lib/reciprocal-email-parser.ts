@@ -3,72 +3,210 @@ export type ParsedReciprocalEmail = {
   lastName: string;
   memberNumber: string;
   emailAddress: string;
-  numberOfPlayers: number | null;
-  preferredDate: string | null;
-  preferredTime: string | null;
-  timeRange: string | null;
+  numberOfPlayers:
+    | number
+    | null;
+  preferredDate:
+    | string
+    | null;
+  preferredTime:
+    | string
+    | null;
+  timeRange:
+    | string
+    | null;
   courseChoices: string[];
+
   groups: Array<{
     group: number;
     players: string[];
   }>;
 };
 
-function decodeHtml(value: string) {
+function decodeHtml(
+  value: string
+) {
   return value
-    .replace(/&nbsp;/gi, " ")
+    .replace(
+      /&nbsp;|&#160;/gi,
+      " "
+    )
     .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
+    .replace(
+      /&quot;/gi,
+      '"'
+    )
+    .replace(
+      /&#39;|&apos;/gi,
+      "'"
+    )
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (_, code: string) =>
-      String.fromCharCode(Number(code))
+    .replace(
+      /&#(\d+);/g,
+      (
+        _,
+        code: string
+      ) =>
+        String.fromCharCode(
+          Number(code)
+        )
     )
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function stripTags(value: string) {
+function stripTags(
+  value: string
+) {
   return decodeHtml(
     value
-      .replace(/<br\s*\/?>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
+      .replace(
+        /<br\s*\/?>/gi,
+        " "
+      )
+      .replace(
+        /<[^>]+>/g,
+        " "
+      )
   );
 }
 
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function normalizedLabel(
+  value: string
+) {
+  return stripTags(value)
+    .toLowerCase()
+    .replace(
+      /[’‘]/g,
+      "'"
+    )
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function fieldValue(html: string, label: string) {
-  const labelPattern = escapeRegex(label);
+function allFieldValues(
+  html: string,
+  label: string
+) {
+  const values: string[] = [];
 
-  const pattern = new RegExp(
-    `<td[^>]*>\\s*${labelPattern}\\s*<\\/td>\\s*<td[^>]*>([\\s\\S]*?)<\\/td>`,
-    "i"
+  const wanted =
+    normalizedLabel(label);
+
+  /*
+    This deliberately scans every table
+    cell rather than requiring the label
+    to be plain text.
+
+    Outlook may wrap forwarded labels in
+    spans or other formatting elements.
+  */
+
+  const cellPattern =
+    /<td\b[^>]*>([\s\S]*?)<\/td>/gi;
+
+  for (
+    const match
+    of html.matchAll(
+      cellPattern
+    )
+  ) {
+    const labelText =
+      normalizedLabel(
+        match[1]
+      );
+
+    if (
+      labelText !== wanted
+    ) {
+      continue;
+    }
+
+    const matchIndex =
+      match.index ?? 0;
+
+    const afterLabel =
+      html.slice(
+        matchIndex +
+          match[0].length
+      );
+
+    const valueMatch =
+      afterLabel.match(
+        /^\s*<td\b[^>]*>([\s\S]*?)<\/td>/i
+      );
+
+    if (!valueMatch) {
+      continue;
+    }
+
+    values.push(
+      stripTags(
+        valueMatch[1]
+      )
+    );
+  }
+
+  return values;
+}
+
+function fieldValue(
+  html: string,
+  label: string
+) {
+  return (
+    allFieldValues(
+      html,
+      label
+    )[0] ?? ""
   );
-
-  const match = html.match(pattern);
-  return match ? stripTags(match[1]) : "";
 }
 
-function firstMatchingField(html: string, labels: string[]) {
-  for (const label of labels) {
-    const value = fieldValue(html, label);
-    if (value) return value;
+function firstMatchingField(
+  html: string,
+  labels: string[]
+) {
+  for (
+    const label
+    of labels
+  ) {
+    const value =
+      fieldValue(
+        html,
+        label
+      );
+
+    if (value) {
+      return value;
+    }
   }
 
   return "";
 }
 
-function parseUsDate(value: string) {
-  const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!match) return null;
+function parseUsDate(
+  value: string
+) {
+  const match =
+    value
+      .trim()
+      .match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+      );
 
-  const month = Number(match[1]);
-  const day = Number(match[2]);
-  const year = Number(match[3]);
+  if (!match) {
+    return null;
+  }
+
+  const month =
+    Number(match[1]);
+
+  const day =
+    Number(match[2]);
+
+  const year =
+    Number(match[3]);
 
   if (
     month < 1 ||
@@ -80,90 +218,273 @@ function parseUsDate(value: string) {
     return null;
   }
 
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(
-    2,
-    "0"
-  )}`;
+  const candidate =
+    new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day
+      )
+    );
+
+  if (
+    candidate
+      .getUTCFullYear() !==
+      year ||
+    candidate
+      .getUTCMonth() !==
+      month - 1 ||
+    candidate
+      .getUTCDate() !==
+      day
+  ) {
+    return null;
+  }
+
+  return [
+    year,
+
+    String(month)
+      .padStart(2, "0"),
+
+    String(day)
+      .padStart(2, "0"),
+  ].join("-");
 }
 
-function parsePlayersFromGroup(section: string) {
-  const players: string[] = [];
+function headingPositions(
+  html: string
+) {
+  const headings: Array<{
+    text: string;
+    index: number;
+  }> = [];
 
   const pattern =
-    /<td[^>]*>\s*Player(?:'|&#39;|&apos;)?s Name\s*<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/gi;
+    /<h6\b[^>]*>([\s\S]*?)<\/h6>/gi;
 
-  for (const match of section.matchAll(pattern)) {
-    const player = stripTags(match[1]);
+  for (
+    const match
+    of html.matchAll(pattern)
+  ) {
+    headings.push({
+      text:
+        normalizedLabel(
+          match[1]
+        ),
 
-    if (player) {
-      players.push(player);
+      index:
+        match.index ?? 0,
+    });
+  }
+
+  return headings;
+}
+
+function groupSection(
+  html: string,
+  group: number
+) {
+  const headings =
+    headingPositions(html);
+
+  const wanted =
+    `group ${group}`;
+
+  const startPosition =
+    headings.findIndex(
+      (heading) =>
+        heading.text ===
+        wanted
+    );
+
+  if (
+    startPosition < 0
+  ) {
+    return "";
+  }
+
+  const start =
+    headings[
+      startPosition
+    ].index;
+
+  const nextGroup =
+    headings
+      .slice(
+        startPosition + 1
+      )
+      .find(
+        (heading) =>
+          /^group \d+$/
+            .test(
+              heading.text
+            )
+      );
+
+  const end =
+    nextGroup
+      ? nextGroup.index
+      : html.length;
+
+  return html.slice(
+    start,
+    end
+  );
+}
+
+function parsePlayersFromGroup(
+  section: string
+) {
+  const labels = [
+    "Player's Name",
+    "Players Name",
+  ];
+
+  for (
+    const label
+    of labels
+  ) {
+    const players =
+      allFieldValues(
+        section,
+        label
+      )
+        .map(
+          (player) =>
+            player.trim()
+        )
+        .filter(Boolean)
+        .slice(0, 4);
+
+    if (
+      players.length > 0
+    ) {
+      return players;
     }
   }
 
-  return players.slice(0, 4);
-}
-
-function groupSection(html: string, group: number) {
-  const startPattern = new RegExp(
-    `<h6>\\s*Group\\s+${group}\\s*<\\/h6>`,
-    "i"
-  );
-
-  const start = html.search(startPattern);
-  if (start < 0) return "";
-
-  const remainder = html.slice(start);
-  const nextPattern =
-    group < 4
-      ? new RegExp(`<h6>\\s*Group\\s+${group + 1}\\s*<\\/h6>`, "i")
-      : /<\/body>/i;
-
-  const next = remainder.search(nextPattern);
-
-  return next > 0 ? remainder.slice(0, next) : remainder;
+  return [];
 }
 
 export function parseReciprocalEmailHtml(
   html: string
 ): ParsedReciprocalEmail {
-  const firstName = fieldValue(html, "First Name");
-  const lastName = fieldValue(html, "Last Name");
-  const memberNumber = fieldValue(html, "Member Number");
-  const emailAddress = fieldValue(html, "Email Address");
+  const firstName =
+    fieldValue(
+      html,
+      "First Name"
+    );
 
-  const numberOfPlayersText = fieldValue(html, "Number of Players");
-  const numberOfPlayersValue = Number.parseInt(numberOfPlayersText, 10);
+  const lastName =
+    fieldValue(
+      html,
+      "Last Name"
+    );
 
-  const preferredDateText = fieldValue(html, "Preferred Date");
-  const preferredTime = fieldValue(html, "Preferred Time");
+  const memberNumber =
+    fieldValue(
+      html,
+      "Member Number"
+    );
 
-  const timeRange = firstMatchingField(html, [
-    "Time Range (i.e. 8-10 AM)",
-    "Time Range",
-  ]);
+  const emailAddress =
+    fieldValue(
+      html,
+      "Email Address"
+    );
 
-  const courseChoices = [1, 2, 3, 4]
-    .map((index) => fieldValue(html, `Course Choice #${index}`))
-    .filter(Boolean);
+  const numberOfPlayersText =
+    fieldValue(
+      html,
+      "Number of Players"
+    );
 
-  const groups = [1, 2, 3, 4]
-    .map((group) => ({
-      group,
-      players: parsePlayersFromGroup(groupSection(html, group)),
-    }))
-    .filter((group) => group.players.length > 0);
+  const numberOfPlayersValue =
+    Number.parseInt(
+      numberOfPlayersText,
+      10
+    );
+
+  const preferredDateText =
+    fieldValue(
+      html,
+      "Preferred Date"
+    );
+
+  const preferredTime =
+    fieldValue(
+      html,
+      "Preferred Time"
+    );
+
+  const timeRange =
+    firstMatchingField(
+      html,
+      [
+        "Time Range (i.e. 8-10 AM)",
+        "Time Range",
+      ]
+    );
+
+  const courseChoices =
+    [1, 2, 3, 4]
+      .map(
+        (index) =>
+          fieldValue(
+            html,
+            `Course Choice #${index}`
+          )
+      )
+      .filter(Boolean);
+
+  const groups =
+    [1, 2, 3, 4]
+      .map(
+        (group) => ({
+          group,
+
+          players:
+            parsePlayersFromGroup(
+              groupSection(
+                html,
+                group
+              )
+            ),
+        })
+      )
+      .filter(
+        (group) =>
+          group.players
+            .length > 0
+      );
 
   return {
     firstName,
     lastName,
     memberNumber,
     emailAddress,
-    numberOfPlayers: Number.isFinite(numberOfPlayersValue)
-      ? numberOfPlayersValue
-      : null,
-    preferredDate: parseUsDate(preferredDateText),
-    preferredTime: preferredTime || null,
-    timeRange: timeRange || null,
+
+    numberOfPlayers:
+      Number.isFinite(
+        numberOfPlayersValue
+      )
+        ? numberOfPlayersValue
+        : null,
+
+    preferredDate:
+      parseUsDate(
+        preferredDateText
+      ),
+
+    preferredTime:
+      preferredTime ||
+      null,
+
+    timeRange:
+      timeRange ||
+      null,
+
     courseChoices,
     groups,
   };
