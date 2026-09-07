@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import SchedulePopImporter from "@/components/SchedulePopImporter";
 
 type Shift = "OPENING" | "MIDDAY" | "CLOSING";
-type Item = { id: string; shift: Shift; item_order: number; item_text: string; active: boolean };
+type Item = { id: string; team_group: string; shift: Shift; item_order: number; item_text: string; active: boolean };
 type Completion = { id: string; item_id: string; operator_name: string; completed_at: string };
 type Handoff = { id: string; category: string; note: string; status: "OPEN" | "RESOLVED"; created_by_name: string; created_at: string; resolved_by_name: string | null; resolved_at: string | null };
 type StaffingRow = { id: string; employee_name: string; job_title: string; start_time: string | null; end_time: string | null; duty: string | null; zone: string | null; status: string; notes: string | null };
@@ -14,6 +14,14 @@ const shifts: Array<{ key: Shift; label: string }> = [
   { key: "OPENING", label: "Opening" }, { key: "MIDDAY", label: "Midday" }, { key: "CLOSING", label: "Closing" },
 ];
 const categories = ["GENERAL", "MEMBER", "BAG", "CART", "RANGE", "FACILITY"];
+const teamGroups = [
+  { key: "OUTSIDE_OPERATIONS", label: "Outside Operations" },
+  { key: "STARTER_PLAYER_ASSISTANT", label: "Starter / Player Assistant" },
+  { key: "RANGE", label: "Range" },
+  { key: "GOLF_SHOP", label: "Golf Shop" },
+  { key: "INSTRUCTION", label: "Instruction / Player Development" },
+  { key: "GENERAL", label: "General" },
+];
 
 function time(value: string) {
   return new Date(value).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
@@ -33,6 +41,7 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [newShift, setNewShift] = useState<Shift>("OPENING");
+  const [newTeamGroup, setNewTeamGroup] = useState("OUTSIDE_OPERATIONS");
   const [newDuty, setNewDuty] = useState("");
 
   useEffect(() => { setOperatorName(window.localStorage.getItem("golfops-outside-operator") ?? ""); }, []);
@@ -92,7 +101,7 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
     if (!newDuty.trim()) { setError("Enter a duty to add."); return; }
     setBusy("add-duty"); setError(""); setMessage("");
     try {
-      const result = await post({ action: "add_item", shift: newShift, itemText: newDuty.trim() });
+      const result = await post({ action: "add_item", teamGroup: newTeamGroup, shift: newShift, itemText: newDuty.trim() });
       setItems((current) => [...current, result.item]); setNewDuty(""); setMessage(`${newShift.charAt(0) + newShift.slice(1).toLowerCase()} duty added.`);
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add duty."); }
     finally { setBusy(null); }
@@ -119,14 +128,14 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
   }
 
   async function moveDuty(item: Item, direction: -1 | 1) {
-    const shiftItems = items.filter((entry) => entry.shift === item.shift).sort((a, b) => a.item_order - b.item_order);
+    const shiftItems = items.filter((entry) => entry.team_group === item.team_group && entry.shift === item.shift).sort((a, b) => a.item_order - b.item_order);
     const index = shiftItems.findIndex((entry) => entry.id === item.id);
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= shiftItems.length) return;
     [shiftItems[index], shiftItems[nextIndex]] = [shiftItems[nextIndex], shiftItems[index]];
     setBusy(`move:${item.id}`); setError(""); setMessage("");
     try {
-      await post({ action: "reorder_items", shift: item.shift, orderedIds: shiftItems.map((entry) => entry.id) });
+      await post({ action: "reorder_items", teamGroup: item.team_group, shift: item.shift, orderedIds: shiftItems.map((entry) => entry.id) });
       const orderMap = new Map(shiftItems.map((entry, itemIndex) => [entry.id, (itemIndex + 1) * 10]));
       setItems((current) => current.map((entry) => orderMap.has(entry.id) ? { ...entry, item_order: orderMap.get(entry.id)! } : entry));
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to reorder duties."); }
@@ -196,13 +205,14 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
       {isAdmin && (
         <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
           <header className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4 sm:px-5"><div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">Admin</div><h2 className="mt-1 text-xl font-bold">Checklist Setup</h2><p className="mt-1 text-sm text-[var(--golfops-text-muted)]">Add and maintain the duties shown to the Outside Operations TEAM.</p></header>
-          <form onSubmit={addDuty} className="grid gap-3 border-b border-[var(--golfops-border)] p-4 sm:p-5 md:grid-cols-[180px_1fr_auto]">
+          <form onSubmit={addDuty} className="grid gap-3 border-b border-[var(--golfops-border)] p-4 sm:p-5 md:grid-cols-[220px_180px_1fr_auto]">
+            <select value={newTeamGroup} onChange={(event) => setNewTeamGroup(event.target.value)} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-input-bg)] px-3 py-3 text-sm font-semibold">{teamGroups.map((group) => <option key={group.key} value={group.key}>{group.label}</option>)}</select>
             <select value={newShift} onChange={(event) => setNewShift(event.target.value as Shift)} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-input-bg)] px-3 py-3 text-sm font-semibold">{shifts.map((shift) => <option key={shift.key} value={shift.key}>{shift.label}</option>)}</select>
             <input value={newDuty} onChange={(event) => setNewDuty(event.target.value)} placeholder="Enter a new opening, midday, or closing duty" className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-input-bg)] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[var(--golfops-accent)]" />
             <button disabled={busy !== null} className="rounded-lg bg-[var(--golfops-accent)] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{busy === "add-duty" ? "Adding..." : "Add Duty"}</button>
           </form>
-          <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-3">
-            {shifts.map((shift) => <div key={shift.key}><h3 className="mb-2 font-bold">{shift.label}</h3><div className="space-y-2">{items.filter((item) => item.shift === shift.key).sort((a, b) => a.item_order - b.item_order).map((item, index, shiftItems) => <div key={item.id} className={`rounded-lg border border-[var(--golfops-border)] p-3 ${item.active ? "bg-[var(--golfops-surface)]" : "bg-slate-100 opacity-65"}`}><div className="text-sm font-semibold leading-5">{item.item_text}</div><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy !== null || index === 0} onClick={() => moveDuty(item, -1)} className="rounded border px-2 py-1 text-xs font-bold disabled:opacity-40">↑ Up</button><button type="button" disabled={busy !== null || index === shiftItems.length - 1} onClick={() => moveDuty(item, 1)} className="rounded border px-2 py-1 text-xs font-bold disabled:opacity-40">↓ Down</button><button type="button" disabled={busy !== null} onClick={() => renameDuty(item)} className="rounded border px-2 py-1 text-xs font-bold">Edit</button><button type="button" disabled={busy !== null} onClick={() => setDutyActive(item)} className="rounded border px-2 py-1 text-xs font-bold">{item.active ? "Retire" : "Restore"}</button></div></div>)}</div></div>)}
+          <div className="grid gap-6 p-4 sm:p-5 lg:grid-cols-2">
+            {teamGroups.map((group) => <div key={group.key}><h3 className="mb-3 font-bold">{group.label}</h3><div className="space-y-4">{shifts.map((shift) => { const shiftItems = items.filter((item) => item.team_group === group.key && item.shift === shift.key).sort((a, b) => a.item_order - b.item_order); if (!shiftItems.length) return null; return <div key={shift.key}><div className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--golfops-text-muted)]">{shift.label}</div><div className="space-y-2">{shiftItems.map((item, index) => <div key={item.id} className={`rounded-lg border border-[var(--golfops-border)] p-3 ${item.active ? "bg-[var(--golfops-surface)]" : "bg-slate-100 opacity-65"}`}><div className="text-sm font-semibold leading-5">{item.item_text}</div><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy !== null || index === 0} onClick={() => moveDuty(item, -1)} className="rounded border px-2 py-1 text-xs font-bold disabled:opacity-40">↑ Up</button><button type="button" disabled={busy !== null || index === shiftItems.length - 1} onClick={() => moveDuty(item, 1)} className="rounded border px-2 py-1 text-xs font-bold disabled:opacity-40">↓ Down</button><button type="button" disabled={busy !== null} onClick={() => renameDuty(item)} className="rounded border px-2 py-1 text-xs font-bold">Edit</button><button type="button" disabled={busy !== null} onClick={() => setDutyActive(item)} className="rounded border px-2 py-1 text-xs font-bold">{item.active ? "Retire" : "Restore"}</button></div></div>)}</div></div>; })}</div></div>)}
           </div>
         </section>
       )}

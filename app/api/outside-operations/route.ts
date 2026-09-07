@@ -7,14 +7,15 @@ type ActionBody =
   | { action: "uncomplete"; itemId: string; workDate: string }
   | { action: "add_handoff"; workDate: string; operatorName: string; category: string; note: string }
   | { action: "resolve_handoff"; handoffId: string; operatorName: string; resolved: boolean }
-  | { action: "add_item"; shift: string; itemText: string }
+  | { action: "add_item"; shift: string; teamGroup: string; itemText: string }
   | { action: "rename_item"; itemId: string; itemText: string }
   | { action: "set_item_active"; itemId: string; active: boolean }
-  | { action: "reorder_items"; shift: string; orderedIds: string[] };
+  | { action: "reorder_items"; teamGroup: string; shift: string; orderedIds: string[] };
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const categories = new Set(["GENERAL", "MEMBER", "BAG", "CART", "RANGE", "FACILITY"]);
 const shifts = new Set(["OPENING", "MIDDAY", "CLOSING"]);
+const teamGroups = new Set(["OUTSIDE_OPERATIONS", "STARTER_PLAYER_ASSISTANT", "RANGE", "GOLF_SHOP", "INSTRUCTION", "GENERAL"]);
 
 export async function POST(request: Request) {
   const access = await getGolfOpsAccess();
@@ -32,9 +33,9 @@ export async function POST(request: Request) {
   if (body.action === "add_item") {
     if (!access.isAdmin) return NextResponse.json({ ok: false, error: "Admin access required." }, { status: 403 });
     const itemText = body.itemText?.trim();
-    if (!itemText || !shifts.has(body.shift)) return NextResponse.json({ ok: false, error: "Shift and duty are required." }, { status: 400 });
-    const { data: lastItem } = await supabase.from("outside_ops_checklist_items").select("item_order").eq("club_id", access.clubId).eq("shift", body.shift).order("item_order", { ascending: false }).limit(1).maybeSingle();
-    const { data, error } = await supabase.from("outside_ops_checklist_items").insert({ club_id: access.clubId, shift: body.shift, item_text: itemText, item_order: (lastItem?.item_order ?? 0) + 10, active: true }).select("id, shift, item_order, item_text, active").single();
+    if (!itemText || !shifts.has(body.shift) || !teamGroups.has(body.teamGroup)) return NextResponse.json({ ok: false, error: "Group, shift, and duty are required." }, { status: 400 });
+    const { data: lastItem } = await supabase.from("outside_ops_checklist_items").select("item_order").eq("club_id", access.clubId).eq("team_group", body.teamGroup).eq("shift", body.shift).order("item_order", { ascending: false }).limit(1).maybeSingle();
+    const { data, error } = await supabase.from("outside_ops_checklist_items").insert({ club_id: access.clubId, team_group: body.teamGroup, shift: body.shift, item_text: itemText, item_order: (lastItem?.item_order ?? 0) + 10, active: true }).select("id, team_group, shift, item_order, item_text, active").single();
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, item: data });
   }
@@ -43,23 +44,23 @@ export async function POST(request: Request) {
     if (!access.isAdmin) return NextResponse.json({ ok: false, error: "Admin access required." }, { status: 403 });
     const itemText = body.itemText?.trim();
     if (!body.itemId || !itemText) return NextResponse.json({ ok: false, error: "Duty is required." }, { status: 400 });
-    const { data, error } = await supabase.from("outside_ops_checklist_items").update({ item_text: itemText }).eq("id", body.itemId).eq("club_id", access.clubId).select("id, shift, item_order, item_text, active").single();
+    const { data, error } = await supabase.from("outside_ops_checklist_items").update({ item_text: itemText }).eq("id", body.itemId).eq("club_id", access.clubId).select("id, team_group, shift, item_order, item_text, active").single();
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, item: data });
   }
 
   if (body.action === "set_item_active") {
     if (!access.isAdmin) return NextResponse.json({ ok: false, error: "Admin access required." }, { status: 403 });
-    const { data, error } = await supabase.from("outside_ops_checklist_items").update({ active: body.active }).eq("id", body.itemId).eq("club_id", access.clubId).select("id, shift, item_order, item_text, active").single();
+    const { data, error } = await supabase.from("outside_ops_checklist_items").update({ active: body.active }).eq("id", body.itemId).eq("club_id", access.clubId).select("id, team_group, shift, item_order, item_text, active").single();
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, item: data });
   }
 
   if (body.action === "reorder_items") {
     if (!access.isAdmin) return NextResponse.json({ ok: false, error: "Admin access required." }, { status: 403 });
-    if (!shifts.has(body.shift) || !Array.isArray(body.orderedIds)) return NextResponse.json({ ok: false, error: "Invalid duty order." }, { status: 400 });
+    if (!shifts.has(body.shift) || !teamGroups.has(body.teamGroup) || !Array.isArray(body.orderedIds)) return NextResponse.json({ ok: false, error: "Invalid duty order." }, { status: 400 });
     for (let index = 0; index < body.orderedIds.length; index += 1) {
-      const { error } = await supabase.from("outside_ops_checklist_items").update({ item_order: (index + 1) * 10 }).eq("id", body.orderedIds[index]).eq("club_id", access.clubId).eq("shift", body.shift);
+      const { error } = await supabase.from("outside_ops_checklist_items").update({ item_order: (index + 1) * 10 }).eq("id", body.orderedIds[index]).eq("club_id", access.clubId).eq("team_group", body.teamGroup).eq("shift", body.shift);
       if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
     return NextResponse.json({ ok: true });
