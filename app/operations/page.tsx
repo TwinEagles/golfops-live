@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AppNav from "@/components/AppNav";
+import OperationsRefresh from "@/components/OperationsRefresh";
 import { getGolfOpsAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 
@@ -236,6 +237,7 @@ export default async function OperationsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
+      <OperationsRefresh />
       <AppNav active="operations" selectedDate={today} />
 
       <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-5 sm:py-8">
