@@ -262,15 +262,24 @@ export default async function AppNav({
               </Link>
             )}
 
-            {canTeeSheet && (
-              <Link
-                href={`/dashboard${datedSuffix}`}
-                className={navClass(
-                  "tee-sheet"
-                )}
-              >
-                Tee Sheet
-              </Link>
+            {(canTeeSheet || canChanges) && (
+              <div className="group relative">
+                <Link
+                  href={`/dashboard${datedSuffix}`}
+                  className={[navClass(active === "tee-sheet" || active === "upload" || active === "changes" ? active : "tee-sheet"), "flex items-center gap-1.5"].join(" ")}
+                  aria-haspopup="true"
+                >
+                  <span>Tee Sheet</span>
+                  <svg className="h-3 w-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </Link>
+                <div className="invisible absolute left-0 top-full z-50 min-w-[190px] pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                    {canTeeSheet && <Link href={`/dashboard${datedSuffix}`} className="block px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">View Tee Sheet</Link>}
+                    {canUpload && <Link href="/upload" className="block px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">Upload Tee Sheet</Link>}
+                    {canChanges && <Link href={`/changes${datedSuffix}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950"><span>Review Changes</span>{changeCount > 0 && <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{changeCount > 99 ? "99+" : changeCount}</span>}</Link>}
+                  </div>
+                </div>
+              </div>
             )}
 
             {canTv && (
@@ -284,39 +293,6 @@ export default async function AppNav({
               </Link>
             )}
 
-            {canChanges && (
-              <Link
-                href={`/changes${datedSuffix}`}
-                className={[
-                  navClass(
-                    "changes"
-                  ),
-                  "flex items-center gap-2",
-                ].join(" ")}
-              >
-                <span>
-                  Changes
-                </span>
-
-                {changeCount > 0 && (
-                  <span
-                    className={[
-                      "flex min-w-[22px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-
-                      active ===
-                      "changes"
-                        ? "bg-white text-indigo-600"
-                        : "bg-red-500 text-white",
-                    ].join(" ")}
-                  >
-                    {changeCount >
-                    99
-                      ? "99+"
-                      : changeCount}
-                  </span>
-                )}
-              </Link>
-            )}
 
             {/* PRO SHOP + RECIPROCALS */}
 
@@ -383,16 +359,6 @@ export default async function AppNav({
                 </Link>
               )}
 
-            {canUpload && (
-              <Link
-                href="/upload"
-                className={navClass(
-                  "upload"
-                )}
-              >
-                Upload
-              </Link>
-            )}
 
             {canBagFinder && (
               <Link
@@ -469,27 +435,21 @@ export default async function AppNav({
                 </Link>
               )}
 
-              {canTeeSheet && (
-                <Link href={`/dashboard${datedSuffix}`} className={navClass("tee-sheet")}>
-                  Tee Sheet
-                </Link>
+              {(canTeeSheet || canChanges) && (
+                <details className="group/tee">
+                  <summary className={[navClass(active === "tee-sheet" || active === "upload" || active === "changes" ? active : "tee-sheet"), "flex cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden"].join(" ")}>
+                    <span>Tee Sheet</span><span className="text-xs">⌄</span>
+                  </summary>
+                  <div className="mt-1 grid gap-1 border-l-2 border-indigo-100 pl-2">
+                    {canTeeSheet && <Link href={`/dashboard${datedSuffix}`} className="rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">View Tee Sheet</Link>}
+                    {canUpload && <Link href="/upload" className="rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">Upload Tee Sheet</Link>}
+                    {canChanges && <Link href={`/changes${datedSuffix}`} className="flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"><span>Review Changes</span>{changeCount > 0 && <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{changeCount > 99 ? "99+" : changeCount}</span>}</Link>}
+                  </div>
+                </details>
               )}
               {canTv && (
                 <Link href={`/tv${datedSuffix}`} className={navClass("tv")}>
                   TV
-                </Link>
-              )}
-              {canChanges && (
-                <Link
-                  href={`/changes${datedSuffix}`}
-                  className={[navClass("changes"), "flex items-center justify-between gap-2"].join(" ")}
-                >
-                  <span>Changes</span>
-                  {changeCount > 0 && (
-                    <span className="flex min-w-[22px] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {changeCount > 99 ? "99+" : changeCount}
-                    </span>
-                  )}
                 </Link>
               )}
               {canProShop && (
@@ -500,11 +460,6 @@ export default async function AppNav({
               {canReciprocals && (
                 <Link href="/reciprocals" className={navClass("proshop")}>
                   Reciprocals
-                </Link>
-              )}
-              {canUpload && (
-                <Link href="/upload" className={navClass("upload")}>
-                  Upload
                 </Link>
               )}
               {canBagFinder && (
