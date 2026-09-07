@@ -114,6 +114,8 @@ export default async function OperationsPage() {
     outsideItemsResult,
     outsideCompletionsResult,
     handoffsResult,
+    scheduleStaffResult,
+    scheduleImportResult,
   ] = await Promise.all([
     canTeeSheet
       ? supabase
@@ -205,6 +207,23 @@ export default async function OperationsPage() {
           .eq("work_date", today)
           .eq("status", "OPEN")
       : Promise.resolve(emptyResult),
+    canOutsideOperations
+      ? supabase
+          .from("schedulepop_shifts")
+          .select("id, employee_name, job_title, start_time, end_time, duty, zone, status, notes")
+          .eq("club_id", access.clubId)
+          .eq("shift_date", today)
+          .order("start_time")
+      : Promise.resolve(emptyResult),
+    canOutsideOperations
+      ? supabase
+          .from("schedulepop_imports")
+          .select("imported_at")
+          .eq("club_id", access.clubId)
+          .order("imported_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve(emptyResult),
   ]);
 
   const slots = slotsResult.data ?? [];
@@ -268,6 +287,12 @@ export default async function OperationsPage() {
   const outsidePercent = outsideItemCount
     ? Math.round((outsideCompleteCount / outsideItemCount) * 100)
     : 0;
+  const scheduledStaff = (scheduleStaffResult.data ?? []).filter((row) => row.status === "SCHEDULED");
+  const scheduledToday = scheduledStaff.length;
+  const unavailableStaff = (scheduleStaffResult.data ?? []).filter(
+    (row) => row.status === "TIME_OFF" || row.status === "UNAVAILABLE"
+  );
+  const scheduleImportedAt = scheduleImportResult.data?.imported_at ?? null;
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
@@ -345,6 +370,44 @@ export default async function OperationsPage() {
           )}
         </section>
 
+        {canOutsideOperations && scheduleImportedAt && (
+          <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
+            <header className="flex flex-col gap-2 border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">SchedulePop</div>
+                <h2 className="mt-1 text-xl font-bold">Today&apos;s Golf TEAM</h2>
+              </div>
+              <Link href="/outside-operations" className="text-sm font-bold text-[var(--golfops-accent-text)]">Open Outside Ops →</Link>
+            </header>
+
+            {scheduledStaff.length === 0 ? (
+              <div className="px-5 py-8 text-center text-sm text-[var(--golfops-text-muted)]">No scheduled shifts were imported for today.</div>
+            ) : (
+              <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-4">
+                {scheduledStaff.map((row) => (
+                  <div key={row.id} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] p-4">
+                    <div className="font-bold">{row.employee_name}</div>
+                    <div className="mt-1 text-sm font-semibold text-[var(--golfops-accent-text)]">
+                      {row.start_time && row.end_time ? `${row.start_time} – ${row.end_time}` : "Scheduled"}
+                    </div>
+                    <div className="mt-2 text-xs leading-5 text-[var(--golfops-text-muted)]">
+                      {[row.job_title, row.duty, row.zone].filter(Boolean).join(" • ")}
+                    </div>
+                    {row.notes && <div className="mt-2 text-xs text-[var(--golfops-text-dim)]">{row.notes}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {unavailableStaff.length > 0 && (
+              <div className="border-t border-[var(--golfops-border)] px-4 py-3 text-xs text-[var(--golfops-text-muted)] sm:px-5">
+                <span className="font-bold">Unavailable:</span>{" "}
+                {Array.from(new Set(unavailableStaff.map((row) => row.employee_name))).join(", ")}
+              </div>
+            )}
+          </section>
+        )}
+
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <section className="overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
             <header className="flex items-center justify-between border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-5 py-4">
@@ -406,13 +469,13 @@ export default async function OperationsPage() {
               <h2 className="mt-1 text-xl font-bold">Operational Integrations</h2>
             </header>
             <div className="divide-y divide-[var(--golfops-border)]">
-              <div className="px-5 py-4">
+              <Link href="/outside-operations" className="block px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-semibold">SchedulePop Staffing</span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">Pending Access</span>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${scheduleImportedAt ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{scheduleImportedAt ? `${scheduledToday} Scheduled Today` : "Not Imported"}</span>
                 </div>
-                <p className="mt-2 text-sm text-[var(--golfops-text-muted)]">Scheduled TEAM members, coverage, call-outs, and open shifts.</p>
-              </div>
+                <p className="mt-2 text-sm text-[var(--golfops-text-muted)]">{scheduleImportedAt ? `Latest schedule imported ${displayTime(scheduleImportedAt)}.` : "Upload a SchedulePop PDF from Outside Operations."}</p>
+              </Link>
               <div className="px-5 py-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-semibold">E-Z-GO PACE</span>

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
@@ -10,17 +11,23 @@
   <title>GolfOps Live</title>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
+      margin: 0;
+      min-height: 100vh;
       font-family: Arial, sans-serif;
       background: #f1f5f9;
-      padding: 40px;
+      padding: 24px;
     }
 
     .card {
-      width: 420px;
-      margin: 60px auto;
+      width: min(420px, 100%);
+      margin: 36px auto;
       background: white;
-      padding: 30px;
+      padding: clamp(22px, 6vw, 30px);
       border-radius: 12px;
       border: 1px solid #ddd;
     }
@@ -28,7 +35,6 @@
     input {
       display: block;
       width: 100%;
-      box-sizing: border-box;
       padding: 12px;
       margin: 8px 0 18px;
     }
@@ -52,16 +58,23 @@
 <body>
   <div class="card">
     <h1>GolfOps Live</h1>
+
     <p>TwinEagles Club</p>
 
-    <label for="email">Email</label>
+    <label for="email">
+      Email
+    </label>
+
     <input
       id="email"
       type="email"
       autocomplete="email"
     />
 
-    <label for="password">Password</label>
+    <label for="password">
+      Password
+    </label>
+
     <input
       id="password"
       type="password"

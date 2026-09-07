@@ -12,9 +12,7 @@ function getStoredSession() {
   return new Promise((resolve) => {
     chrome.storage.local.get(
       STORAGE_KEYS,
-      (result) => {
-        resolve(result || {});
-      }
+      (result) => resolve(result || {})
     );
   });
 }
@@ -23,15 +21,9 @@ function saveSession(session) {
   return new Promise((resolve) => {
     chrome.storage.local.set(
       {
-        access_token:
-          session.access_token,
-
-        refresh_token:
-          session.refresh_token,
-
-        expires_at:
-          session.expires_at,
-
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_at: session.expires_at,
         user_email:
           session.user_email ?? null
       },
@@ -57,24 +49,17 @@ function tokenExpiresSoon(expiresAt) {
   const expiresAtMs =
     Number(expiresAt) * 1000;
 
-  if (
-    Number.isNaN(expiresAtMs)
-  ) {
+  if (Number.isNaN(expiresAtMs)) {
     return true;
   }
 
-  const fiveMinutes =
-    5 * 60 * 1000;
-
   return (
     Date.now() >=
-    expiresAtMs - fiveMinutes
+    expiresAtMs - 5 * 60 * 1000
   );
 }
 
-async function parseResponse(
-  response
-) {
+async function parseResponse(response) {
   const contentType =
     response.headers.get(
       "content-type"
@@ -95,21 +80,23 @@ async function parseResponse(
     }
   }
 
-  const text =
+  const responseText =
     await response.text();
 
   if (
-    text.trim().startsWith("<")
+    responseText
+      .trim()
+      .startsWith("<")
   ) {
     return {
       error:
-        `GolfOps Live returned an HTML response (${response.status}). Check that the local app is running and the API route exists.`
+        `GolfOps Live returned an HTML response (${response.status}). Check that the API route exists.`
     };
   }
 
   return {
     error:
-      text ||
+      responseText ||
       `Request failed (${response.status}).`
   };
 }
@@ -235,11 +222,6 @@ async function sendAuthenticatedRequest(
     session =
       await getStoredSession();
   } catch (error) {
-    console.error(
-      "Unable to obtain GolfOps Live extension session:",
-      error
-    );
-
     return {
       ok: false,
       error:
@@ -249,9 +231,7 @@ async function sendAuthenticatedRequest(
     };
   }
 
-  async function makeRequest(
-    token
-  ) {
+  function makeRequest(token) {
     return fetch(
       `${APP_URL}${endpoint}`,
       {
@@ -276,9 +256,7 @@ async function sendAuthenticatedRequest(
       accessToken
     );
 
-  if (
-    response.status === 401
-  ) {
+  if (response.status === 401) {
     try {
       const refreshed =
         await refreshSession(
@@ -289,12 +267,7 @@ async function sendAuthenticatedRequest(
         await makeRequest(
           refreshed.access_token
         );
-    } catch (error) {
-      console.error(
-        "GolfOps Live automatic login refresh failed:",
-        error
-      );
-
+    } catch {
       await clearSession();
 
       return {
@@ -323,22 +296,81 @@ async function sendAuthenticatedRequest(
   };
 }
 
-async function sendTeeSheet(
+async function fetchSchedulePopReport(
   payload
 ) {
-  return sendAuthenticatedRequest(
-    "/api/import/extension",
-    payload
-  );
-}
+  try {
+    const url =
+      new URL(
+        payload?.url || ""
+      );
 
-async function sendLessons(
-  payload
-) {
-  return sendAuthenticatedRequest(
-    "/api/lessons/import",
-    payload
-  );
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !==
+        "api.schedulepop.com" ||
+      !url.pathname.includes(
+        "/printableSchedule"
+      )
+    ) {
+      return {
+        ok: false,
+        error:
+          "Invalid SchedulePop report address."
+      };
+    }
+
+    url.searchParams.set(
+      "format",
+      "HTML"
+    );
+
+    const response =
+      await fetch(
+        url.toString(),
+        {
+          method: "GET",
+          cache: "no-store"
+        }
+      );
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error:
+          `SchedulePop returned ${response.status}.`
+      };
+    }
+
+    const html =
+      await response.text();
+
+    if (
+      !html ||
+      !html
+        .toLowerCase()
+        .includes("schedule")
+    ) {
+      return {
+        ok: false,
+        error:
+          "SchedulePop did not return a printable schedule."
+      };
+    }
+
+    return {
+      ok: true,
+      html
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to retrieve SchedulePop."
+    };
+  }
 }
 
 chrome.runtime.onMessage.addListener(
@@ -347,91 +379,127 @@ chrome.runtime.onMessage.addListener(
     sender,
     sendResponse
   ) => {
+    let operation = null;
+
     if (
       message?.type ===
       "SEND_TEE_SHEET"
     ) {
-      sendTeeSheet(
-        message.payload
-      )
-        .then(sendResponse)
-        .catch(
-          (error) => {
-            console.error(
-              "GolfOps Live tee sheet background error:",
-              error
-            );
-
-            sendResponse({
-              ok: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Unknown extension error."
-            });
-          }
+      operation =
+        sendAuthenticatedRequest(
+          "/api/import/extension",
+          message.payload
         );
-
-      return true;
-    }
-
-    if (
+    } else if (
       message?.type ===
       "SEND_LESSONS"
     ) {
-      sendLessons(
-        message.payload
-      )
-        .then(sendResponse)
-        .catch(
-          (error) => {
-            console.error(
-              "GolfOps Live lesson background error:",
-              error
-            );
-
-            sendResponse({
-              ok: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Unknown extension error."
-            });
-          }
+      operation =
+        sendAuthenticatedRequest(
+          "/api/lessons/import",
+          message.payload
         );
-
-      return true;
-    }
-
-    if (
+    } else if (
+      message?.type ===
+      "SEND_SCHEDULEPOP"
+    ) {
+      operation =
+        sendAuthenticatedRequest(
+          "/api/schedulepop/extension",
+          message.payload
+        );
+    } else if (
+      message?.type ===
+      "FETCH_SCHEDULEPOP_REPORT"
+    ) {
+      operation =
+        fetchSchedulePopReport(
+          message.payload
+        );
+    } else if (
       message?.type ===
       "CHECK_AUTH"
     ) {
-      getStoredSession()
-        .then(
-          (session) => {
-            sendResponse({
-              ok: true,
+      operation =
+        getStoredSession()
+          .then((session) => ({
+            ok: true,
 
-              signedIn:
-                Boolean(
-                  session.refresh_token
-                ),
+            signedIn:
+              Boolean(
+                session.refresh_token
+              ),
 
-              user_email:
-                session.user_email ||
-                null,
+            user_email:
+              session.user_email ||
+              null,
 
-              expires_at:
-                session.expires_at ||
-                null
-            });
-          }
-        );
-
-      return true;
+            expires_at:
+              session.expires_at ||
+              null
+          }));
     }
 
-    return false;
+    if (!operation) {
+      return false;
+    }
+
+    operation
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown extension error."
+        });
+      });
+
+    return true;
   }
 );
+/*
+  Detect SchedulePop printable
+  schedule requests directly
+  through Chrome.
+*/
+
+chrome.webRequest
+  .onBeforeRequest
+  .addListener(
+    (details) => {
+      if (
+        details.tabId < 0
+      ) {
+        return;
+      }
+
+      chrome.tabs.sendMessage(
+        details.tabId,
+        {
+          type:
+            "SCHEDULEPOP_REPORT_DETECTED",
+
+          url:
+            details.url
+        },
+        () => {
+          /*
+            Ignore pages that do not
+            contain the SchedulePop
+            content script.
+          */
+
+          void chrome.runtime
+            .lastError;
+        }
+      );
+    },
+    {
+      urls: [
+        "https://api.schedulepop.com/api/rest/admin/locations/*/printableSchedule*"
+      ]
+    }
+  );

@@ -1,11 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import SchedulePopImporter from "@/components/SchedulePopImporter";
 
 type Shift = "OPENING" | "MIDDAY" | "CLOSING";
 type Item = { id: string; shift: Shift; item_order: number; item_text: string; active: boolean };
 type Completion = { id: string; item_id: string; operator_name: string; completed_at: string };
 type Handoff = { id: string; category: string; note: string; status: "OPEN" | "RESOLVED"; created_by_name: string; created_at: string; resolved_by_name: string | null; resolved_at: string | null };
+type StaffingRow = { id: string; employee_name: string; job_title: string; start_time: string | null; end_time: string | null; duty: string | null; zone: string | null; status: string; notes: string | null };
+type ImportSummary = { imported_at: string; date_start: string; date_end: string; rows_imported: number };
 
 const shifts: Array<{ key: Shift; label: string }> = [
   { key: "OPENING", label: "Opening" }, { key: "MIDDAY", label: "Midday" }, { key: "CLOSING", label: "Closing" },
@@ -16,8 +19,8 @@ function time(value: string) {
   return new Date(value).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
 }
 
-export default function OutsideOperationsManager({ workDate, initialItems, initialCompletions, initialHandoffs, staffNames, isAdmin }: {
-  workDate: string; initialItems: Item[]; initialCompletions: Completion[]; initialHandoffs: Handoff[]; staffNames: string[]; isAdmin: boolean;
+export default function OutsideOperationsManager({ workDate, initialItems, initialCompletions, initialHandoffs, staffNames, isAdmin, initialStaffing, lastScheduleImport }: {
+  workDate: string; initialItems: Item[]; initialCompletions: Completion[]; initialHandoffs: Handoff[]; staffNames: string[]; isAdmin: boolean; initialStaffing: StaffingRow[]; lastScheduleImport: ImportSummary | null;
 }) {
   const [items, setItems] = useState(initialItems);
   const [operatorName, setOperatorName] = useState("");
@@ -131,6 +134,8 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
   }
 
   const visibleHandoffs = handoffs.filter((item) => showResolved || item.status === "OPEN");
+  const scheduledStaff = initialStaffing.filter((row) => row.status === "SCHEDULED");
+  const unavailableStaff = initialStaffing.filter((row) => row.status === "TIME_OFF" || row.status === "UNAVAILABLE");
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 py-6 sm:px-5 sm:py-8">
@@ -150,6 +155,19 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
           <span className="mt-2 block text-xs text-[var(--golfops-text-dim)]">This name is saved on this device and attached to completed work.</span>
         </label>
       </section>
+
+      <section className="mb-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
+        <header className="flex flex-col gap-2 border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
+          <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">SchedulePop</div><h2 className="mt-1 text-xl font-bold">Today&apos;s Staffing</h2></div>
+          <div className="text-xs text-[var(--golfops-text-dim)]">{lastScheduleImport ? `Last imported ${new Date(lastScheduleImport.imported_at).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "No schedule imported"}</div>
+        </header>
+        {scheduledStaff.length === 0 ? <div className="px-5 py-8 text-center text-sm text-[var(--golfops-text-muted)]">No scheduled shifts have been imported for today.</div> : <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+          {scheduledStaff.map((row) => <div key={row.id} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] p-4"><div className="font-bold">{row.employee_name}</div><div className="mt-1 text-sm font-semibold text-[var(--golfops-accent-text)]">{row.start_time && row.end_time ? `${row.start_time} – ${row.end_time}` : "Scheduled"}</div><div className="mt-2 text-xs leading-5 text-[var(--golfops-text-muted)]">{[row.job_title, row.duty, row.zone].filter(Boolean).join(" • ")}</div>{row.notes && <div className="mt-2 text-xs text-[var(--golfops-text-dim)]">{row.notes}</div>}</div>)}
+        </div>}
+        {unavailableStaff.length > 0 && <div className="border-t border-[var(--golfops-border)] px-4 py-3 text-xs text-[var(--golfops-text-muted)] sm:px-5"><span className="font-bold">Unavailable:</span> {Array.from(new Set(unavailableStaff.map((row) => row.employee_name))).join(", ")}</div>}
+      </section>
+
+      {isAdmin && <div className="mb-6"><SchedulePopImporter /></div>}
 
       <section className="grid gap-5 lg:grid-cols-3">
         {shifts.map((shift) => {
