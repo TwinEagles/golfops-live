@@ -1089,10 +1089,34 @@ export default async function PrintPlacardsPage({
                 >
                   <div className="inner-border">
                     <header className="sign-header">
-                      <div className="club-course">
-                        The TwinEagles Club
-                      </div>
+<div className="club-course">
+  The TwinEagles Club
 
+  {placard.course && (
+    <>
+      {" - "}
+
+      <span
+        className={[
+          "course-name",
+          placard.course
+            .trim()
+            .toLowerCase() === "eagle"
+            ? "course-eagle"
+            : placard.course
+                  .trim()
+                  .toLowerCase() === "talon"
+              ? "course-talon"
+              : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {placard.course}
+      </span>
+    </>
+  )}
+</div>
                       {eventName && (
                         <div className="event-name">
                           {eventName}
