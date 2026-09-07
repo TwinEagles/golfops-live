@@ -145,13 +145,14 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
   const visibleHandoffs = handoffs.filter((item) => showResolved || item.status === "OPEN");
   const scheduledStaff = initialStaffing.filter((row) => row.status === "SCHEDULED");
   const unavailableStaff = initialStaffing.filter((row) => row.status === "TIME_OFF" || row.status === "UNAVAILABLE");
+  const staffingGroups = Array.from(scheduledStaff.reduce((groups, row) => { const key = row.zone || row.duty || row.job_title || "Other"; const current = groups.get(key) ?? []; current.push(row); groups.set(key, current); return groups; }, new Map<string, StaffingRow[]>())).sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 py-6 sm:px-5 sm:py-8">
       <header className="mb-6">
         <div className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--golfops-accent-text)]">Daily Execution</div>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">Outside Operations</h1>
-        <p className="mt-2 text-sm text-[var(--golfops-text-muted)]">Complete today&apos;s checklist and communicate unresolved items to the next shift.</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">Staff Schedule</h1>
+        <p className="mt-2 text-sm text-[var(--golfops-text-muted)]">Review today&apos;s staffing by duty and complete the daily operating tasks assigned to each group.</p>
       </header>
 
       {(error || message) && <div className={`mb-5 rounded-lg border px-4 py-3 text-sm font-semibold ${error ? "border-red-300 bg-red-50 text-red-700" : "border-emerald-300 bg-emerald-50 text-emerald-700"}`}>{error || message}</div>}
@@ -170,8 +171,8 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
           <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">SchedulePop</div><h2 className="mt-1 text-xl font-bold">Today&apos;s Staffing</h2></div>
           <div className="text-xs text-[var(--golfops-text-dim)]">{lastScheduleImport ? `Last imported ${new Date(lastScheduleImport.imported_at).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "No schedule imported"}</div>
         </header>
-        {scheduledStaff.length === 0 ? <div className="px-5 py-8 text-center text-sm text-[var(--golfops-text-muted)]">No scheduled shifts have been imported for today.</div> : <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
-          {scheduledStaff.map((row) => <div key={row.id} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] p-4"><div className="font-bold">{row.employee_name}</div><div className="mt-1 text-sm font-semibold text-[var(--golfops-accent-text)]">{row.start_time && row.end_time ? `${row.start_time} – ${row.end_time}` : "Scheduled"}</div><div className="mt-2 text-xs leading-5 text-[var(--golfops-text-muted)]">{[row.job_title, row.duty, row.zone].filter(Boolean).join(" • ")}</div>{row.notes && <div className="mt-2 text-xs text-[var(--golfops-text-dim)]">{row.notes}</div>}</div>)}
+        {scheduledStaff.length === 0 ? <div className="px-5 py-8 text-center text-sm text-[var(--golfops-text-muted)]">No scheduled shifts have been imported for today.</div> : <div className="space-y-5 p-4 sm:p-5">
+          {staffingGroups.map(([groupName, groupRows]) => <div key={groupName}><h3 className="mb-2 text-sm font-bold uppercase tracking-[0.12em] text-[var(--golfops-text-muted)]">{groupName}</h3><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{groupRows.map((row) => <div key={row.id} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] p-4"><div className="font-bold">{row.employee_name}</div><div className="mt-1 text-sm font-semibold text-[var(--golfops-accent-text)]">{row.start_time && row.end_time ? `${row.start_time} – ${row.end_time}` : "Scheduled"}</div><div className="mt-2 text-xs leading-5 text-[var(--golfops-text-muted)]">{[row.job_title, row.duty].filter(Boolean).join(" • ")}</div>{row.notes && <div className="mt-2 text-xs text-[var(--golfops-text-dim)]">{row.notes}</div>}</div>)}</div></div>)}
         </div>}
         {unavailableStaff.length > 0 && <div className="border-t border-[var(--golfops-border)] px-4 py-3 text-xs text-[var(--golfops-text-muted)] sm:px-5"><span className="font-bold">Unavailable:</span> {Array.from(new Set(unavailableStaff.map((row) => row.employee_name))).join(", ")}</div>}
       </section>

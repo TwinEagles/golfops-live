@@ -258,7 +258,7 @@ export default async function AppNav({
                 href="/outside-operations"
                 className={navClass("outside-operations")}
               >
-                Outside Ops
+                Staff Schedule
               </Link>
             )}
 
@@ -431,7 +431,7 @@ export default async function AppNav({
 
               {canOutsideOperations && (
                 <Link href="/outside-operations" className={navClass("outside-operations")}>
-                  Outside Operations
+                  Staff Schedule
                 </Link>
               )}
 
