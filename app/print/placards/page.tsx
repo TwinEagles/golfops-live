@@ -1091,6 +1091,24 @@ export default async function PrintPlacardsPage({
                     <header className="sign-header">
                       <div className="club-course">
                         The TwinEagles Club
+
+                        {placard.course ? (
+                          <>
+                            {" - "}
+                            <span
+                              className={[
+                                "course-name",
+                                placard.course.trim().toLowerCase() === "eagle"
+                                  ? "course-eagle"
+                                  : placard.course.trim().toLowerCase() === "talon"
+                                    ? "course-talon"
+                                    : "",
+                              ].filter(Boolean).join(" ")}
+                            >
+                              {placard.course}
+                            </span>
+                          </>
+                        ) : null}
                       </div>
 
                       {eventName && (
@@ -1325,11 +1343,11 @@ export default async function PrintPlacardsPage({
         }
 
         .watermark-logo {
-          width: 250px;
-          max-height: 250px;
+          width: 285px;
+          max-height: 285px;
           object-fit: contain;
-          opacity: 0.1;
-          filter: grayscale(100%);
+          opacity: 0.18;
+          filter: grayscale(80%);
         }
 
         .player-area {
@@ -1456,19 +1474,25 @@ export default async function PrintPlacardsPage({
 
           .placard {
             width: 100%;
-            height: 4.92in;
+            height: 5.17in;
             margin: 0;
             padding: 0.05in;
             border-width: 2px;
           }
 
           .placard:nth-child(odd) {
-            margin-bottom: 0.2in;
+            margin-bottom: 0.22in;
           }
 
           .placard:nth-child(even) {
             margin-bottom: 0;
             page-break-after: always;
+            break-after: page;
+          }
+
+          .placard:nth-child(2n + 3) {
+            page-break-before: always;
+            break-before: page;
           }
 
           .placard:last-child {
@@ -1491,9 +1515,9 @@ export default async function PrintPlacardsPage({
           }
 
           .watermark-logo {
-            width: 2.25in;
-            max-height: 2.25in;
-            opacity: 0.1;
+            width: 2.65in;
+            max-height: 2.65in;
+            opacity: 0.18;
           }
 
           .player-area {
