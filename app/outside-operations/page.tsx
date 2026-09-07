@@ -9,13 +9,14 @@ function easternDateString() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
-export default async function OutsideOperationsPage() {
+export default async function OutsideOperationsPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const access = await getGolfOpsAccess();
   if (!access) redirect("/");
   if (!access.isAdmin && !access.permissions.outside_operations) redirect("/settings/account");
 
   const supabase = await createClient();
-  const today = easternDateString();
+  const requestedDate = (await searchParams).date;
+  const today = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : easternDateString();
   const [itemsResult, completionsResult, handoffsResult, profilesResult, staffingResult, scheduleImportResult] = await Promise.all([
     supabase.from("outside_ops_checklist_items").select("id, team_group, shift, item_order, item_text, active").eq("club_id", access.clubId).order("team_group").order("shift").order("item_order"),
     supabase.from("outside_ops_checklist_completions").select("id, item_id, operator_name, completed_at").eq("club_id", access.clubId).eq("work_date", today),

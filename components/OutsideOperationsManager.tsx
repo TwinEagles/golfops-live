@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import SchedulePopImporter from "@/components/SchedulePopImporter";
 
 type Shift = "OPENING" | "MIDDAY" | "CLOSING";
@@ -30,8 +31,9 @@ function time(value: string) {
 export default function OutsideOperationsManager({ workDate, initialItems, initialCompletions, initialHandoffs, staffNames, isAdmin, initialStaffing, lastScheduleImport }: {
   workDate: string; initialItems: Item[]; initialCompletions: Completion[]; initialHandoffs: Handoff[]; staffNames: string[]; isAdmin: boolean; initialStaffing: StaffingRow[]; lastScheduleImport: ImportSummary | null;
 }) {
+  const router = useRouter();
   const [items, setItems] = useState(initialItems);
-  const [operatorName, setOperatorName] = useState("");
+  const [operatorName, setOperatorName] = useState("Staff");
   const [completions, setCompletions] = useState(initialCompletions);
   const [handoffs, setHandoffs] = useState(initialHandoffs);
   const [busy, setBusy] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
   const [newTeamGroup, setNewTeamGroup] = useState("OUTSIDE_OPERATIONS");
   const [newDuty, setNewDuty] = useState("");
 
-  useEffect(() => { setOperatorName(window.localStorage.getItem("golfops-outside-operator") ?? ""); }, []);
+  useEffect(() => { setOperatorName(window.localStorage.getItem("golfops-outside-operator") ?? "Staff"); }, []);
   useEffect(() => { setCompletions(initialCompletions); }, [initialCompletions]);
   useEffect(() => { setHandoffs(initialHandoffs); }, [initialHandoffs]);
   useEffect(() => { setItems(initialItems); }, [initialItems]);
@@ -157,13 +159,9 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
 
       {(error || message) && <div className={`mb-5 rounded-lg border px-4 py-3 text-sm font-semibold ${error ? "border-red-300 bg-red-50 text-red-700" : "border-emerald-300 bg-emerald-50 text-emerald-700"}`}>{error || message}</div>}
 
-      <section className="mb-6 rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] p-4 shadow-[var(--golfops-shadow)] sm:p-5">
-        <label className="block max-w-md">
-          <span className="text-sm font-bold">Who is working?</span>
-          <input list="outside-ops-staff" value={operatorName} onChange={(event) => rememberName(event.target.value)} placeholder="Select or enter your name" className="mt-2 w-full rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-input-bg)] px-3 py-3 text-base outline-none focus:ring-2 focus:ring-[var(--golfops-accent)]" />
-          <datalist id="outside-ops-staff">{staffNames.map((name) => <option value={name} key={name} />)}</datalist>
-          <span className="mt-2 block text-xs text-[var(--golfops-text-dim)]">This name is saved on this device and attached to completed work.</span>
-        </label>
+      <section className="mb-6 flex flex-col gap-3 rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] p-4 shadow-[var(--golfops-shadow)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">Schedule date</div><div className="mt-1 text-sm text-[var(--golfops-text-muted)]">Change the date to review staffing and tasks for another day.</div></div>
+        <div className="flex items-center gap-2"><button type="button" aria-label="Previous date" onClick={() => { const date = new Date(`${workDate}T12:00:00`); date.setDate(date.getDate() - 1); router.push(`/outside-operations?date=${date.toISOString().slice(0,10)}`); }} className="rounded-lg border px-3 py-2 text-lg font-bold">‹</button><button type="button" onClick={() => router.push(`/outside-operations?date=${new Date().toISOString().slice(0,10)}`)} className="rounded-lg border px-3 py-2 text-sm font-bold">Today</button><input type="date" value={workDate} onChange={(event) => router.push(`/outside-operations?date=${event.target.value}`)} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-input-bg)] px-3 py-2 text-sm font-semibold" /><button type="button" aria-label="Next date" onClick={() => { const date = new Date(`${workDate}T12:00:00`); date.setDate(date.getDate() + 1); router.push(`/outside-operations?date=${date.toISOString().slice(0,10)}`); }} className="rounded-lg border px-3 py-2 text-lg font-bold">›</button></div>
       </section>
 
       <section className="mb-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
@@ -179,7 +177,7 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
 
       {isAdmin && <div className="mb-6"><SchedulePopImporter /></div>}
 
-      <section className="grid gap-5 lg:grid-cols-3">
+      <section className="space-y-5">
         {shifts.map((shift) => {
           const shiftItems = items.filter((item) => item.shift === shift.key && item.active).sort((a, b) => a.item_order - b.item_order);
           const done = shiftItems.filter((item) => completedByItem.has(item.id)).length;
