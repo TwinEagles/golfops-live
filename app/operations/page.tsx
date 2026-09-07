@@ -5,6 +5,8 @@ import OperationsRefresh from "@/components/OperationsRefresh";
 import { getGolfOpsAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 
+// Dashboard includes Outside Operations checklist and handoff progress.
+
 function easternDateString(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
@@ -89,7 +91,8 @@ export default async function OperationsPage() {
   const canChanges = access.isAdmin || access.permissions.changes;
   const canProShop = access.isAdmin || access.permissions.pro_shop;
   const canGolfCarts = access.isAdmin || access.permissions.golf_carts;
-  const allowed = canTeeSheet || canChanges || canProShop || canGolfCarts;
+  const canOutsideOperations = access.isAdmin || access.permissions.outside_operations;
+  const allowed = canTeeSheet || canChanges || canProShop || canGolfCarts || canOutsideOperations;
 
   if (!allowed) redirect("/settings/account");
 
@@ -108,6 +111,9 @@ export default async function OperationsPage() {
     damageResult,
     cleaningResult,
     settingsResult,
+    outsideItemsResult,
+    outsideCompletionsResult,
+    handoffsResult,
   ] = await Promise.all([
     canTeeSheet
       ? supabase
@@ -177,6 +183,28 @@ export default async function OperationsPage() {
           .eq("club_id", access.clubId)
           .maybeSingle()
       : Promise.resolve(emptyResult),
+    canOutsideOperations
+      ? supabase
+          .from("outside_ops_checklist_items")
+          .select("id")
+          .eq("club_id", access.clubId)
+          .eq("active", true)
+      : Promise.resolve(emptyResult),
+    canOutsideOperations
+      ? supabase
+          .from("outside_ops_checklist_completions")
+          .select("id")
+          .eq("club_id", access.clubId)
+          .eq("work_date", today)
+      : Promise.resolve(emptyResult),
+    canOutsideOperations
+      ? supabase
+          .from("outside_ops_handoffs")
+          .select("id")
+          .eq("club_id", access.clubId)
+          .eq("work_date", today)
+          .eq("status", "OPEN")
+      : Promise.resolve(emptyResult),
   ]);
 
   const slots = slotsResult.data ?? [];
@@ -234,6 +262,12 @@ export default async function OperationsPage() {
     | null;
   const eventName = snapshot?.eventName ?? null;
   const lastImport = importResult.data?.created_at ?? null;
+  const outsideItemCount = outsideItemsResult.data?.length ?? 0;
+  const outsideCompleteCount = outsideCompletionsResult.data?.length ?? 0;
+  const openHandoffs = handoffsResult.data?.length ?? 0;
+  const outsidePercent = outsideItemCount
+    ? Math.round((outsideCompleteCount / outsideItemCount) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
@@ -300,6 +334,15 @@ export default async function OperationsPage() {
               alert={outOfService > 0 || damagedCartCount > 0}
             />
           )}
+          {canOutsideOperations && (
+            <MetricCard
+              label="Outside Operations"
+              value={`${outsidePercent}%`}
+              detail={`${outsideCompleteCount} of ${outsideItemCount} tasks • ${openHandoffs} open handoff${openHandoffs === 1 ? "" : "s"}`}
+              href="/outside-operations"
+              alert={openHandoffs > 0 || outsideCompleteCount < outsideItemCount}
+            />
+          )}
         </section>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -341,6 +384,15 @@ export default async function OperationsPage() {
                   <span className={outOfService + damagedCartCount + detailingDue > 0 ? "font-bold text-amber-600" : "font-bold text-emerald-600"}>
                     {outOfService + damagedCartCount + detailingDue}
                   </span>
+                </Link>
+              )}
+              {canOutsideOperations && (
+                <Link href="/outside-operations" className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
+                  <div>
+                    <div className="font-semibold">Outside Operations</div>
+                    <div className="mt-1 text-sm text-[var(--golfops-text-muted)]">Complete daily checklists and review shift handoff items.</div>
+                  </div>
+                  <span className={openHandoffs > 0 ? "font-bold text-amber-600" : "font-bold text-emerald-600"}>{openHandoffs}</span>
                 </Link>
               )}
             </div>

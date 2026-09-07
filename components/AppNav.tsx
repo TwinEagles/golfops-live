@@ -4,9 +4,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getGolfOpsAccess } from "@/lib/permissions";
 
+// Navigation includes the permission-controlled Outside Operations workspace.
+
 type AppNavProps = {
   active:
     | "operations"
+    | "outside-operations"
     | "tee-sheet"
     | "tv"
     | "changes"
@@ -64,6 +67,10 @@ export default async function AppNav({
     access?.isAdmin ||
     access?.permissions.golf_carts === true;
 
+  const canOutsideOperations =
+    access?.isAdmin ||
+    access?.permissions.outside_operations === true;
+
   /*
     Upload is part of Tee Sheet access.
     Staff who can manage the tee sheet can
@@ -73,6 +80,7 @@ export default async function AppNav({
 
   const canOperations =
     access?.isAdmin ||
+    canOutsideOperations ||
     canTeeSheet ||
     canChanges ||
     canProShop ||
@@ -242,6 +250,15 @@ export default async function AppNav({
                 className={navClass("operations")}
               >
                 Operations
+              </Link>
+            )}
+
+            {canOutsideOperations && (
+              <Link
+                href="/outside-operations"
+                className={navClass("outside-operations")}
+              >
+                Outside Ops
               </Link>
             )}
 
@@ -443,6 +460,12 @@ export default async function AppNav({
               {canOperations && (
                 <Link href="/operations" className={navClass("operations")}>
                   Operations
+                </Link>
+              )}
+
+              {canOutsideOperations && (
+                <Link href="/outside-operations" className={navClass("outside-operations")}>
+                  Outside Operations
                 </Link>
               )}
 

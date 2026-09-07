@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getGolfOpsAccess } from "@/lib/permissions";
 
+// Operational users may land on the Outside Operations-enabled dashboard.
+
 export default async function HomePage() {
   const access = await getGolfOpsAccess();
 
@@ -10,9 +12,11 @@ export default async function HomePage() {
     access.permissions.tee_sheet ||
     access.permissions.changes ||
     access.permissions.pro_shop ||
-    access.permissions.golf_carts;
+    access.permissions.golf_carts ||
+    access.permissions.outside_operations;
 
   if (canOperations) redirect("/operations");
+  if (access.permissions.outside_operations) redirect("/outside-operations");
   if (access.permissions.tv) redirect("/tv");
   if (access.permissions.reciprocals) redirect("/reciprocals");
   if (access.permissions.bag_finder) redirect("/bagfinder");
