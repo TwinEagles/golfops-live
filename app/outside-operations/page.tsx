@@ -1,36 +1,12 @@
 import { redirect } from "next/navigation";
 import AppNav from "@/components/AppNav";
+import OutsideOperationsManager from "@/components/OutsideOperationsManager";
 import OperationsRefresh from "@/components/OperationsRefresh";
 import { getGolfOpsAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 
 function easternDateString() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-}
-
-function OutsideOperationsManager({ workDate, initialItems, initialHandoffs }: {
-  workDate: string;
-  initialItems: Array<{ id: string; shift: string; item_order: number; item_text: string }>;
-  initialHandoffs: Array<{ id: string; category: string; note: string; status: string }>;
-}) {
-  return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Outside Operations</h1>
-      <p className="text-sm opacity-70">{workDate}</p>
-      <section className="rounded-lg border border-[var(--golfops-border)] p-4">
-        <h2 className="mb-3 font-medium">Checklist</h2>
-        <ul className="space-y-2">
-          {initialItems.map((item) => <li key={item.id}>{item.item_text}</li>)}
-        </ul>
-      </section>
-      <section className="rounded-lg border border-[var(--golfops-border)] p-4">
-        <h2 className="mb-3 font-medium">Handoffs</h2>
-        <ul className="space-y-2">
-          {initialHandoffs.map((handoff) => <li key={handoff.id}>{handoff.category}: {handoff.note}</li>)}
-        </ul>
-      </section>
-    </main>
-  );
 }
 
 export default async function OutsideOperationsPage() {
@@ -56,7 +32,7 @@ export default async function OutsideOperationsPage() {
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
       <OperationsRefresh />
-      <AppNav active="outside-operations" selectedDate={today} />
+      <AppNav active="operations" selectedDate={today} />
       <OutsideOperationsManager
         workDate={today}
         initialItems={itemsResult.data ?? []}
