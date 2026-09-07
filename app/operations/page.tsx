@@ -153,7 +153,7 @@ export default async function OperationsPage() {
     canProShop
       ? supabase
           .from("foretees_lessons")
-          .select("id")
+          .select("id, lesson_time, instructor_name, member_name, lesson_type")
           .eq("club_id", access.clubId)
           .eq("lesson_date", today)
           .eq("source", "FORETEES")
@@ -240,7 +240,8 @@ export default async function OperationsPage() {
 
   const openChanges = changesResult.data?.length ?? 0;
   const requests = requestsResult.data ?? [];
-  const lessons = lessonsResult.data?.length ?? 0;
+  const lessons = lessonsResult.data ?? [];
+  const lessonCount = lessons.length;
   const carts = cartsResult.data ?? [];
   const activeCarts = carts.filter(
     (cart) => (cart.status ?? "ACTIVE").trim().toUpperCase() === "ACTIVE"
@@ -293,6 +294,15 @@ export default async function OperationsPage() {
     (row) => row.status === "TIME_OFF" || row.status === "UNAVAILABLE"
   );
   const scheduleImportedAt = scheduleImportResult.data?.imported_at ?? null;
+  const staffingGroups = Array.from(
+    scheduledStaff.reduce((groups, row) => {
+      const groupName = row.zone || row.duty || row.job_title || "Other";
+      const existing = groups.get(groupName) ?? [];
+      existing.push(row);
+      groups.set(groupName, existing);
+      return groups;
+    }, new Map<string, typeof scheduledStaff>())
+  ).sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
@@ -345,7 +355,7 @@ export default async function OperationsPage() {
             <MetricCard
               label="Active Requests"
               value={requests.length}
-              detail={`${lessons} lesson${lessons === 1 ? "" : "s"} scheduled today`}
+              detail={`${lessonCount} lesson${lessonCount === 1 ? "" : "s"} scheduled today`}
               href="/proshop"
               alert={requests.length > 0}
             />
@@ -383,17 +393,24 @@ export default async function OperationsPage() {
             {scheduledStaff.length === 0 ? (
               <div className="px-5 py-8 text-center text-sm text-[var(--golfops-text-muted)]">No scheduled shifts were imported for today.</div>
             ) : (
-              <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-4">
-                {scheduledStaff.map((row) => (
-                  <div key={row.id} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] p-4">
-                    <div className="font-bold">{row.employee_name}</div>
-                    <div className="mt-1 text-sm font-semibold text-[var(--golfops-accent-text)]">
-                      {row.start_time && row.end_time ? `${row.start_time} – ${row.end_time}` : "Scheduled"}
+              <div className="space-y-5 p-4 sm:p-5">
+                {staffingGroups.map(([groupName, groupRows]) => (
+                  <div key={groupName}>
+                    <h3 className="mb-2 text-sm font-bold uppercase tracking-[0.12em] text-[var(--golfops-text-muted)]">{groupName}</h3>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {groupRows.map((row) => (
+                        <div key={row.id} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] p-4">
+                          <div className="font-bold">{row.employee_name}</div>
+                          <div className="mt-1 text-sm font-semibold text-[var(--golfops-accent-text)]">
+                            {row.start_time && row.end_time ? `${row.start_time} – ${row.end_time}` : "Scheduled"}
+                          </div>
+                          <div className="mt-2 text-xs leading-5 text-[var(--golfops-text-muted)]">
+                            {[row.job_title, row.duty].filter(Boolean).join(" • ")}
+                          </div>
+                          {row.notes && <div className="mt-2 text-xs text-[var(--golfops-text-dim)]">{row.notes}</div>}
+                        </div>
+                      ))}
                     </div>
-                    <div className="mt-2 text-xs leading-5 text-[var(--golfops-text-muted)]">
-                      {[row.job_title, row.duty, row.zone].filter(Boolean).join(" • ")}
-                    </div>
-                    {row.notes && <div className="mt-2 text-xs text-[var(--golfops-text-dim)]">{row.notes}</div>}
                   </div>
                 ))}
               </div>
@@ -405,6 +422,31 @@ export default async function OperationsPage() {
                 {Array.from(new Set(unavailableStaff.map((row) => row.employee_name))).join(", ")}
               </div>
             )}
+          </section>
+        )}
+
+        {canProShop && lessonCount > 0 && (
+          <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
+            <header className="flex items-center justify-between border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4 sm:px-5">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">Player Development</div>
+                <h2 className="mt-1 text-xl font-bold">Today&apos;s Lessons</h2>
+              </div>
+              <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">{lessonCount}</span>
+            </header>
+            <div className="divide-y divide-[var(--golfops-border)]">
+              {lessons.map((lesson) => (
+                <div key={lesson.id} className="flex flex-col gap-1 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                  <div>
+                    <div className="font-bold">{lesson.member_name || "Member lesson"}</div>
+                    <div className="mt-1 text-sm text-[var(--golfops-text-muted)]">
+                      {[lesson.lesson_type, lesson.instructor_name].filter(Boolean).join(" • ")}
+                    </div>
+                  </div>
+                  <div className="text-sm font-bold text-[var(--golfops-accent-text)]">{lesson.lesson_time}</div>
+                </div>
+              ))}
+            </div>
           </section>
         )}
 
