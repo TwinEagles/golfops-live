@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import { useRouter } from "next/navigation";
 
 type CartNumberInputProps = {
   slotId: string;
@@ -11,19 +16,48 @@ export default function CartNumberInput({
   slotId,
   initialCartNumber,
 }: CartNumberInputProps) {
-  const [cartNumber, setCartNumber] = useState(
-    initialCartNumber ?? ""
-  );
+  const router = useRouter();
 
-  const [lastSaved, setLastSaved] = useState(
-    initialCartNumber ?? ""
-  );
+  const [cartNumber, setCartNumber] =
+    useState(
+      initialCartNumber ?? ""
+    );
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [lastSaved, setLastSaved] =
+    useState(
+      initialCartNumber ?? ""
+    );
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  /*
+    Keep the input synchronized when
+    another player in the cart pair
+    updates the shared cart number.
+  */
+
+  useEffect(() => {
+    if (saving) {
+      return;
+    }
+
+    const nextValue =
+      initialCartNumber ?? "";
+
+    setCartNumber(nextValue);
+    setLastSaved(nextValue);
+  }, [
+    initialCartNumber,
+    saving,
+  ]);
 
   async function saveCartNumber() {
-    const cleaned = cartNumber.trim();
+    const cleaned =
+      cartNumber.trim();
 
     if (cleaned === lastSaved) {
       return;
@@ -33,26 +67,35 @@ export default function CartNumberInput({
     setError("");
 
     try {
-      const response = await fetch(
-        `/api/tee-times/${slotId}/cart`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            cart_number: cleaned,
-          }),
-        }
-      );
+      const response =
+        await fetch(
+          `/api/tee-times/${slotId}/cart`,
+          {
+            method: "PUT",
 
-      const data = await response.json();
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-      if (!response.ok || !data.ok) {
-        setError(
-          data.error || "Unable to save cart."
+            body: JSON.stringify({
+              cart_number:
+                cleaned,
+            }),
+          }
         );
-        return;
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.ok
+      ) {
+        throw new Error(
+          data.error ||
+            "Unable to save cart."
+        );
       }
 
       const savedValue =
@@ -60,13 +103,27 @@ export default function CartNumberInput({
 
       setCartNumber(savedValue);
       setLastSaved(savedValue);
-    } catch (error) {
+
+      /*
+        Refresh the server data so the
+        adjacent player's input displays
+        the shared cart number.
+      */
+
+      router.refresh();
+    } catch (caught) {
       console.error(
         "Cart assignment error:",
-        error
+        caught
       );
 
-      setError("Unable to save cart.");
+      setCartNumber(lastSaved);
+
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to save cart."
+      );
     } finally {
       setSaving(false);
     }
@@ -83,16 +140,25 @@ export default function CartNumberInput({
         value={cartNumber}
         disabled={saving}
         onChange={(event) =>
-          setCartNumber(event.target.value)
+          setCartNumber(
+            event.target.value
+          )
         }
         onBlur={saveCartNumber}
         onKeyDown={(event) => {
-          if (event.key === "Enter") {
+          if (
+            event.key === "Enter"
+          ) {
             event.currentTarget.blur();
           }
 
-          if (event.key === "Escape") {
-            setCartNumber(lastSaved);
+          if (
+            event.key === "Escape"
+          ) {
+            setCartNumber(
+              lastSaved
+            );
+
             event.currentTarget.blur();
           }
         }}
