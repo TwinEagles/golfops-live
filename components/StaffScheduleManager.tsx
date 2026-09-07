@@ -34,6 +34,10 @@ const areas = [
   ["GENERAL", "General"],
 ] as const;
 
+function areaLabel(value: string) {
+  return areas.find(([key]) => key === value)?.[1] ?? value;
+}
+
 function formatTime(value: string | null) {
   if (!value) return "";
 
@@ -45,9 +49,7 @@ function formatTime(value: string | null) {
 
   const match = cleaned.match(/^(\d{1,2}):(\d{2})$/);
 
-  if (!match) {
-    return cleaned;
-  }
+  if (!match) return cleaned;
 
   const hour = Number(match[1]);
 
@@ -56,8 +58,51 @@ function formatTime(value: string | null) {
   }`;
 }
 
-function areaLabel(value: string) {
-  return areas.find(([key]) => key === value)?.[1] ?? value;
+function departmentFor(person: Staff) {
+  const text = `${person.duty ?? ""} ${
+    person.zone ?? ""
+  } ${person.job_title ?? ""}`.toLowerCase();
+
+  if (
+    text.includes("golf shop") ||
+    text.includes("golf professional") ||
+    text.includes(" in ")
+  ) {
+    return "Golf Shop";
+  }
+
+  if (
+    text.includes("range") ||
+    text.includes("range attn")
+  ) {
+    return "Range";
+  }
+
+  if (
+    text.includes("starter") ||
+    text.includes("player assistant") ||
+    text.includes("starter/pa")
+  ) {
+    return "Starter / Player Assistant";
+  }
+
+  if (
+    text.includes("outside") ||
+    text.includes("open-close") ||
+    text.includes("bag drop")
+  ) {
+    return "Outside Operations";
+  }
+
+  if (
+    text.includes("instruction") ||
+    text.includes("player development") ||
+    text.includes("teaching")
+  ) {
+    return "Instruction / Player Development";
+  }
+
+  return "General";
 }
 
 export default function StaffScheduleManager({
@@ -162,14 +207,11 @@ export default function StaffScheduleManager({
     staff
       .filter((person) => person.status === "SCHEDULED")
       .reduce((groups, person) => {
-        const group =
-          person.duty?.trim() ||
-          person.job_title?.trim() ||
-          "General";
+        const department = departmentFor(person);
+        const people = groups.get(department) ?? [];
 
-        const people = groups.get(group) ?? [];
         people.push(person);
-        groups.set(group, people);
+        groups.set(department, people);
 
         return groups;
       }, new Map<string, Staff[]>())
@@ -260,12 +302,14 @@ export default function StaffScheduleManager({
 
         {groupedStaff.length > 0 ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {groupedStaff.map(([group, people]) => (
+            {groupedStaff.map(([department, people]) => (
               <div
-                key={group}
+                key={department}
                 className="rounded-lg border p-4"
               >
-                <h3 className="font-bold">{group}</h3>
+                <h3 className="font-bold">
+                  {department}
+                </h3>
 
                 {people.map((person) => (
                   <div
@@ -284,7 +328,8 @@ export default function StaffScheduleManager({
 
                     <div className="text-sm text-slate-500">
                       {person.duty || person.job_title}
-                      {person.zone && ` • ${person.zone}`}
+                      {person.zone &&
+                        ` • ${person.zone}`}
                     </div>
                   </div>
                 ))}
