@@ -4,6 +4,8 @@ import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// Includes the Admin-controlled Outside Operations module permission.
+
 export type GolfOpsUserRow = {
   id: string;
   display_name: string | null;
@@ -15,6 +17,7 @@ export type GolfOpsUserRow = {
   reciprocals: boolean;
   bag_finder: boolean;
   golf_carts: boolean;
+  outside_operations: boolean;
   tv: boolean;
 };
 
@@ -25,6 +28,7 @@ type PermissionKey =
   | "reciprocals"
   | "bag_finder"
   | "golf_carts"
+  | "outside_operations"
   | "tv";
 
 const permissionColumns: Array<{ key: PermissionKey; label: string }> = [
@@ -34,6 +38,7 @@ const permissionColumns: Array<{ key: PermissionKey; label: string }> = [
   { key: "reciprocals", label: "Reciprocals" },
   { key: "bag_finder", label: "Bag Finder" },
   { key: "golf_carts", label: "Golf Carts" },
+  { key: "outside_operations", label: "Outside Ops" },
   { key: "tv", label: "TV" },
 ];
 
@@ -44,6 +49,7 @@ const defaultPermissions: Record<PermissionKey, boolean> = {
   reciprocals: true,
   bag_finder: true,
   golf_carts: true,
+  outside_operations: true,
   tv: true,
 };
 
@@ -177,6 +183,7 @@ export default function UserPermissionsManager({
             reciprocals: created.permissions?.reciprocals ?? true,
             bag_finder: created.permissions?.bag_finder ?? true,
             golf_carts: created.permissions?.golf_carts ?? true,
+            outside_operations: created.permissions?.outside_operations ?? true,
             tv: created.permissions?.tv ?? true,
           },
         ].sort((a, b) =>
@@ -478,7 +485,7 @@ export default function UserPermissionsManager({
         )}
 
         <div className="overflow-x-auto">
-          <table className="min-w-[1430px] w-full border-collapse text-sm">
+          <table className="min-w-[1540px] w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)]">
                 <th className="sticky left-0 z-10 min-w-[235px] bg-[var(--golfops-surface-soft)] px-5 py-3 text-left font-semibold">
