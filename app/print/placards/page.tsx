@@ -19,6 +19,14 @@ type OperationalSettings = {
   placardDesign?: "bold" | "clean";
   cutAndStack?: boolean;
   holeOrder?: "1-18" | "18-1";
+  cleanUpNames?: boolean;
+  cleanupLabels?: string[];
+  cleanupTags?: string[];
+  customCleanupRules?: Array<{
+    value: string;
+    mode: "start" | "anywhere";
+    enabled: boolean;
+  }>;
 };
 
 type TeeSheetSlot = {
@@ -1083,29 +1091,6 @@ export default async function PrintPlacardsPage({
                     <header className="sign-header">
                       <div className="club-course">
                         The TwinEagles Club
-                        {placard.course ? (
-                          <>
-                            {" - "}
-                            <span
-                              className={[
-                                "course-name",
-                                placard.course
-                                  .trim()
-                                  .toLowerCase() === "eagle"
-                                  ? "course-eagle"
-                                  : placard.course
-                                        .trim()
-                                        .toLowerCase() === "talon"
-                                    ? "course-talon"
-                                    : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                            >
-                              {placard.course}
-                            </span>
-                          </>
-                        ) : null}
                       </div>
 
                       {eventName && (
@@ -1132,9 +1117,10 @@ export default async function PrintPlacardsPage({
                             }
                             className="player-name"
                           >
-                            {
-                              player.player_name
-                            }
+                            {cleanPlayerName(
+                              player.player_name,
+                              operationalSettings
+                            )}
                           </div>
                         )
                       )}
@@ -1470,13 +1456,18 @@ export default async function PrintPlacardsPage({
 
           .placard {
             width: 100%;
-            height: 5in;
+            height: 4.92in;
             margin: 0;
             padding: 0.05in;
             border-width: 2px;
           }
 
+          .placard:nth-child(odd) {
+            margin-bottom: 0.2in;
+          }
+
           .placard:nth-child(even) {
+            margin-bottom: 0;
             page-break-after: always;
           }
 
@@ -1524,4 +1515,72 @@ export default async function PrintPlacardsPage({
       `}</style>
     </>
   );
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function cleanPlayerName(
+  value: string | null,
+  settings: OperationalSettings
+) {
+  let result = (value ?? "").trim();
+
+  if (!result || settings.cleanUpNames === false) {
+    return result;
+  }
+
+  const customRules = Array.isArray(settings.customCleanupRules)
+    ? settings.customCleanupRules.filter((rule) => rule.enabled)
+    : [];
+
+  const defaultLabels = [
+    "Talon", "Eagle", "PGA/Industry", "PGA Golf Pass", "PGA",
+    "Event Guest", "Fam Guest", "Recip Guest", "Reciprocal", "Recip",
+    "Guest", "Staff", "Member", "Outing",
+  ];
+
+  const defaultTags = ["SPT", "RNT", "SOC", "PGM", "JPGA", "BBE"];
+
+  const startLabels = [
+    ...(Array.isArray(settings.cleanupLabels) ? settings.cleanupLabels : defaultLabels),
+    ...customRules
+      .filter((rule) => rule.mode === "start")
+      .map((rule) => rule.value),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+
+  let changed = true;
+  while (changed && result) {
+    changed = false;
+    for (const label of startLabels) {
+      const next = result.replace(
+        new RegExp(`^${escapeRegExp(label)}(?:\\s+|[-–—:]+\\s*)`, "i"),
+        ""
+      );
+      if (next !== result) {
+        result = next.trim();
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  const anywhereLabels = [
+    ...(Array.isArray(settings.cleanupTags) ? settings.cleanupTags : defaultTags),
+    ...customRules
+      .filter((rule) => rule.mode === "anywhere")
+      .map((rule) => rule.value),
+  ].filter(Boolean);
+
+  for (const label of anywhereLabels) {
+    result = result.replace(
+      new RegExp(`(?:^|\\s)${escapeRegExp(label)}(?=\\s|$)`, "gi"),
+      " "
+    );
+  }
+
+  return result.replace(/\s{2,}/g, " ").trim();
 }

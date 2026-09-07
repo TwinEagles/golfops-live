@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { hasGolfOpsPermission } from "@/lib/permissions";
 
+const allowedValues = new Set([
+  "",
+  "CHECKED",
+  "MISSING",
+]);
+
 export async function PUT(
   request: Request,
   context: {
@@ -41,7 +47,7 @@ export async function PUT(
         {
           ok: false,
           error:
-            "You do not have permission to update check-in status.",
+            "You do not have permission to update bag status.",
         },
         {
           status: 403,
@@ -52,7 +58,7 @@ export async function PUT(
     const { data: profile } =
       await supabase
         .from("profiles")
-        .select("club_id, role")
+        .select("club_id")
         .eq("id", user.id)
         .single();
 
@@ -76,9 +82,24 @@ export async function PUT(
       await request.json();
 
     const value =
-      body?.value === "X"
-        ? "X"
+      typeof body?.value === "string"
+        ? body.value
+            .trim()
+            .toUpperCase()
         : "";
+
+    if (!allowedValues.has(value)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Invalid bag status.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
     const {
       data: slot,
@@ -94,14 +115,12 @@ export async function PUT(
           "club_id",
           profile.club_id
         )
-        .select(
-          "id, check_in"
-        )
+        .select("id, check_in")
         .single();
 
     if (error) {
       console.error(
-        "Check-in update error:",
+        "Bag status update error:",
         error
       );
 
@@ -118,12 +137,11 @@ export async function PUT(
 
     return NextResponse.json({
       ok: true,
-      check_in:
-        slot.check_in,
+      check_in: slot.check_in,
     });
   } catch (error) {
     console.error(
-      "Check-in route error:",
+      "Bag status route error:",
       error
     );
 
@@ -133,7 +151,7 @@ export async function PUT(
         error:
           error instanceof Error
             ? error.message
-            : "Unable to update check-in status.",
+            : "Unable to update bag status.",
       },
       {
         status: 500,
