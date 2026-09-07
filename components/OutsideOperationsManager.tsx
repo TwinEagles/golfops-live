@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Shift = "OPENING" | "MIDDAY" | "CLOSING";
-type Item = { id: string; shift: Shift; item_order: number; item_text: string };
+type Item = { id: string; shift: Shift; item_order: number; item_text: string; active: boolean };
 type Completion = { id: string; item_id: string; operator_name: string; completed_at: string };
 type Handoff = { id: string; category: string; note: string; status: "OPEN" | "RESOLVED"; created_by_name: string; created_at: string; resolved_by_name: string | null; resolved_at: string | null };
 
@@ -16,9 +16,10 @@ function time(value: string) {
   return new Date(value).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
 }
 
-export default function OutsideOperationsManager({ workDate, initialItems, initialCompletions, initialHandoffs, staffNames }: {
-  workDate: string; initialItems: Item[]; initialCompletions: Completion[]; initialHandoffs: Handoff[]; staffNames: string[];
+export default function OutsideOperationsManager({ workDate, initialItems, initialCompletions, initialHandoffs, staffNames, isAdmin }: {
+  workDate: string; initialItems: Item[]; initialCompletions: Completion[]; initialHandoffs: Handoff[]; staffNames: string[]; isAdmin: boolean;
 }) {
+  const [items, setItems] = useState(initialItems);
   const [operatorName, setOperatorName] = useState("");
   const [completions, setCompletions] = useState(initialCompletions);
   const [handoffs, setHandoffs] = useState(initialHandoffs);
@@ -28,10 +29,13 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
   const [showResolved, setShowResolved] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [newShift, setNewShift] = useState<Shift>("OPENING");
+  const [newDuty, setNewDuty] = useState("");
 
   useEffect(() => { setOperatorName(window.localStorage.getItem("golfops-outside-operator") ?? ""); }, []);
   useEffect(() => { setCompletions(initialCompletions); }, [initialCompletions]);
   useEffect(() => { setHandoffs(initialHandoffs); }, [initialHandoffs]);
+  useEffect(() => { setItems(initialItems); }, [initialItems]);
   function rememberName(value: string) { setOperatorName(value); window.localStorage.setItem("golfops-outside-operator", value); }
   const completedByItem = useMemo(() => new Map(completions.map((entry) => [entry.item_id, entry])), [completions]);
 
@@ -80,6 +84,52 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
     finally { setBusy(null); }
   }
 
+  async function addDuty(event: FormEvent) {
+    event.preventDefault();
+    if (!newDuty.trim()) { setError("Enter a duty to add."); return; }
+    setBusy("add-duty"); setError(""); setMessage("");
+    try {
+      const result = await post({ action: "add_item", shift: newShift, itemText: newDuty.trim() });
+      setItems((current) => [...current, result.item]); setNewDuty(""); setMessage(`${newShift.charAt(0) + newShift.slice(1).toLowerCase()} duty added.`);
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to add duty."); }
+    finally { setBusy(null); }
+  }
+
+  async function renameDuty(item: Item) {
+    const itemText = window.prompt("Update this duty:", item.item_text)?.trim();
+    if (!itemText || itemText === item.item_text) return;
+    setBusy(`edit:${item.id}`); setError(""); setMessage("");
+    try {
+      const result = await post({ action: "rename_item", itemId: item.id, itemText });
+      setItems((current) => current.map((entry) => entry.id === item.id ? result.item : entry)); setMessage("Duty updated.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to update duty."); }
+    finally { setBusy(null); }
+  }
+
+  async function setDutyActive(item: Item) {
+    setBusy(`active:${item.id}`); setError(""); setMessage("");
+    try {
+      const result = await post({ action: "set_item_active", itemId: item.id, active: !item.active });
+      setItems((current) => current.map((entry) => entry.id === item.id ? result.item : entry)); setMessage(item.active ? "Duty retired." : "Duty restored.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to update duty."); }
+    finally { setBusy(null); }
+  }
+
+  async function moveDuty(item: Item, direction: -1 | 1) {
+    const shiftItems = items.filter((entry) => entry.shift === item.shift).sort((a, b) => a.item_order - b.item_order);
+    const index = shiftItems.findIndex((entry) => entry.id === item.id);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= shiftItems.length) return;
+    [shiftItems[index], shiftItems[nextIndex]] = [shiftItems[nextIndex], shiftItems[index]];
+    setBusy(`move:${item.id}`); setError(""); setMessage("");
+    try {
+      await post({ action: "reorder_items", shift: item.shift, orderedIds: shiftItems.map((entry) => entry.id) });
+      const orderMap = new Map(shiftItems.map((entry, itemIndex) => [entry.id, (itemIndex + 1) * 10]));
+      setItems((current) => current.map((entry) => orderMap.has(entry.id) ? { ...entry, item_order: orderMap.get(entry.id)! } : entry));
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to reorder duties."); }
+    finally { setBusy(null); }
+  }
+
   const visibleHandoffs = handoffs.filter((item) => showResolved || item.status === "OPEN");
 
   return (
@@ -103,16 +153,16 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
 
       <section className="grid gap-5 lg:grid-cols-3">
         {shifts.map((shift) => {
-          const items = initialItems.filter((item) => item.shift === shift.key);
-          const done = items.filter((item) => completedByItem.has(item.id)).length;
+          const shiftItems = items.filter((item) => item.shift === shift.key && item.active).sort((a, b) => a.item_order - b.item_order);
+          const done = shiftItems.filter((item) => completedByItem.has(item.id)).length;
           return (
             <div key={shift.key} className="overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
               <header className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4">
-                <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{shift.label}</h2><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${done === items.length && items.length > 0 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{done}/{items.length}</span></div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-emerald-500 transition-all" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} /></div>
+                <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{shift.label}</h2><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${done === shiftItems.length && shiftItems.length > 0 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{done}/{shiftItems.length}</span></div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-emerald-500 transition-all" style={{ width: `${shiftItems.length ? (done / shiftItems.length) * 100 : 0}%` }} /></div>
               </header>
               <div className="divide-y divide-[var(--golfops-border)]">
-                {items.map((item) => {
+                {shiftItems.map((item) => {
                   const completion = completedByItem.get(item.id);
                   return <button type="button" key={item.id} disabled={busy !== null} onClick={() => toggleItem(item)} className="flex w-full items-start gap-3 px-4 py-4 text-left transition hover:bg-[var(--golfops-surface-soft)] disabled:opacity-60">
                     <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-black ${completion ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 text-transparent"}`}>✓</span>
@@ -124,6 +174,20 @@ export default function OutsideOperationsManager({ workDate, initialItems, initi
           );
         })}
       </section>
+
+      {isAdmin && (
+        <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
+          <header className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4 sm:px-5"><div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">Admin</div><h2 className="mt-1 text-xl font-bold">Checklist Setup</h2><p className="mt-1 text-sm text-[var(--golfops-text-muted)]">Add and maintain the duties shown to the Outside Operations TEAM.</p></header>
+          <form onSubmit={addDuty} className="grid gap-3 border-b border-[var(--golfops-border)] p-4 sm:p-5 md:grid-cols-[180px_1fr_auto]">
+            <select value={newShift} onChange={(event) => setNewShift(event.target.value as Shift)} className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-input-bg)] px-3 py-3 text-sm font-semibold">{shifts.map((shift) => <option key={shift.key} value={shift.key}>{shift.label}</option>)}</select>
+            <input value={newDuty} onChange={(event) => setNewDuty(event.target.value)} placeholder="Enter a new opening, midday, or closing duty" className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-input-bg)] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[var(--golfops-accent)]" />
+            <button disabled={busy !== null} className="rounded-lg bg-[var(--golfops-accent)] px-5 py-3 text-sm font-bold text-white disabled:opacity-60">{busy === "add-duty" ? "Adding..." : "Add Duty"}</button>
+          </form>
+          <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-3">
+            {shifts.map((shift) => <div key={shift.key}><h3 className="mb-2 font-bold">{shift.label}</h3><div className="space-y-2">{items.filter((item) => item.shift === shift.key).sort((a, b) => a.item_order - b.item_order).map((item, index, shiftItems) => <div key={item.id} className={`rounded-lg border border-[var(--golfops-border)] p-3 ${item.active ? "bg-[var(--golfops-surface)]" : "bg-slate-100 opacity-65"}`}><div className="text-sm font-semibold leading-5">{item.item_text}</div><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy !== null || index === 0} onClick={() => moveDuty(item, -1)} className="rounded border px-2 py-1 text-xs font-bold disabled:opacity-40">↑ Up</button><button type="button" disabled={busy !== null || index === shiftItems.length - 1} onClick={() => moveDuty(item, 1)} className="rounded border px-2 py-1 text-xs font-bold disabled:opacity-40">↓ Down</button><button type="button" disabled={busy !== null} onClick={() => renameDuty(item)} className="rounded border px-2 py-1 text-xs font-bold">Edit</button><button type="button" disabled={busy !== null} onClick={() => setDutyActive(item)} className="rounded border px-2 py-1 text-xs font-bold">{item.active ? "Retire" : "Restore"}</button></div></div>)}</div></div>)}
+          </div>
+        </section>
+      )}
 
       <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
         <header className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4 sm:px-5"><h2 className="text-xl font-bold">Shift Handoff</h2><p className="mt-1 text-sm text-[var(--golfops-text-muted)]">Record anything the next shift needs to know or resolve.</p></header>
