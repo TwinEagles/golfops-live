@@ -7,7 +7,28 @@ type Staff={id:string;employee_name:string;job_title:string;start_time:string|nu
 type Task={id:string;title:string;description:string|null;area:string;due_date:string;status:"OPEN"|"IN_PROGRESS"|"COMPLETED"};
 const areas=[['OUTSIDE_OPERATIONS','Outside Operations'],['STARTER_PLAYER_ASSISTANT','Starter / Player Assistant'],['RANGE','Range'],['GOLF_SHOP','Golf Shop'],['INSTRUCTION','Instruction / Player Development'],['GENERAL','General']];
 const label=(a:string)=>areas.find(([k])=>k===a)?.[1]??a;
-const fmt=(v:string|null)=>v?new Date(`1970-01-01T${v}`).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
+const fmt = (value: string | null) => {
+  if (!value) return "";
+
+  const cleaned = value.trim();
+
+  if (/AM|PM/i.test(cleaned)) {
+    return cleaned;
+  }
+
+  const match = cleaned.match(/^(\d{1,2}):(\d{2})$/);
+
+  if (!match) {
+    return cleaned;
+  }
+
+  const hour = Number(match[1]);
+  const minute = match[2];
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+
+  return `${displayHour}:${minute} ${suffix}`;
+};
 
 export default function StaffScheduleManager({date,staff,tasks,isAdmin,latestImport}:{date:string;staff:Staff[];tasks:Task[];isAdmin:boolean;latestImport:any}){
  const router=useRouter(); const [title,setTitle]=useState(''); const [area,setArea]=useState('OUTSIDE_OPERATIONS'); const [due,setDue]=useState(date); const [description,setDescription]=useState(''); const [error,setError]=useState('');
