@@ -7,28 +7,7 @@ type Staff={id:string;employee_name:string;job_title:string;start_time:string|nu
 type Task={id:string;title:string;description:string|null;area:string;due_date:string;status:"OPEN"|"IN_PROGRESS"|"COMPLETED"};
 const areas=[['OUTSIDE_OPERATIONS','Outside Operations'],['STARTER_PLAYER_ASSISTANT','Starter / Player Assistant'],['RANGE','Range'],['GOLF_SHOP','Golf Shop'],['INSTRUCTION','Instruction / Player Development'],['GENERAL','General']];
 const label=(a:string)=>areas.find(([k])=>k===a)?.[1]??a;
-const fmt = (value: string | null) => {
-  if (!value) return "";
-
-  const cleaned = value.trim();
-
-  if (/AM|PM/i.test(cleaned)) {
-    return cleaned;
-  }
-
-  const match = cleaned.match(/^(\d{1,2}):(\d{2})$/);
-
-  if (!match) {
-    return cleaned;
-  }
-
-  const hour = Number(match[1]);
-  const minute = match[2];
-  const suffix = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
-
-  return `${displayHour}:${minute} ${suffix}`;
-};
+const fmt=(v:string|null)=>v?new Date(`1970-01-01T${v}`).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
 
 export default function StaffScheduleManager({date,staff,tasks,isAdmin,latestImport}:{date:string;staff:Staff[];tasks:Task[];isAdmin:boolean;latestImport:any}){
  const router=useRouter(); const [title,setTitle]=useState(''); const [area,setArea]=useState('OUTSIDE_OPERATIONS'); const [due,setDue]=useState(date); const [description,setDescription]=useState(''); const [error,setError]=useState('');
@@ -39,5 +18,6 @@ export default function StaffScheduleManager({date,staff,tasks,isAdmin,latestImp
  const overdue=(t:Task)=>t.status!=='COMPLETED'&&t.due_date<date;
  return <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[.18em] text-blue-600">Staff Schedule</div><h1 className="text-3xl font-bold">{date}</h1></div><div className="flex gap-2"><button onClick={()=>router.push(`/outside-operations?date=${date}`)} className="rounded border px-3 py-2">Today</button><input type="date" value={date} onChange={e=>router.push(`/outside-operations?date=${e.target.value}`)} className="rounded border px-3 py-2"/></div></div>
  <section className="mt-6 rounded-xl border bg-white p-5"><div className="flex justify-between"><div><p className="text-xs font-bold uppercase tracking-widest text-slate-500">SchedulePop</p><h2 className="text-2xl font-bold">Today’s Staff</h2></div>{latestImport&&<p className="text-sm text-slate-500">Last imported {new Date(latestImport.imported_at).toLocaleString()}</p>}</div>{grouped.length?<div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">{grouped.map(([name,rows])=><div key={name} className="rounded-lg border p-4"><h3 className="font-bold">{name}</h3>{rows.map(s=><div key={s.id} className="mt-3 border-t pt-2"><div className="font-semibold">{s.employee_name}</div><div className="text-sm text-blue-600">{fmt(s.start_time)}{s.end_time&&` – ${fmt(s.end_time)}`}</div><div className="text-sm text-slate-500">{s.duty||s.job_title}{s.zone&&` • ${s.zone}`}</div></div>)}</div>)}</div>:<p className="mt-4 text-slate-500">No scheduled staff imported for this date.</p>}</section>
- <section className="mt-6 rounded-xl border bg-white p-5"><p className="text-xs font-bold uppercase tracking-widest text-slate-500">Task Log</p><h2 className="text-2xl font-bold">Projects and follow-up</h2><form onSubmit={add} className="mt-4 grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]"><input required value={title} onChange={e=>setTitle(e.target.value)} placeholder="Add a project or task" className="rounded border px-3 py-2"/><select value={area} onChange={e=>setArea(e.target.value)} className="rounded border px-3 py-2">{areas.map(([k,n])=><option key={k} value={k}>{n}</option>)}</select><input required type="date" value={due} onChange={e=>setDue(e.target.value)} className="rounded border px-3 py-2"/><button className="rounded bg-blue-600 px-4 py-2 font-semibold text-white">Add Task</button></form>{description!==undefined&&<textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Optional notes" className="mt-3 w-full rounded border px-3 py-2" rows={2}/>} {error&&<p className="mt-2 text-sm text-red-600">{error}</p>}<div className="mt-5 space-y-3">{tasks.length?tasks.map(t=><div key={t.id} className={`rounded-lg border p-4 ${overdue(t)?'border-red-300 bg-red-50':''}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-bold">{t.title}</div><div className="text-sm text-slate-500">{label(t.area)} • Due {t.due_date}{overdue(t)&&<span className="ml-2 font-bold text-red-600">OVERDUE</span>}</div>{t.description&&<div className="mt-1 text-sm">{t.description}</div>}</div><select value={t.status} onChange={e=>status(t.id,e.target.value)} className="rounded border px-2 py-1 text-sm"><option value="OPEN">Open</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></div></div>):<p className="text-slate-500">No tasks yet.</p>}</div></section><section className="mt-6"><SchedulePopImporter /></section></main>;
+ <section className="mt-6 rounded-xl border bg-white p-5"><p className="text-xs font-bold uppercase tracking-widest text-slate-500">Task Log</p><h2 className="text-2xl font-bold">Projects and follow-up</h2><form onSubmit={add} className="mt-4 grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]"><input required value={title} onChange={e=>setTitle(e.target.value)} placeholder="Add a project or task" className="rounded border px-3 py-2"/><select value={area} onChange={e=>setArea(e.target.value)} className="rounded border px-3 py-2">{areas.map(([k,n])=><option key={k} value={k}>{n}</option>)}</select><input required type="date" value={due} onChange={e=>setDue(e.target.value)} className="rounded border px-3 py-2"/><button className="rounded bg-blue-600 px-4 py-2 font-semibold text-white">Add Task</button></form>{description!==undefined&&<textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Optional notes" className="mt-3 w-full rounded border px-3 py-2" rows={2}/>} {error&&<p className="mt-2 text-sm text-red-600">{error}</p>}<div className="mt-5 space-y-3">{tasks.length?tasks.map(t=><div key={t.id} className={`rounded-lg border p-4 ${overdue(t)?'border-red-300 bg-red-50':''}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-bold">{t.title}</div><div className="text-sm text-slate-500">{label(t.area)} • Due {t.due_date}{overdue(t)&&<span className="ml-2 font-bold text-red-600">OVERDUE</span>}</div>{t.description&&<div className="mt-1 text-sm">{t.description}</div>}</div><select value={t.status} onChange={e=>status(t.id,e.target.value)} className="rounded border px-2 py-1 text-sm"><option value="OPEN">Open</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></div></div>):<p className="text-slate-500">No tasks yet.</p>}</div></section><section className="mt-6"><SchedulePopImporter/></section></main>;
 }
+
