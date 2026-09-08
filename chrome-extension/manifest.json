@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GolfOps Live",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Sends ForeTees tee sheets, lessons, bag-slot updates, and SchedulePop staffing schedules to GolfOps Live.",
   "permissions": [
     "storage",
@@ -36,12 +36,16 @@
     {
       "matches": [
         "https://web.foretees.com/v5/assets/legacy/admin_welns.htm*",
-        "https://*.foretees.com/v5/assets/legacy/admin_welns.htm*"
+        "https://*.foretees.com/v5/assets/legacy/admin_welns.htm*",
+        "https://web.foretees.com/v5/servlet/Admin_*",
+        "https://*.foretees.com/v5/servlet/Admin_*"
       ],
       "js": [
         "foretees-admin.js"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
     },
     {
       "matches": [

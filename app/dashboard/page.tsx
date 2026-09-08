@@ -6,6 +6,7 @@ import CartNumberInput from "@/components/CartNumberInput";
 import TeeTimeEditRow from "@/components/TeeTimeEditRow";
 import AppNav from "@/components/AppNav";
 import TeeSheetDateSelector from "@/components/TeeSheetDateSelector";
+import { easternDateString } from "@/lib/golfops-date";
 
 function formatStartingHole(
   startingPosition: string | null,
@@ -210,13 +211,8 @@ export default async function DashboardPage({
 
   const params = await searchParams;
 
-  const now = new Date();
-
-  const today = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("-");
+const today =
+  easternDateString();
 
   const tomorrow = addDays(today, 1);
 

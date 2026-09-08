@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getGolfOpsAccess } from "@/lib/permissions";
+import { easternDateString } from "@/lib/golfops-date";
 
 // Navigation includes the permission-controlled Outside Operations workspace.
 
@@ -22,16 +23,6 @@ type AppNavProps = {
 
   selectedDate?: string;
 };
-
-function todayString() {
-  const now = new Date();
-
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("-");
-}
 
 export default async function AppNav({
   active,
@@ -137,7 +128,7 @@ export default async function AppNav({
           )
           .gte(
             "sheet_date",
-            todayString()
+            easternDateString()
           )
           .order(
             "sheet_date",
