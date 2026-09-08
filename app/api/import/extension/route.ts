@@ -650,138 +650,19 @@ export async function POST(request: Request) {
       }
     }
 
-    let membersAdded =
-      0;
+    /*
+      BAG FINDER MASTER DATA
+
+      Tee-sheet imports no longer create
+      members or change master bag-slot
+      assignments. ForeTees Admin is the
+      authoritative source for Bag Finder.
+    */
+
+    const membersAdded = 0;
 
     const memberAddWarnings:
       string[] = [];
-
-    if (
-      newMemberCandidates.size >
-      0
-    ) {
-      const rowsToInsert =
-        Array.from(
-          newMemberCandidates.values()
-        ).map(
-          (candidate) => ({
-            club_id:
-              clubId,
-
-            first_name:
-              candidate.firstName ||
-              null,
-
-            last_name:
-              candidate.lastName ||
-              null,
-
-            full_name:
-              candidate.fullName,
-
-            member_number:
-              null,
-
-            bag_number:
-              candidate.bagNumber,
-          })
-        );
-
-      const {
-        data: addedMembers,
-        error: addMembersError,
-      } = await supabase
-        .from("members")
-        .insert(
-          rowsToInsert
-        )
-        .select(`
-          id,
-          first_name,
-          last_name,
-          full_name,
-          member_number,
-          bag_number
-        `);
-
-      if (
-        addMembersError
-      ) {
-        console.error(
-          "Automatic member add error:",
-          addMembersError
-        );
-
-        memberAddWarnings.push(
-          `Unable to automatically add ${rowsToInsert.length} new Bag Finder member${
-            rowsToInsert.length === 1
-              ? ""
-              : "s"
-          }.`
-        );
-      } else {
-        for (
-          const member of
-            addedMembers ?? []
-        ) {
-          membersAdded += 1;
-
-          const bag =
-            normalizeBagNumber(
-              member.bag_number
-            );
-
-          if (bag) {
-            memberByBag.set(
-              bag,
-              member
-            );
-          }
-
-          const name =
-            normalizeName(
-              member.full_name ||
-                `${member.first_name ?? ""} ${
-                  member.last_name ?? ""
-                }`
-            );
-
-          if (name) {
-            memberByName.set(
-              name,
-              member
-            );
-
-            allMemberNames.add(
-              name
-            );
-          }
-
-          memberAddWarnings.push(
-            `Bag Finder added ${
-              member.full_name ||
-              "new member"
-            } with bag ${
-              member.bag_number ||
-              ""
-            }.`
-          );
-        }
-      }
-    }
-
-    if (
-      ambiguousNewMembers.size >
-      0
-    ) {
-      memberAddWarnings.push(
-        `${ambiguousNewMembers.size} new member${
-          ambiguousNewMembers.size === 1
-            ? ""
-            : "s"
-        } skipped because ForeTees supplied conflicting bag numbers for the same name.`
-      );
-    }
 
     /*
       LOAD CURRENT FORETEES SLOTS
@@ -1738,81 +1619,16 @@ export async function POST(request: Request) {
     }
 
     /*
-      UPDATE BAG FINDER FROM THIS IMPORT
-
-      ForeTees is the operational source of
-      truth for bag numbers. On a confident
-      member match, a changed bag number updates
-      Bag Finder and a blank ForeTees bag clears
-      the member's existing bag number.
-
-      Duplicate names and conflicting bag
-      values are skipped.
+      Bag Finder updates are intentionally
+      disabled during tee-sheet imports.
+      Bag assignments are synchronized only
+      after Save and Close in ForeTees Admin.
     */
 
-    let membersUpdated =
-      0;
+    const membersUpdated = 0;
 
     const bagSyncWarnings:
       string[] = [];
-
-    for (
-      const candidate of
-        bagUpdateCandidates.values()
-    ) {
-      const {
-        error: memberBagUpdateError,
-      } = await supabase
-        .from("members")
-        .update({
-          bag_number:
-            candidate.newBag,
-        })
-        .eq(
-          "club_id",
-          clubId
-        )
-        .eq(
-          "id",
-          candidate.memberId
-        );
-
-      if (
-        memberBagUpdateError
-      ) {
-        console.error(
-          "Member bag sync error:",
-          memberBagUpdateError
-        );
-
-        bagSyncWarnings.push(
-          `Bag Finder update failed for ${candidate.memberName}: ${
-            candidate.oldBag || "blank"
-          } -> ${candidate.newBag || "No Bag"}`
-        );
-      } else {
-        membersUpdated += 1;
-
-        bagSyncWarnings.push(
-          `Bag Finder updated ${candidate.memberName}: ${
-            candidate.oldBag || "blank"
-          } -> ${candidate.newBag || "No Bag"}`
-        );
-      }
-    }
-
-    if (
-      ambiguousBagUpdates.size >
-      0
-    ) {
-      bagSyncWarnings.push(
-        `${ambiguousBagUpdates.size} bag update${
-          ambiguousBagUpdates.size === 1
-            ? ""
-            : "s"
-        } skipped because ForeTees supplied conflicting bag numbers for the same member.`
-      );
-    }
 
     const {
       error: importMetricsError,

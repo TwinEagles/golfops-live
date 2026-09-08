@@ -21,9 +21,15 @@ function saveSession(session) {
   return new Promise((resolve) => {
     chrome.storage.local.set(
       {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_at: session.expires_at,
+        access_token:
+          session.access_token,
+
+        refresh_token:
+          session.refresh_token,
+
+        expires_at:
+          session.expires_at,
+
         user_email:
           session.user_email ?? null
       },
@@ -410,6 +416,15 @@ chrome.runtime.onMessage.addListener(
         );
     } else if (
       message?.type ===
+      "SEND_FORETEES_BAG_MEMBER"
+    ) {
+      operation =
+        sendAuthenticatedRequest(
+          "/api/bag-finder/foretees-sync",
+          message.payload
+        );
+    } else if (
+      message?.type ===
       "FETCH_SCHEDULEPOP_REPORT"
     ) {
       operation =
@@ -460,6 +475,7 @@ chrome.runtime.onMessage.addListener(
     return true;
   }
 );
+
 /*
   Detect SchedulePop printable
   schedule requests directly

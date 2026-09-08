@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "GolfOps Live",
-  "version": "1.1.0",
-  "description": "Sends ForeTees tee sheets, lessons, and SchedulePop staffing schedules to GolfOps Live.",
-"permissions": [
-  "storage",
-  "webRequest"
-],
+  "version": "1.2.0",
+  "description": "Sends ForeTees tee sheets, lessons, bag-slot updates, and SchedulePop staffing schedules to GolfOps Live.",
+  "permissions": [
+    "storage",
+    "webRequest"
+  ],
   "host_permissions": [
     "https://web.foretees.com/*",
     "https://*.foretees.com/*",
@@ -24,8 +24,22 @@
         "https://web.foretees.com/*",
         "https://*.foretees.com/*"
       ],
+      "exclude_matches": [
+        "https://web.foretees.com/v5/assets/legacy/admin_welns.htm*",
+        "https://*.foretees.com/v5/assets/legacy/admin_welns.htm*"
+      ],
       "js": [
         "content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://web.foretees.com/v5/assets/legacy/admin_welns.htm*",
+        "https://*.foretees.com/v5/assets/legacy/admin_welns.htm*"
+      ],
+      "js": [
+        "foretees-admin.js"
       ],
       "run_at": "document_idle"
     },
