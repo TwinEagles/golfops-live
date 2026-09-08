@@ -235,11 +235,9 @@ const today =
       ? params.date
       : today;
 
-  // Temporary testing window: show live PACE data
-  // on both today's and tomorrow's tee sheets.
+  // Live PACE applies only to the current day's play.
   const showPaceForSelectedDate =
-    selectedDate === today ||
-    selectedDate === tomorrow;
+    selectedDate === today;
 
   /*
     Load recently captured tee-sheet dates for the
@@ -326,8 +324,8 @@ const today =
   const slots = (data ?? []) as TeeSheetSlot[];
 
   /*
-    Load live PACE cart status while viewing
-    today's or tomorrow's tee sheet for testing.
+    Load live PACE cart status only while
+    viewing today's tee sheet.
   */
   let paceStatuses: PaceCartStatus[] = [];
 
@@ -631,7 +629,7 @@ const today =
             </span>
           </summary>
 
-          <div className="grid gap-8 border-t border-[var(--golfops-border)] px-4 py-3 text-xs text-[var(--golfops-text-muted)] md:grid-cols-4">
+          <div className="grid gap-8 border-t border-[var(--golfops-border)] px-4 py-3 text-xs text-[var(--golfops-text-muted)] md:grid-cols-2 lg:grid-cols-5">
             {/* ROW COLORS */}
             <div>
               <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--golfops-text-dim)]">
@@ -657,6 +655,35 @@ const today =
                 <div className="flex items-center gap-2">
                   <span className="h-5 w-7 rounded border-l-4 border-purple-500 bg-purple-100" />
                   <span>Player replaced</span>
+                </div>
+              </div>
+            </div>
+
+            {/* LIVE PACE */}
+            <div>
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--golfops-text-dim)]">
+                Live Pace
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-green-500" />
+                  <span>On pace or ahead</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
+                  <span>1–9 minutes behind</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
+                  <span>10+ minutes behind</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-slate-400" />
+                  <span>Not started, offline, or stale</span>
                 </div>
               </div>
             </div>
