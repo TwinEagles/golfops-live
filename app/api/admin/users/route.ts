@@ -17,13 +17,17 @@ type CreateUserBody = {
     reciprocals?: boolean;
     bag_finder?: boolean;
     golf_carts?: boolean;
+    outside_operations?: boolean;
     tv?: boolean;
+    starter?: boolean;
   };
 };
 
-function cleanEmail(
-  value: string
-) {
+type DeleteUserBody = {
+  userId?: string;
+};
+
+function cleanEmail(value: string) {
   return value
     .trim()
     .toLowerCase();
@@ -32,12 +36,6 @@ function cleanEmail(
 export async function POST(
   request: Request
 ) {
-  /*
-    Authenticate the person making
-    the request with the normal
-    GolfOps browser session.
-  */
-
   const supabase =
     await createClient();
 
@@ -59,30 +57,20 @@ export async function POST(
     );
   }
 
-  /*
-    Confirm caller is a GolfOps Admin.
-  */
-
   const {
     data: adminProfile,
     error: profileError,
   } =
     await supabase
       .from("profiles")
-      .select(
-        "club_id, role"
-      )
-      .eq(
-        "id",
-        user.id
-      )
+      .select("club_id, role")
+      .eq("id", user.id)
       .single();
 
   if (
     profileError ||
     !adminProfile?.club_id ||
-    adminProfile.role !==
-      "admin"
+    adminProfile.role !== "admin"
   ) {
     return NextResponse.json(
       {
@@ -96,17 +84,11 @@ export async function POST(
     );
   }
 
-  /*
-    Read and validate request.
-  */
-
-  let body:
-    CreateUserBody;
+  let body: CreateUserBody;
 
   try {
     body =
-      (await request.json()) as
-        CreateUserBody;
+      (await request.json()) as CreateUserBody;
   } catch {
     return NextResponse.json(
       {
@@ -121,22 +103,17 @@ export async function POST(
   }
 
   const displayName =
-    typeof body.displayName ===
-      "string"
+    typeof body.displayName === "string"
       ? body.displayName.trim()
       : "";
 
   const email =
-    typeof body.email ===
-      "string"
-      ? cleanEmail(
-          body.email
-        )
+    typeof body.email === "string"
+      ? cleanEmail(body.email)
       : "";
 
   const password =
-    typeof body.password ===
-      "string"
+    typeof body.password === "string"
       ? body.password
       : "";
 
@@ -172,9 +149,7 @@ export async function POST(
     );
   }
 
-  if (
-    password.length < 8
-  ) {
+  if (password.length < 8) {
     return NextResponse.json(
       {
         ok: false,
@@ -186,12 +161,6 @@ export async function POST(
       }
     );
   }
-
-  /*
-    Privileged Supabase client.
-
-    NEVER send this key to the browser.
-  */
 
   const supabaseUrl =
     process.env
@@ -227,22 +196,11 @@ export async function POST(
       serviceRoleKey,
       {
         auth: {
-          persistSession:
-            false,
-
-          autoRefreshToken:
-            false,
+          persistSession: false,
+          autoRefreshToken: false,
         },
       }
     );
-
-  /*
-    Create Supabase Auth user.
-
-    email_confirm = true means the
-    employee can immediately sign in
-    with the temporary password.
-  */
 
   const {
     data: createdUserData,
@@ -283,10 +241,6 @@ export async function POST(
   const newUser =
     createdUserData.user;
 
-  /*
-    Create GolfOps profile.
-  */
-
   const {
     error: profileInsertError,
   } =
@@ -308,20 +262,11 @@ export async function POST(
             : "staff",
       });
 
-  if (
-    profileInsertError
-  ) {
-    /*
-      Roll back Auth user if profile
-      creation fails.
-    */
-
+  if (profileInsertError) {
     await adminSupabase
       .auth
       .admin
-      .deleteUser(
-        newUser.id
-      );
+      .deleteUser(newUser.id);
 
     return NextResponse.json(
       {
@@ -335,15 +280,6 @@ export async function POST(
     );
   }
 
-  /*
-    Create module permissions.
-
-    Admins technically do not need these
-    values because Admin access overrides
-    them, but storing all TRUE keeps the
-    record consistent.
-  */
-
   const requestedPermissions =
     body.permissions ?? {};
 
@@ -356,7 +292,9 @@ export async function POST(
           reciprocals: true,
           bag_finder: true,
           golf_carts: true,
+          outside_operations: true,
           tv: true,
+          starter: true,
         }
       : {
           tee_sheet:
@@ -389,20 +327,27 @@ export async function POST(
               .golf_carts ??
             true,
 
+          outside_operations:
+            requestedPermissions
+              .outside_operations ??
+            true,
+
           tv:
             requestedPermissions
               .tv ??
             true,
+
+          starter:
+            requestedPermissions
+              .starter ??
+            false,
         };
 
   const {
-    error:
-      permissionInsertError,
+    error: permissionInsertError,
   } =
     await adminSupabase
-      .from(
-        "user_permissions"
-      )
+      .from("user_permissions")
       .insert({
         user_id:
           newUser.id,
@@ -413,28 +358,16 @@ export async function POST(
         ...permissions,
       });
 
-  if (
-    permissionInsertError
-  ) {
-    /*
-      Roll back both profile and Auth user
-      if permission setup fails.
-    */
-
+  if (permissionInsertError) {
     await adminSupabase
       .from("profiles")
       .delete()
-      .eq(
-        "id",
-        newUser.id
-      );
+      .eq("id", newUser.id);
 
     await adminSupabase
       .auth
       .admin
-      .deleteUser(
-        newUser.id
-      );
+      .deleteUser(newUser.id);
 
     return NextResponse.json(
       {
@@ -470,29 +403,39 @@ export async function POST(
   });
 }
 
-type DeleteUserBody = {
-  userId?: string;
-};
-
-export async function DELETE(request: Request) {
-  const supabase = await createClient();
+export async function DELETE(
+  request: Request
+) {
+  const supabase =
+    await createClient();
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } =
+    await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json(
-      { ok: false, error: "You must be signed in." },
-      { status: 401 }
+      {
+        ok: false,
+        error:
+          "You must be signed in.",
+      },
+      {
+        status: 401,
+      }
     );
   }
 
-  const { data: adminProfile, error: profileError } = await supabase
-    .from("profiles")
-    .select("club_id, role")
-    .eq("id", user.id)
-    .single();
+  const {
+    data: adminProfile,
+    error: profileError,
+  } =
+    await supabase
+      .from("profiles")
+      .select("club_id, role")
+      .eq("id", user.id)
+      .single();
 
   if (
     profileError ||
@@ -500,84 +443,160 @@ export async function DELETE(request: Request) {
     adminProfile.role !== "admin"
   ) {
     return NextResponse.json(
-      { ok: false, error: "Admin access required." },
-      { status: 403 }
+      {
+        ok: false,
+        error:
+          "Admin access required.",
+      },
+      {
+        status: 403,
+      }
     );
   }
 
   let body: DeleteUserBody;
 
   try {
-    body = (await request.json()) as DeleteUserBody;
+    body =
+      (await request.json()) as DeleteUserBody;
   } catch {
     return NextResponse.json(
-      { ok: false, error: "Invalid request." },
-      { status: 400 }
+      {
+        ok: false,
+        error:
+          "Invalid request.",
+      },
+      {
+        status: 400,
+      }
     );
   }
 
   const targetUserId =
-    typeof body.userId === "string" ? body.userId.trim() : "";
+    typeof body.userId === "string"
+      ? body.userId.trim()
+      : "";
 
   if (!targetUserId) {
     return NextResponse.json(
-      { ok: false, error: "User ID is required." },
-      { status: 400 }
+      {
+        ok: false,
+        error:
+          "User ID is required.",
+      },
+      {
+        status: 400,
+      }
     );
   }
 
-  if (targetUserId === user.id) {
+  if (
+    targetUserId === user.id
+  ) {
     return NextResponse.json(
-      { ok: false, error: "You cannot remove your own account." },
-      { status: 400 }
+      {
+        ok: false,
+        error:
+          "You cannot remove your own account.",
+      },
+      {
+        status: 400,
+      }
     );
   }
 
-  const { data: targetProfile, error: targetProfileError } = await supabase
-    .from("profiles")
-    .select("id, club_id")
-    .eq("id", targetUserId)
-    .single();
+  const {
+    data: targetProfile,
+    error: targetProfileError,
+  } =
+    await supabase
+      .from("profiles")
+      .select("id, club_id")
+      .eq("id", targetUserId)
+      .single();
 
   if (
     targetProfileError ||
     !targetProfile ||
-    targetProfile.club_id !== adminProfile.club_id
+    targetProfile.club_id !==
+      adminProfile.club_id
   ) {
     return NextResponse.json(
-      { ok: false, error: "User was not found for your club." },
-      { status: 404 }
+      {
+        ok: false,
+        error:
+          "User was not found for your club.",
+      },
+      {
+        status: 404,
+      }
     );
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl =
+    process.env
+      .NEXT_PUBLIC_SUPABASE_URL;
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error("GolfOps Admin user removal configuration missing.");
+  const serviceRoleKey =
+    process.env
+      .SUPABASE_SERVICE_ROLE_KEY;
+
+  if (
+    !supabaseUrl ||
+    !serviceRoleKey
+  ) {
+    console.error(
+      "GolfOps Admin user removal configuration missing."
+    );
 
     return NextResponse.json(
-      { ok: false, error: "User removal is not configured on the server." },
-      { status: 500 }
+      {
+        ok: false,
+        error:
+          "User removal is not configured on the server.",
+      },
+      {
+        status: 500,
+      }
     );
   }
 
-  const adminSupabase = createAdminClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
+  const adminSupabase =
+    createAdminClient(
+      supabaseUrl,
+      serviceRoleKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
 
-  const { error: deleteUserError } =
-    await adminSupabase.auth.admin.deleteUser(targetUserId);
+  const {
+    error: deleteUserError,
+  } =
+    await adminSupabase
+      .auth
+      .admin
+      .deleteUser(
+        targetUserId
+      );
 
   if (deleteUserError) {
     return NextResponse.json(
-      { ok: false, error: deleteUserError.message },
-      { status: 500 }
+      {
+        ok: false,
+        error:
+          deleteUserError.message,
+      },
+      {
+        status: 500,
+      }
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+  });
 }

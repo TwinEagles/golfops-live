@@ -13,6 +13,7 @@ type AppNavProps = {
     | "outside-operations"
     | "tee-sheet"
     | "tv"
+    | "starter"
     | "changes"
     | "pro-shop"
     | "upload"
@@ -37,6 +38,10 @@ export default async function AppNav({
   const canTv =
     access?.isAdmin ||
     access?.permissions.tv === true;
+
+  const canStarter =
+    access?.isAdmin ||
+    access?.permissions.starter === true;
 
   const canChanges =
     access?.isAdmin ||
@@ -87,6 +92,8 @@ export default async function AppNav({
       ? "/operations"
       : canTv
         ? `/tv${datedSuffix}`
+        : canStarter
+          ? `/starter${datedSuffix}`
         : canChanges
           ? `/changes${datedSuffix}`
           : canProShop
@@ -189,6 +196,15 @@ export default async function AppNav({
       ? "rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white"
       : "rounded-md px-3 py-2 text-slate-600 transition hover:bg-slate-100";
 
+  const displaysActive =
+    active === "tv" ||
+    active === "starter";
+
+  const displaysClass =
+    displaysActive
+      ? "rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white"
+      : "rounded-md px-3 py-2 text-slate-600 transition hover:bg-slate-100";
+
   async function signOut() {
     "use server";
 
@@ -273,15 +289,60 @@ export default async function AppNav({
               </div>
             )}
 
-            {canTv && (
-              <Link
-                href={`/tv${datedSuffix}`}
-                className={navClass(
-                  "tv"
-                )}
-              >
-                TV
-              </Link>
+            {(canTv || canStarter) && (
+              <div className="group relative">
+                <Link
+                  href={
+                    canTv
+                      ? `/tv${datedSuffix}`
+                      : `/starter${datedSuffix}`
+                  }
+                  className={[
+                    displaysClass,
+                    "flex items-center gap-1.5",
+                  ].join(" ")}
+                  aria-haspopup="true"
+                >
+                  <span>Displays</span>
+
+                  <svg
+                    className="h-3 w-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </Link>
+
+                <div className="invisible absolute left-0 top-full z-50 min-w-[170px] pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                    {canTv && (
+                      <Link
+                        href={`/tv${datedSuffix}`}
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950"
+                      >
+                        TV Display
+                      </Link>
+                    )}
+
+                    {canStarter && (
+                      <Link
+                        href={`/starter${datedSuffix}`}
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950"
+                      >
+                        Starter Display
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
 
 
@@ -438,10 +499,38 @@ export default async function AppNav({
                   </div>
                 </details>
               )}
-              {canTv && (
-                <Link href={`/tv${datedSuffix}`} className={navClass("tv")}>
-                  TV
-                </Link>
+              {(canTv || canStarter) && (
+                <details className="group/displays">
+                  <summary
+                    className={[
+                      displaysClass,
+                      "flex cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden",
+                    ].join(" ")}
+                  >
+                    <span>Displays</span>
+                    <span className="text-xs">⌄</span>
+                  </summary>
+
+                  <div className="mt-1 grid gap-1 border-l-2 border-indigo-100 pl-2">
+                    {canTv && (
+                      <Link
+                        href={`/tv${datedSuffix}`}
+                        className="rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+                      >
+                        TV Display
+                      </Link>
+                    )}
+
+                    {canStarter && (
+                      <Link
+                        href={`/starter${datedSuffix}`}
+                        className="rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+                      >
+                        Starter Display
+                      </Link>
+                    )}
+                  </div>
+                </details>
               )}
               {canProShop && (
                 <Link href="/proshop" className={proShopClass}>

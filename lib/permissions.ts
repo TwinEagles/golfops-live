@@ -8,7 +8,8 @@ export type PermissionKey =
   | "bag_finder"
   | "golf_carts"
   | "outside_operations"
-  | "tv";
+  | "tv"
+  | "starter";
 
 export type GolfOpsAccess = {
   userId: string;
@@ -27,12 +28,19 @@ const ALL_ACCESS: Record<PermissionKey, boolean> = {
   golf_carts: true,
   outside_operations: true,
   tv: true,
+  starter: true,
 };
 
 export async function getGolfOpsAccess(): Promise<GolfOpsAccess | null> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -40,17 +48,40 @@ export async function getGolfOpsAccess(): Promise<GolfOpsAccess | null> {
     .eq("id", user.id)
     .single();
 
-  if (!profile?.club_id) return null;
-  const isAdmin = profile.role === "admin";
+  if (!profile?.club_id) {
+    return null;
+  }
+
+  const isAdmin =
+    profile.role === "admin";
 
   if (isAdmin) {
-    return { userId: user.id, clubId: profile.club_id, role: profile.role, isAdmin: true, permissions: { ...ALL_ACCESS } };
+    return {
+      userId: user.id,
+      clubId: profile.club_id,
+      role: profile.role,
+      isAdmin: true,
+      permissions: {
+        ...ALL_ACCESS,
+      },
+    };
   }
 
   const { data: permissionRow } = await supabase
     .from("user_permissions")
-    .select("tee_sheet, changes, pro_shop, reciprocals, bag_finder, golf_carts, outside_operations, tv")
+    .select(`
+      tee_sheet,
+      changes,
+      pro_shop,
+      reciprocals,
+      bag_finder,
+      golf_carts,
+      outside_operations,
+      tv,
+      starter
+    `)
     .eq("user_id", user.id)
+    .eq("club_id", profile.club_id)
     .maybeSingle();
 
   return {
@@ -59,20 +90,48 @@ export async function getGolfOpsAccess(): Promise<GolfOpsAccess | null> {
     role: profile.role,
     isAdmin: false,
     permissions: {
-      tee_sheet: permissionRow?.tee_sheet ?? false,
-      changes: permissionRow?.changes ?? false,
-      pro_shop: permissionRow?.pro_shop ?? false,
-      reciprocals: permissionRow?.reciprocals ?? false,
-      bag_finder: permissionRow?.bag_finder ?? false,
-      golf_carts: permissionRow?.golf_carts ?? false,
-      outside_operations: permissionRow?.outside_operations ?? false,
-      tv: permissionRow?.tv ?? false,
+      tee_sheet:
+        permissionRow?.tee_sheet ?? false,
+
+      changes:
+        permissionRow?.changes ?? false,
+
+      pro_shop:
+        permissionRow?.pro_shop ?? false,
+
+      reciprocals:
+        permissionRow?.reciprocals ?? false,
+
+      bag_finder:
+        permissionRow?.bag_finder ?? false,
+
+      golf_carts:
+        permissionRow?.golf_carts ?? false,
+
+      outside_operations:
+        permissionRow?.outside_operations ?? false,
+
+      tv:
+        permissionRow?.tv ?? false,
+
+      starter:
+        permissionRow?.starter ?? false,
     },
   };
 }
 
-export async function hasGolfOpsPermission(permission: PermissionKey) {
-  const access = await getGolfOpsAccess();
-  if (!access) return false;
-  return access.isAdmin || access.permissions[permission] === true;
+export async function hasGolfOpsPermission(
+  permission: PermissionKey
+) {
+  const access =
+    await getGolfOpsAccess();
+
+  if (!access) {
+    return false;
+  }
+
+  return (
+    access.isAdmin ||
+    access.permissions[permission] === true
+  );
 }

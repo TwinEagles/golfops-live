@@ -19,6 +19,7 @@ export type GolfOpsUserRow = {
   golf_carts: boolean;
   outside_operations: boolean;
   tv: boolean;
+  starter: boolean;
 };
 
 type PermissionKey =
@@ -29,7 +30,8 @@ type PermissionKey =
   | "bag_finder"
   | "golf_carts"
   | "outside_operations"
-  | "tv";
+  | "tv"
+  | "starter";
 
 const permissionColumns: Array<{ key: PermissionKey; label: string }> = [
   { key: "tee_sheet", label: "Tee Sheet" },
@@ -40,6 +42,7 @@ const permissionColumns: Array<{ key: PermissionKey; label: string }> = [
   { key: "golf_carts", label: "Golf Carts" },
   { key: "outside_operations", label: "Outside Ops" },
   { key: "tv", label: "TV" },
+  { key: "starter", label: "Starter" },
 ];
 
 const defaultPermissions: Record<PermissionKey, boolean> = {
@@ -51,6 +54,7 @@ const defaultPermissions: Record<PermissionKey, boolean> = {
   golf_carts: true,
   outside_operations: true,
   tv: true,
+  starter: false,
 };
 
 function AccessCheckbox({
@@ -185,6 +189,7 @@ export default function UserPermissionsManager({
             golf_carts: created.permissions?.golf_carts ?? true,
             outside_operations: created.permissions?.outside_operations ?? true,
             tv: created.permissions?.tv ?? true,
+            starter: created.permissions?.starter ?? false,
           },
         ].sort((a, b) =>
           (a.display_name ?? "").localeCompare(b.display_name ?? "")
@@ -485,7 +490,7 @@ export default function UserPermissionsManager({
         )}
 
         <div className="overflow-x-auto">
-          <table className="min-w-[1540px] w-full border-collapse text-sm">
+          <table className="min-w-[1645px] w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)]">
                 <th className="sticky left-0 z-10 min-w-[235px] bg-[var(--golfops-surface-soft)] px-5 py-3 text-left font-semibold">

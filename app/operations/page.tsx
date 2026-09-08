@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import AppNav from "@/components/AppNav";
 import OperationsRefresh from "@/components/OperationsRefresh";
+import PerryWeatherWidget from "@/components/PerryWeatherWidget";
 import { getGolfOpsAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 
@@ -379,6 +380,10 @@ export default async function OperationsPage() {
             />
           )}
         </section>
+
+        <div className="mt-6">
+          <PerryWeatherWidget />
+        </div>
 
         {canOutsideOperations && scheduleImportedAt && (
           <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
