@@ -9,7 +9,8 @@ type SettingsNavProps = {
     | "members"
     | "users"
     | "tee-sheet"
-    | "integrations";
+    | "integrations"
+    | "user-guide";
 };
 
 const userItems = [
@@ -18,19 +19,8 @@ const userItems = [
     label: "Account",
     href: "/settings/account",
     icon: (
-      <svg
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M15 19a6 6 0 00-12 0m9-10a4 4 0 11-8 0 4 4 0 018 0Z"
-        />
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19a6 6 0 00-12 0m9-10a4 4 0 11-8 0 4 4 0 018 0Z" />
       </svg>
     ),
   },
@@ -39,24 +29,9 @@ const userItems = [
     label: "Appearance",
     href: "/settings/appearance",
     icon: (
-      <svg
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 3a9 9 0 100 18h1.5a2.5 2.5 0 000-5H12a1.5 1.5 0 010-3h3a6 6 0 000-12h-3Z"
-        />
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M7.5 9h.01M9.5 6.5h.01M14.5 6.5h.01"
-        />
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3a9 9 0 100 18h1.5a2.5 2.5 0 000-5H12a1.5 1.5 0 010-3h3a6 6 0 000-12h-3Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 9h.01M9.5 6.5h.01M14.5 6.5h.01" />
       </svg>
     ),
   },
@@ -65,19 +40,19 @@ const userItems = [
     label: "Integrations",
     href: "/settings/integrations",
     icon: (
-      <svg
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M10.5 13.5l3-3m-6.75 6.75l-1.5 1.5a3.182 3.182 0 11-4.5-4.5l3-3a3.182 3.182 0 014.5 0m9-4.5l1.5-1.5a3.182 3.182 0 114.5 4.5l-3 3a3.182 3.182 0 01-4.5 0"
-        />
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 13.5l3-3m-6.75 6.75l-1.5 1.5a3.182 3.182 0 11-4.5-4.5l3-3a3.182 3.182 0 014.5 0m9-4.5l1.5-1.5a3.182 3.182 0 114.5 4.5l-3 3a3.182 3.182 0 01-4.5 0" />
+      </svg>
+    ),
+  },
+  {
+    key: "user-guide",
+    label: "User Guide",
+    href: "/settings/user-guide",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 5.5A2.5 2.5 0 016.5 3H11a2 2 0 012 2v16a2 2 0 00-2-2H6.5A2.5 2.5 0 004 21.5v-16Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 5.5A2.5 2.5 0 0017.5 3H13v18a2 2 0 012-2h2.5a2.5 2.5 0 012.5 2.5v-16Z" />
       </svg>
     ),
   },
@@ -89,19 +64,8 @@ const adminItems = [
     label: "Club",
     href: "/settings/club",
     icon: (
-      <svg
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3 21h18M5 21V9l7-5 7 5v12M8 13h8M8 17h8"
-        />
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 21h18M5 21V9l7-5 7 5v12M8 13h8M8 17h8" />
       </svg>
     ),
   },
@@ -110,19 +74,8 @@ const adminItems = [
     label: "Members",
     href: "/settings/members",
     icon: (
-      <svg
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8Zm13 10v-2a4 4 0 00-3-3.87m-2-11.96a4 4 0 010 7.75"
-        />
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8Zm13 10v-2a4 4 0 00-3-3.87m-2-11.96a4 4 0 010 7.75" />
       </svg>
     ),
   },
@@ -131,19 +84,8 @@ const adminItems = [
     label: "Users",
     href: "/settings/users",
     icon: (
-      <svg
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M15 19a6 6 0 00-12 0m9-10a4 4 0 11-8 0 4 4 0 018 0Zm4-1v6m3-3h-6"
-        />
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19a6 6 0 00-12 0m9-10a4 4 0 11-8 0 4 4 0 018 0Zm4-1v6m3-3h-6" />
       </svg>
     ),
   },
@@ -152,54 +94,35 @@ const adminItems = [
     label: "Tee Sheet",
     href: "/settings/tee-sheet",
     icon: (
-      <svg
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M6 3v3m12-3v3M4 9h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1Z"
-        />
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M8 13h2m4 0h2m-8 4h2m4 0h2"
-        />
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 3v3m12-3v3M4 9h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 13h2m4 0h2m-8 4h2m4 0h2" />
       </svg>
     ),
   },
 ] as const;
 
-export default async function SettingsNav({
-  active,
-}: SettingsNavProps) {
-  const access =
-    await getGolfOpsAccess();
+export default async function SettingsNav({ active }: SettingsNavProps) {
+  const access = await getGolfOpsAccess();
 
-  const items =
-    access?.isAdmin
-      ? [
-          userItems[0],
-          adminItems[0],
-          userItems[1],
-          adminItems[1],
-          adminItems[2],
-          adminItems[3],
-          userItems[2],
-        ]
-      : userItems;
+  const items = access?.isAdmin
+    ? [
+        userItems[0],
+        adminItems[0],
+        userItems[1],
+        adminItems[1],
+        adminItems[2],
+        adminItems[3],
+        userItems[2],
+        userItems[3],
+      ]
+    : userItems;
 
   return (
     <aside>
       <nav className="space-y-2">
         {items.map((item) => {
-          const isActive =
-            active === item.key;
+          const isActive = active === item.key;
 
           return (
             <Link
@@ -212,19 +135,10 @@ export default async function SettingsNav({
                   : "border-transparent text-[var(--golfops-text-muted)] hover:bg-[var(--golfops-surface-soft)] hover:text-[var(--golfops-text)]",
               ].join(" ")}
             >
-              <span
-                className={
-                  isActive
-                    ? "text-[var(--golfops-accent)]"
-                    : "text-[var(--golfops-text-dim)]"
-                }
-              >
+              <span className={isActive ? "text-[var(--golfops-accent)]" : "text-[var(--golfops-text-dim)]"}>
                 {item.icon}
               </span>
-
-              <span>
-                {item.label}
-              </span>
+              <span>{item.label}</span>
             </Link>
           );
         })}

@@ -12,6 +12,51 @@ const DEFAULT_SOURCE =
 const EXTENSION_VERSION =
   "1.2.1";
 
+const EXTENSION_RELEASE_DATE =
+  "September 8, 2026";
+
+const extensionApplications = [
+  {
+    name: "ForeTees",
+    description:
+      "Imports tee sheets and lesson schedules into GolfOps Live.",
+    workflows: [
+      "Tee sheet imports",
+      "Lesson imports",
+    ],
+  },
+  {
+    name: "ForeTees Admin",
+    description:
+      "Synchronizes saved member bag-slot changes with Bag Finder.",
+    workflows: [
+      "Bag Finder updates",
+    ],
+  },
+  {
+    name: "SchedulePop",
+    description:
+      "Imports printable staffing schedules for Staff Schedule and Operations.",
+    workflows: [
+      "Staff schedule imports",
+    ],
+  },
+];
+
+const releaseHistory = [
+  {
+    version: "1.2.1",
+    date: "September 8, 2026",
+    current: true,
+    highlights: [
+      "Added ForeTees Admin bag-slot synchronization with Bag Finder.",
+      "Supports member lists opened by last-name letter or View All.",
+      "Sends an updated bag number after Save and Close and confirms the GolfOps update on screen.",
+      "Retains ForeTees tee sheet, lesson, and SchedulePop staffing imports.",
+    ],
+  },
+];
+
 export default function IntegrationsManager() {
   const [
     sourceLabel,
@@ -126,7 +171,103 @@ export default function IntegrationsManager() {
           </span>
         </div>
 
-        <div className="px-6 py-5">
+        <div className="space-y-5 px-6 py-5">
+          <div>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-950">
+                  Applications and automated workflows
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  One extension connects three applications and four GolfOps workflows.
+                </p>
+              </div>
+
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                3 applications · 4 workflows
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              {extensionApplications.map((application) => (
+                <article
+                  key={application.name}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="font-bold text-slate-950">
+                      {application.name}
+                    </h4>
+
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                      Active
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {application.description}
+                  </p>
+
+                  <ul className="mt-3 space-y-2">
+                    {application.workflows.map((workflow) => (
+                      <li
+                        key={workflow}
+                        className="flex items-center gap-2 text-sm font-semibold text-slate-700"
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs text-indigo-700">
+                          ✓
+                        </span>
+
+                        <span>{workflow}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.14em] text-indigo-600">
+                  Current Release
+                </div>
+
+                <h3 className="mt-1 text-lg font-bold text-slate-950">
+                  Version {EXTENSION_VERSION}
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Released {EXTENSION_RELEASE_DATE}
+                </p>
+              </div>
+
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-indigo-700 shadow-sm">
+                Latest Version
+              </span>
+            </div>
+
+            <div className="mt-4">
+              <div className="text-sm font-bold text-slate-900">
+                What&apos;s new
+              </div>
+
+              <ul className="mt-2 grid gap-2 text-sm leading-6 text-slate-600 lg:grid-cols-2">
+                {releaseHistory[0].highlights.map((highlight) => (
+                  <li
+                    key={highlight}
+                    className="flex gap-2"
+                  >
+                    <span className="font-bold text-indigo-600">•</span>
+                    <span>{highlight}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -214,6 +355,65 @@ export default function IntegrationsManager() {
               </div>
             )}
           </div>
+
+          <details className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Extension version history
+                </h3>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Review the changes included with each distributed version.
+                </p>
+              </div>
+
+              <span className="text-lg font-bold text-slate-400">
+                +
+              </span>
+            </summary>
+
+            <div className="border-t border-slate-200 px-5 py-5">
+              <div className="space-y-5">
+                {releaseHistory.map((release) => (
+                  <article
+                    key={release.version}
+                    className="grid gap-3 sm:grid-cols-[150px_minmax(0,1fr)]"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-slate-950">
+                          Version {release.version}
+                        </span>
+
+                        {release.current && (
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                            Current
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-1 text-xs text-slate-500">
+                        {release.date}
+                      </div>
+                    </div>
+
+                    <ul className="space-y-2 text-sm leading-6 text-slate-600">
+                      {release.highlights.map((highlight) => (
+                        <li
+                          key={highlight}
+                          className="flex gap-2"
+                        >
+                          <span className="font-bold text-indigo-600">•</span>
+                          <span>{highlight}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </details>
         </div>
       </section>
 
