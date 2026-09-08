@@ -42,6 +42,41 @@ type ForeTeesLessonRow = {
   lesson_type: string | null;
 };
 
+type TvTeeSheetSlot = {
+  id: number | string;
+  tee_time: string;
+  course: string;
+  starting_hole: number;
+  starting_position: string | null;
+  slot_position: number;
+  player_name: string | null;
+  cart_number: string | null;
+  check_in: string | null;
+};
+
+type PaceCartStatus = {
+  cart_number: string;
+  course_name: string | null;
+  hole_name: string | null;
+  hole_short_name: string | null;
+  hole_sequence: number | null;
+  current_pace: unknown;
+  pace_minutes: number | null;
+  estimated_finish_at: string | null;
+  is_in_play: boolean | null;
+  last_seen_at: string | null;
+};
+
+type NextFinishGroup = {
+  course: "Eagle" | "Talon";
+  teeTime: string;
+  players: string[];
+  carts: string[];
+  hole: string;
+  paceMinutes: number | null;
+  estimatedFinishMinutes: number;
+};
+
 function easternDateString(
   date = new Date()
 ) {
@@ -313,6 +348,240 @@ function requestTime(
   );
 }
 
+function normalizeCartNumber(
+  value: string | number | null
+) {
+  if (value == null) return null;
+
+  const match =
+    String(value).match(/\d+/);
+
+  return match
+    ? String(Number(match[0]))
+    : null;
+}
+
+function teeTimeMinutes(
+  value: string
+) {
+  const match =
+    value.match(
+      /^(\d{1,2}):(\d{2})/
+    );
+
+  if (!match) return null;
+
+  return (
+    Number(match[1]) * 60 +
+    Number(match[2])
+  );
+}
+
+function timestampMinutes(
+  value: string | null
+) {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          "America/New_York",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }
+    ).formatToParts(date);
+
+  const hour = Number(
+    parts.find(
+      (part) =>
+        part.type === "hour"
+    )?.value ?? 0
+  );
+
+  const minute = Number(
+    parts.find(
+      (part) =>
+        part.type === "minute"
+    )?.value ?? 0
+  );
+
+  return hour * 60 + minute;
+}
+
+function parsePaceMinutes(
+  value: unknown
+): number | null {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
+    return Math.round(value);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) return null;
+
+    const numeric =
+      trimmed.match(
+        /^([+-]?\d+(?:\.\d+)?)\s*(?:min(?:ute)?s?)?$/i
+      );
+
+    if (numeric) {
+      return Math.round(
+        Number(numeric[1])
+      );
+    }
+
+    const clock =
+      trimmed.match(
+        /^([+-])?(\d+):(\d{2})(?::(\d{2}))?$/
+      );
+
+    if (clock) {
+      const sign =
+        clock[1] === "-"
+          ? -1
+          : 1;
+
+      const first =
+        Number(clock[2]);
+
+      const second =
+        Number(clock[3]);
+
+      const third =
+        clock[4] == null
+          ? null
+          : Number(clock[4]);
+
+      const minutes =
+        third == null
+          ? first + second / 60
+          : first * 60 +
+            second +
+            third / 60;
+
+      return Math.round(
+        sign * minutes
+      );
+    }
+  }
+
+  if (
+    value &&
+    typeof value === "object"
+  ) {
+    const record =
+      value as Record<
+        string,
+        unknown
+      >;
+
+    for (const key of [
+      "paceMinutes",
+      "PaceMinutes",
+      "minutes",
+      "Minutes",
+      "behindMinutes",
+      "BehindMinutes",
+      "value",
+      "Value",
+    ]) {
+      const parsed =
+        parsePaceMinutes(
+          record[key]
+        );
+
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
+function isFreshPaceStatus(
+  value: string | null
+) {
+  if (!value) return false;
+
+  const timestamp =
+    new Date(value).getTime();
+
+  return (
+    Number.isFinite(timestamp) &&
+    Date.now() - timestamp <=
+      3 * 60 * 1000
+  );
+}
+
+function courseBucket(
+  value: string
+): "Eagle" | "Talon" | null {
+  const normalized =
+    value.toLowerCase();
+
+  if (
+    normalized.includes("eagle")
+  ) {
+    return "Eagle";
+  }
+
+  if (
+    normalized.includes("talon")
+  ) {
+    return "Talon";
+  }
+
+  return null;
+}
+
+function formatFinishTime(
+  totalMinutes: number
+) {
+  const normalized =
+    ((Math.round(totalMinutes) %
+      1440) +
+      1440) %
+    1440;
+
+  const hour24 =
+    Math.floor(
+      normalized / 60
+    );
+
+  const minute =
+    normalized % 60;
+
+  const suffix =
+    hour24 >= 12
+      ? "PM"
+      : "AM";
+
+  const hour =
+    hour24 % 12 || 12;
+
+  return `${hour}:${String(
+    minute
+  ).padStart(2, "0")} ${suffix}`;
+}
+
 export default async function TvPage({
   searchParams,
 }: {
@@ -375,6 +644,7 @@ export default async function TvPage({
     importResult,
     requestsResult,
     lessonsResult,
+    paceResult,
   ] =
     await Promise.all([
       supabase
@@ -382,7 +652,7 @@ export default async function TvPage({
           "tee_sheet_slots"
         )
         .select(
-          "id, player_name, check_in"
+          "id, tee_time, course, starting_hole, starting_position, slot_position, player_name, cart_number, check_in"
         )
         .eq(
           "club_id",
@@ -513,10 +783,33 @@ export default async function TvPage({
             ascending: true,
           }
         ),
+
+      supabase
+        .from(
+          "pace_cart_status"
+        )
+        .select(`
+          cart_number,
+          course_name,
+          hole_name,
+          hole_short_name,
+          hole_sequence,
+          current_pace,
+          pace_minutes,
+          estimated_finish_at,
+          is_in_play,
+          last_seen_at
+        `)
+        .eq(
+          "club_id",
+          profile.club_id
+        ),
     ]);
 
   const slots =
-    slotsResult.data ?? [];
+    (
+      slotsResult.data ?? []
+    ) as TvTeeSheetSlot[];
 
   if (
     changesResult.error
@@ -563,6 +856,248 @@ export default async function TvPage({
       []
     ) as ForeTeesLessonRow[];
 
+  if (paceResult.error) {
+    console.error(
+      "TV PACE load error:",
+      paceResult.error
+    );
+  }
+
+  const paceStatuses =
+    (
+      paceResult.data ?? []
+    ) as PaceCartStatus[];
+
+  const paceByCart =
+    new Map<
+      string,
+      PaceCartStatus
+    >();
+
+  for (
+    const status of paceStatuses
+  ) {
+    const cartNumber =
+      normalizeCartNumber(
+        status.cart_number
+      );
+
+    if (cartNumber) {
+      paceByCart.set(
+        cartNumber,
+        status
+      );
+    }
+  }
+
+  const groupedSlots =
+    new Map<
+      string,
+      TvTeeSheetSlot[]
+    >();
+
+  for (const slot of slots) {
+    const key = [
+      slot.tee_time,
+      slot.course,
+      slot.starting_position ??
+        slot.starting_hole,
+    ].join("|");
+
+    const group =
+      groupedSlots.get(key) ?? [];
+
+    group.push(slot);
+    groupedSlots.set(key, group);
+  }
+
+  const finishCandidates:
+    NextFinishGroup[] = [];
+
+  if (selectedDate === today) {
+    for (
+      const group of
+        groupedSlots.values()
+    ) {
+      const first = group[0];
+      const course =
+        courseBucket(
+          first.course
+        );
+
+      if (!course) continue;
+
+      const carts = Array.from(
+        new Set(
+          group
+            .map((slot) =>
+              normalizeCartNumber(
+                slot.cart_number
+              )
+            )
+            .filter(
+              (
+                value
+              ): value is string =>
+                Boolean(value)
+            )
+        )
+      );
+
+      const activeStatuses =
+        carts
+          .map((cart) =>
+            paceByCart.get(cart)
+          )
+          .filter(
+            (
+              status
+            ): status is PaceCartStatus =>
+              Boolean(
+                status?.is_in_play &&
+                  isFreshPaceStatus(
+                    status.last_seen_at
+                  )
+              )
+          );
+
+      if (
+        activeStatuses.length === 0
+      ) {
+        continue;
+      }
+
+      const paceValues =
+        activeStatuses
+          .map((status) =>
+            status.pace_minutes ??
+            parsePaceMinutes(
+              status.current_pace
+            )
+          )
+          .filter(
+            (
+              value
+            ): value is number =>
+              value != null &&
+              Number.isFinite(value)
+          );
+
+      const groupPace =
+        paceValues.length > 0
+          ? Math.max(
+              ...paceValues
+            )
+          : null;
+
+      const statusFinishTimes =
+        activeStatuses
+          .map((status) =>
+            timestampMinutes(
+              status.estimated_finish_at
+            )
+          )
+          .filter(
+            (
+              value
+            ): value is number =>
+              value != null
+          );
+
+      const scheduledStart =
+        teeTimeMinutes(
+          first.tee_time
+        );
+
+      if (
+        scheduledStart == null
+      ) {
+        continue;
+      }
+
+      const targetMinutes =
+        course === "Eagle"
+          ? 245
+          : 240;
+
+      const estimatedFinish =
+        statusFinishTimes.length > 0
+          ? Math.max(
+              ...statusFinishTimes
+            )
+          : scheduledStart +
+            targetMinutes +
+            (groupPace ?? 0);
+
+      const slowestStatus =
+        [...activeStatuses].sort(
+          (a, b) =>
+            (a.hole_sequence ?? 99) -
+            (b.hole_sequence ?? 99)
+        )[0];
+
+      const hole =
+        slowestStatus
+          .hole_short_name ||
+        slowestStatus.hole_name ||
+        (slowestStatus
+          .hole_sequence
+          ? `Hole ${slowestStatus.hole_sequence}`
+          : "On course");
+
+      finishCandidates.push({
+        course,
+        teeTime:
+          first.tee_time,
+        players: group
+          .sort(
+            (a, b) =>
+              a.slot_position -
+              b.slot_position
+          )
+          .map(
+            (slot) =>
+              slot.player_name
+          )
+          .filter(
+            (
+              value
+            ): value is string =>
+              Boolean(value)
+          ),
+        carts,
+        hole,
+        paceMinutes:
+          groupPace,
+        estimatedFinishMinutes:
+          estimatedFinish,
+      });
+    }
+  }
+
+  function nextFinishFor(
+    course: "Eagle" | "Talon"
+  ) {
+    return (
+      finishCandidates
+        .filter(
+          (group) =>
+            group.course === course
+        )
+        .sort(
+          (a, b) =>
+            a.estimatedFinishMinutes -
+            b.estimatedFinishMinutes
+        )[0] ?? null
+    );
+  }
+
+  const nextEagleFinish =
+    nextFinishFor("Eagle");
+
+  const nextTalonFinish =
+    nextFinishFor("Talon");
+
   const playerCount =
     slots.filter(
       (slot) =>
@@ -606,8 +1141,8 @@ export default async function TvPage({
         }
       />
 
-      <main className="mx-auto max-w-[1800px] px-6 py-7">
-        <section className="mb-6 flex flex-wrap items-center justify-between gap-6 rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] px-7 py-6 shadow-[var(--golfops-shadow)]">
+      <main className="mx-auto max-w-[1800px] px-6 py-5">
+        <section className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] px-6 py-4 shadow-[var(--golfops-shadow)]">
           <div>
             <div className="flex items-center gap-4">
               <Link
@@ -623,7 +1158,7 @@ export default async function TvPage({
                   Golf Operations
                 </div>
 
-                <h1 className="mt-1 text-4xl font-bold tracking-tight">
+                <h1 className="mt-1 text-3xl font-bold tracking-tight">
                   {displayDate(
                     selectedDate
                   )}
@@ -639,7 +1174,7 @@ export default async function TvPage({
               </Link>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-status,var(--golfops-surface-soft))] px-4 py-2">
                 <span className="text-2xl font-bold">
                   {playerCount}
@@ -675,7 +1210,7 @@ export default async function TvPage({
           <TvClock />
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr_1fr]">
+        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr_1fr]">
 
           {/* CHANGES */}
 
@@ -742,7 +1277,7 @@ export default async function TvPage({
                 </div>
               </TvChangesAutoScroll>
             ) : (
-              <div className="flex h-[470px] flex-col items-center justify-center px-6 text-center">
+              <div className="flex h-[360px] flex-col items-center justify-center px-6 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--golfops-surface-soft)] text-2xl text-[var(--golfops-accent-text)]">
                   ✓
                 </div>
@@ -858,7 +1393,7 @@ export default async function TvPage({
                 </div>
               </TvChangesAutoScroll>
             ) : (
-              <div className="flex h-[470px] flex-col items-center justify-center px-7 text-center">
+              <div className="flex h-[360px] flex-col items-center justify-center px-7 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--golfops-surface-soft)] text-2xl">
                   ⛳
                 </div>
@@ -962,7 +1497,7 @@ export default async function TvPage({
                 </div>
               </TvChangesAutoScroll>
             ) : (
-              <div className="flex h-[470px] flex-col items-center justify-center px-7 text-center">
+              <div className="flex h-[360px] flex-col items-center justify-center px-7 text-center">
                 <div
                   className="flex h-14 w-14 items-center justify-center rounded-full text-2xl"
                   style={{
@@ -990,6 +1525,36 @@ export default async function TvPage({
             </footer>
           </section>
         </div>
+
+        <section className="mt-4 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
+          <header className="flex items-center justify-between border-b border-[var(--golfops-border)] bg-[var(--golfops-status,var(--golfops-surface-soft))] px-6 py-3">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--golfops-accent-text)]">
+                Live Pace
+              </div>
+
+              <h2 className="mt-0.5 text-xl font-bold">
+                Next Groups to Finish
+              </h2>
+            </div>
+
+            <div className="text-xs font-semibold text-[var(--golfops-text-dim)]">
+              Estimated from current cart pace
+            </div>
+          </header>
+
+          <div className="grid divide-y divide-[var(--golfops-border)] md:grid-cols-2 md:divide-x md:divide-y-0">
+            <NextFinishCard
+              course="Eagle"
+              group={nextEagleFinish}
+            />
+
+            <NextFinishCard
+              course="Talon"
+              group={nextTalonFinish}
+            />
+          </div>
+        </section>
 
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--golfops-text-dim)]">
           <div className="flex items-center gap-2">
@@ -1022,6 +1587,112 @@ export default async function TvPage({
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function NextFinishCard({
+  course,
+  group,
+}: {
+  course: "Eagle" | "Talon";
+  group: NextFinishGroup | null;
+}) {
+  if (!group) {
+    return (
+      <div className="flex min-h-[112px] items-center gap-5 px-6 py-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--golfops-surface-soft)] text-xl font-black text-[var(--golfops-accent-text)]">
+          {course.slice(0, 1)}
+        </div>
+
+        <div>
+          <div className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--golfops-text-muted)]">
+            {course}
+          </div>
+
+          <div className="mt-1 text-lg font-bold">
+            No active group on course
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const pace =
+    group.paceMinutes;
+
+  const paceDot =
+    pace == null
+      ? "bg-slate-400"
+      : pace <= 0
+        ? "bg-green-500"
+        : pace <= 9
+          ? "bg-amber-400"
+          : "bg-red-500";
+
+  const paceLabel =
+    pace == null
+      ? "Pace unavailable"
+      : pace < 0
+        ? `${Math.abs(
+            pace
+          )} min ahead`
+        : pace === 0
+          ? "On pace"
+          : `${pace} min behind`;
+
+  return (
+    <div className="grid min-h-[112px] items-center gap-4 px-6 py-4 sm:grid-cols-[90px_minmax(0,1fr)_150px]">
+      <div>
+        <div className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--golfops-accent-text)]">
+          {course}
+        </div>
+
+        <div className="mt-1 text-lg font-black">
+          {displayTime(
+            group.teeTime
+          )}
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <div className="truncate text-lg font-bold">
+          {group.players.join(" • ") ||
+            "Foursome"}
+        </div>
+
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold text-[var(--golfops-text-muted)]">
+          <span>
+            Cart{group.carts.length === 1
+              ? ""
+              : "s"}{" "}
+            {group.carts.join(" / ")}
+          </span>
+
+          <span>•</span>
+          <span>{group.hole}</span>
+
+          <span>•</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${paceDot}`}
+            />
+            {paceLabel}
+          </span>
+        </div>
+      </div>
+
+      <div className="text-left sm:text-right">
+        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-dim)]">
+          Estimated Finish
+        </div>
+
+        <div className="mt-1 text-2xl font-black text-[var(--golfops-accent-text)]">
+          {formatFinishTime(
+            group.estimatedFinishMinutes
+          )}
+        </div>
+      </div>
     </div>
   );
 }

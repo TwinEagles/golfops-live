@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.2.1";
+  "1.3.0";
 
 const EXTENSION_RELEASE_DATE =
   "September 8, 2026";
@@ -41,13 +41,32 @@ const extensionApplications = [
       "Staff schedule imports",
     ],
   },
+  {
+    name: "PACE / Textron GPS",
+    description:
+      "Synchronizes current cart and pace-of-play status for the live Tee Sheet.",
+    workflows: [
+      "Live cart pace synchronization",
+    ],
+  },
 ];
 
 const releaseHistory = [
   {
-    version: "1.2.1",
+    version: "1.3.0",
     date: "September 8, 2026",
     current: true,
+    highlights: [
+      "Added PACE / Textron GPS cart-status synchronization.",
+      "Updates GolfOps Live approximately once per minute while the authenticated PACE page is open.",
+      "Powers live hole, pace status, estimated finish, and feed-freshness information on today's Tee Sheet.",
+      "Limits captured PACE information to operational cart status; coordinates and device identifiers are not stored.",
+    ],
+  },
+  {
+    version: "1.2.1",
+    date: "September 8, 2026",
+    current: false,
     highlights: [
       "Added ForeTees Admin bag-slot synchronization with Bag Finder.",
       "Supports member lists opened by last-name letter or View All.",
@@ -161,7 +180,7 @@ export default function IntegrationsManager() {
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
-                Import ForeTees tee sheets and lessons, synchronize ForeTees Admin bag slots, and send SchedulePop staffing to GolfOps Live.
+                Import ForeTees tee sheets and lessons, synchronize ForeTees Admin bag slots, send SchedulePop staffing, and connect live PACE cart status to GolfOps Live.
               </p>
             </div>
           </div>
@@ -180,16 +199,16 @@ export default function IntegrationsManager() {
                 </h3>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  One extension connects three applications and four GolfOps workflows.
+                  One extension connects four applications and five GolfOps workflows.
                 </p>
               </div>
 
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                3 applications · 4 workflows
+                4 applications · 5 workflows
               </span>
             </div>
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {extensionApplications.map((application) => (
                 <article
                   key={application.name}
@@ -283,7 +302,12 @@ export default function IntegrationsManager() {
                   and use the extension
                   with ForeTees,
                   ForeTees Admin, and
-                  SchedulePop.
+                  SchedulePop. On the
+                  designated PACE
+                  workstation, keep the
+                  authenticated PACE page
+                  open to synchronize live
+                  cart status.
                 </p>
               </div>
 
@@ -315,7 +339,7 @@ export default function IntegrationsManager() {
 
             {showChromeGuide && (
               <div className="mt-5 border-t border-slate-200 pt-5">
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
                   <GuideBlock
                     title="Install"
                     steps={[
@@ -349,6 +373,17 @@ export default function IntegrationsManager() {
                       "Update the Bag Storage Number.",
                       "Click Save and Close.",
                       "Wait for the green GolfOps Bag Finder confirmation.",
+                    ]}
+                  />
+
+                  <GuideBlock
+                    title="Connect PACE"
+                    steps={[
+                      "Install extension version 1.3.0 on the designated PACE workstation.",
+                      "Open the GolfOps Live extension and confirm that it is signed in.",
+                      "Open tekgps.net/main and sign in to PACE.",
+                      "Keep the PACE tab open, Chrome running, and the workstation awake.",
+                      "Wait for the green confirmation that the PACE carts synchronized with GolfOps Live.",
                     ]}
                   />
                 </div>
