@@ -1,21 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-const DEFAULT_SOURCE = "TwinEagles iPhone";
+const DEFAULT_SOURCE =
+  "TwinEagles iPhone";
+
+const EXTENSION_VERSION =
+  "1.2.1";
 
 export default function IntegrationsManager() {
-  const [sourceLabel, setSourceLabel] =
-    useState(DEFAULT_SOURCE);
+  const [
+    sourceLabel,
+    setSourceLabel,
+  ] = useState(
+    DEFAULT_SOURCE
+  );
 
-  const [copied, setCopied] =
-    useState(false);
+  const [
+    copied,
+    setCopied,
+  ] = useState(false);
 
-  const [showChromeGuide, setShowChromeGuide] =
-    useState(false);
+  const [
+    showChromeGuide,
+    setShowChromeGuide,
+  ] = useState(false);
 
-  const [showBookmarkletGuide, setShowBookmarkletGuide] =
-    useState(true);
+  const [
+    showBookmarkletGuide,
+    setShowBookmarkletGuide,
+  ] = useState(true);
 
   useEffect(() => {
     const saved =
@@ -52,7 +70,9 @@ export default function IntegrationsManager() {
 
       return [
         "javascript:(()=>{",
-        `const source=${JSON.stringify(source)};`,
+        `const source=${JSON.stringify(
+          source
+        )};`,
         'alert("GolfOps Live mobile import is ready for final connection. Source: "+source);',
         "})();",
       ].join("");
@@ -66,7 +86,8 @@ export default function IntegrationsManager() {
     setCopied(true);
 
     window.setTimeout(
-      () => setCopied(false),
+      () =>
+        setCopied(false),
       2000
     );
   }
@@ -77,25 +98,30 @@ export default function IntegrationsManager() {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-start justify-between gap-5 border-b border-slate-200 px-6 py-5">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-xl">
-                🧩
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-xl">
+              🧩
+            </div>
 
-              <div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-bold text-slate-950">
                   Chrome Extension
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Send the active ForeTees tee sheet directly to GolfOps Live.
-                </p>
+                <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+                  Version{" "}
+                  {EXTENSION_VERSION}
+                </span>
               </div>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Import ForeTees tee sheets and lessons, synchronize ForeTees Admin bag slots, and send SchedulePop staffing to GolfOps Live.
+              </p>
             </div>
           </div>
 
-          <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+          <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
             Recommended
           </span>
         </div>
@@ -109,17 +135,25 @@ export default function IntegrationsManager() {
                 </h3>
 
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                  Install the GolfOps Live Chrome extension, sign in with your GolfOps Live account, open the desired ForeTees tee sheet, and send it to GolfOps Live.
+                  Install version{" "}
+                  {EXTENSION_VERSION},
+                  sign in with your
+                  GolfOps Live account,
+                  and use the extension
+                  with ForeTees,
+                  ForeTees Admin, and
+                  SchedulePop.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 <a
-                  href="/downloads/golfops-live-chrome-extension.zip"
+                  href={`/downloads/golfops-live-chrome-extension.zip?v=${EXTENSION_VERSION}`}
                   download
                   className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700"
                 >
-                  Download Chrome Extension
+                  Download Version{" "}
+                  {EXTENSION_VERSION}
                 </a>
 
                 <button
@@ -140,11 +174,11 @@ export default function IntegrationsManager() {
 
             {showChromeGuide && (
               <div className="mt-5 border-t border-slate-200 pt-5">
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid gap-6 lg:grid-cols-3">
                   <GuideBlock
-                    title="Sign in"
+                    title="Install"
                     steps={[
-                      "Download the GolfOps Live Chrome Extension ZIP above.",
+                      `Download GolfOps Live Chrome Extension version ${EXTENSION_VERSION}.`,
                       "Extract the ZIP to a permanent folder on the workstation.",
                       "In Chrome, open chrome://extensions and turn on Developer mode.",
                       "Choose Load unpacked and select the extracted extension folder.",
@@ -154,15 +188,28 @@ export default function IntegrationsManager() {
 
                   <GuideBlock
                     title="Send a tee sheet"
-steps={[
-  "Open ForeTees and select the tee-sheet date you want to import.",
-  "Set Course to -ALL-.",
-  "Click the blue printer icon above the tee sheet.",
-  "Select Bag Report, then Double Line, then Large Font.",
-  "Allow the report page to load while the GolfOps Live extension sends it automatically.",
-  "Wait for the green Import Successful confirmation.",
-  "Return to GolfOps Live and verify the imported date and player count.",
-]}                  />
+                    steps={[
+                      "Open ForeTees and select the tee-sheet date you want to import.",
+                      "Set Course to -ALL-.",
+                      "Click the blue printer icon above the tee sheet.",
+                      "Select Bag Report, then Double Line, then Large Font.",
+                      "Allow the report page to load while the extension sends it automatically.",
+                      "Wait for the green Import Successful confirmation.",
+                      "Return to GolfOps Live and verify the imported date and player count.",
+                    ]}
+                  />
+
+                  <GuideBlock
+                    title="Update Bag Finder"
+                    steps={[
+                      "Open the ForeTees System Administration Member List.",
+                      "Select a last-name letter or choose View All.",
+                      "Click Edit beside the member.",
+                      "Update the Bag Storage Number.",
+                      "Click Save and Close.",
+                      "Wait for the green GolfOps Bag Finder confirmation.",
+                    ]}
+                  />
                 </div>
               </div>
             )}
@@ -172,7 +219,8 @@ steps={[
 
       {/* IPHONE BOOKMARKLET */}
 
-<section className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">        <div className="border-b border-slate-200 px-6 py-5">
+      <section className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xl">
               📱
@@ -184,7 +232,11 @@ steps={[
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Create a Safari bookmark that can send a ForeTees page to GolfOps Live from an iPhone.
+                Create a Safari
+                bookmark that can send
+                a ForeTees page to
+                GolfOps Live from an
+                iPhone.
               </p>
             </div>
           </div>
@@ -200,7 +252,9 @@ steps={[
             </label>
 
             <p className="mt-1 text-xs text-slate-500">
-              Identifies which device or staff workflow submitted the tee sheet.
+              Identifies which device
+              or staff workflow
+              submitted the tee sheet.
             </p>
 
             <input
@@ -225,13 +279,17 @@ steps={[
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Copy this code into the URL field of a Safari bookmark.
+                  Copy this code into
+                  the URL field of a
+                  Safari bookmark.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={copyBookmarklet}
+                onClick={
+                  copyBookmarklet
+                }
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700"
               >
                 {copied
@@ -247,7 +305,14 @@ steps={[
             </div>
 
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-              The mobile bookmarklet presentation is ready. Before staff use it, we will connect this button to the same authenticated GolfOps Live import pipeline used by the Chrome extension.
+              The mobile bookmarklet
+              presentation is ready.
+              Before staff use it, we
+              will connect this button
+              to the same authenticated
+              GolfOps Live import
+              pipeline used by the
+              Chrome extension.
             </div>
           </div>
 
@@ -267,7 +332,9 @@ steps={[
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  One-time installation and daily use.
+                  One-time
+                  installation and
+                  daily use.
                 </p>
               </div>
 
@@ -305,7 +372,10 @@ steps={[
           </div>
 
           <p className="text-xs text-slate-400">
-            Desktop workstations should use the GolfOps Live Chrome extension whenever possible.
+            Desktop workstations
+            should use the GolfOps Live
+            Chrome extension whenever
+            possible.
           </p>
         </div>
       </section>
@@ -328,7 +398,10 @@ function GuideBlock({
 
       <ol className="mt-3 space-y-2">
         {steps.map(
-          (step, index) => (
+          (
+            step,
+            index
+          ) => (
             <li
               key={step}
               className="flex gap-3 text-sm leading-6 text-slate-600"
