@@ -235,6 +235,12 @@ const today =
       ? params.date
       : today;
 
+  // Temporary testing window: show live PACE data
+  // on both today's and tomorrow's tee sheets.
+  const showPaceForSelectedDate =
+    selectedDate === today ||
+    selectedDate === tomorrow;
+
   /*
     Load recently captured tee-sheet dates for the
     date dropdown. We use imports rather than every
@@ -320,12 +326,12 @@ const today =
   const slots = (data ?? []) as TeeSheetSlot[];
 
   /*
-    Load live PACE cart status only
-    while viewing today's tee sheet.
+    Load live PACE cart status while viewing
+    today's or tomorrow's tee sheet for testing.
   */
   let paceStatuses: PaceCartStatus[] = [];
 
-  if (selectedDate === today) {
+  if (showPaceForSelectedDate) {
     const {
       data: paceData,
       error: paceError,
@@ -892,7 +898,7 @@ const today =
                   ].join("|")}
                   className={[
                     "relative flex min-h-[112px] flex-col overflow-hidden rounded-lg border border-[var(--golfops-border)] md:grid md:grid-cols-[90px_repeat(4,minmax(0,1fr))_52px] md:rounded-md",
-                    selectedDate === today
+                    showPaceForSelectedDate
                       ? "md:grid-rows-[minmax(112px,auto)_34px]"
                       : "",
                     groupHighlighted
@@ -903,9 +909,9 @@ const today =
                   {/* TIME / COURSE / HOLE */}
                   <div
                     className={[
-                      "flex items-center justify-between gap-3 border-b-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-4 py-3 text-center md:flex-col md:justify-center md:border-b-0 md:border-r-2 md:px-2 md:py-0",
-                      selectedDate === today
-                        ? "md:row-span-2 md:row-start-1"
+                      "flex items-center justify-between gap-3 border-b-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-4 py-3 text-center md:col-start-1 md:row-start-1 md:flex-col md:justify-center md:border-b-0 md:border-r-2 md:px-2 md:py-0",
+                      showPaceForSelectedDate
+                        ? "md:row-span-2"
                         : "",
                     ].join(" ")}
                   >
@@ -939,7 +945,15 @@ const today =
                         return (
                           <div
                             key={position}
-                            className="golfops-open-slot min-h-[52px] border-b border-[var(--golfops-border)] md:row-start-1 md:min-h-0 md:border-b-0 md:border-r"
+                            className={[
+                              "golfops-open-slot min-h-[52px] border-b border-[var(--golfops-border)] md:row-start-1 md:min-h-0 md:border-b-0 md:border-r",
+                              [
+                                "md:col-start-2",
+                                "md:col-start-3",
+                                "md:col-start-4",
+                                "md:col-start-5",
+                              ][position],
+                            ].join(" ")}
                           />
                         );
                       }
@@ -947,7 +961,15 @@ const today =
                       return (
                         <div
                           key={position}
-                          className="relative min-h-[108px] border-b border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-4 py-3 md:row-start-1 md:min-h-0 md:border-b-0 md:border-r md:px-3 md:py-2"
+                          className={[
+                            "relative min-h-[108px] border-b border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-4 py-3 md:row-start-1 md:min-h-0 md:border-b-0 md:border-r md:px-3 md:py-2",
+                            [
+                              "md:col-start-2",
+                              "md:col-start-3",
+                              "md:col-start-4",
+                              "md:col-start-5",
+                            ][position],
+                          ].join(" ")}
                         >
                           {/* LARGE BAG NUMBER */}
                           <div className="pr-10 text-xl font-bold leading-none text-[var(--golfops-text)]">
@@ -1010,7 +1032,7 @@ const today =
                     }
                   )}
 
-                  {selectedDate === today && (
+                  {showPaceForSelectedDate && (
                     <TeeTimePaceRow
                       cartNumbers={
                         groupCartNumbers
@@ -1032,7 +1054,7 @@ const today =
                   <div
                     className={[
                       "hidden items-center justify-center bg-[var(--golfops-surface)] md:col-start-6 md:row-start-1 md:flex",
-                      selectedDate === today
+                      showPaceForSelectedDate
                         ? "md:row-span-2"
                         : "",
                     ].join(" ")}
