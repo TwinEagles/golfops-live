@@ -12,7 +12,8 @@ function getStoredSession() {
   return new Promise((resolve) => {
     chrome.storage.local.get(
       STORAGE_KEYS,
-      (result) => resolve(result || {})
+      (result) =>
+        resolve(result || {})
     );
   });
 }
@@ -31,7 +32,8 @@ function saveSession(session) {
           session.expires_at,
 
         user_email:
-          session.user_email ?? null
+          session.user_email ??
+          null
       },
       resolve
     );
@@ -47,7 +49,9 @@ function clearSession() {
   });
 }
 
-function tokenExpiresSoon(expiresAt) {
+function tokenExpiresSoon(
+  expiresAt
+) {
   if (!expiresAt) {
     return true;
   }
@@ -55,17 +59,24 @@ function tokenExpiresSoon(expiresAt) {
   const expiresAtMs =
     Number(expiresAt) * 1000;
 
-  if (Number.isNaN(expiresAtMs)) {
+  if (
+    Number.isNaN(
+      expiresAtMs
+    )
+  ) {
     return true;
   }
 
   return (
     Date.now() >=
-    expiresAtMs - 5 * 60 * 1000
+    expiresAtMs -
+      5 * 60 * 1000
   );
 }
 
-async function parseResponse(response) {
+async function parseResponse(
+  response
+) {
   const contentType =
     response.headers.get(
       "content-type"
@@ -127,15 +138,18 @@ async function refreshSession(
             "application/json"
         },
 
-        body: JSON.stringify({
-          refresh_token:
-            refreshToken
-        })
+        body:
+          JSON.stringify({
+            refresh_token:
+              refreshToken
+          })
       }
     );
 
   const result =
-    await parseResponse(response);
+    await parseResponse(
+      response
+    );
 
   if (
     !response.ok ||
@@ -174,7 +188,9 @@ async function getValidAccessToken() {
   let session =
     await getStoredSession();
 
-  if (!session.refresh_token) {
+  if (
+    !session.refresh_token
+  ) {
     throw new Error(
       "GolfOps Live extension is not signed in."
     );
@@ -208,7 +224,9 @@ async function sendAuthenticatedRequest(
   let session =
     await getStoredSession();
 
-  if (!session.refresh_token) {
+  if (
+    !session.refresh_token
+  ) {
     return {
       ok: false,
       error:
@@ -252,7 +270,9 @@ async function sendAuthenticatedRequest(
         },
 
         body:
-          JSON.stringify(payload)
+          JSON.stringify(
+            payload
+          )
       }
     );
   }
@@ -262,7 +282,9 @@ async function sendAuthenticatedRequest(
       accessToken
     );
 
-  if (response.status === 401) {
+  if (
+    response.status === 401
+  ) {
     try {
       const refreshed =
         await refreshSession(
@@ -285,7 +307,9 @@ async function sendAuthenticatedRequest(
   }
 
   const result =
-    await parseResponse(response);
+    await parseResponse(
+      response
+    );
 
   if (!response.ok) {
     return {
@@ -302,6 +326,33 @@ async function sendAuthenticatedRequest(
   };
 }
 
+function isTrustedPaceSender(
+  sender
+) {
+  const sourceUrl =
+    sender?.url ||
+    sender?.tab?.url ||
+    "";
+
+  try {
+    const url =
+      new URL(sourceUrl);
+
+    return (
+      url.protocol ===
+        "https:" &&
+      (
+        url.hostname ===
+          "www.tekgps.net" ||
+        url.hostname ===
+          "tekgps.net"
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function fetchSchedulePopReport(
   payload
 ) {
@@ -312,7 +363,8 @@ async function fetchSchedulePopReport(
       );
 
     if (
-      url.protocol !== "https:" ||
+      url.protocol !==
+        "https:" ||
       url.hostname !==
         "api.schedulepop.com" ||
       !url.pathname.includes(
@@ -355,7 +407,9 @@ async function fetchSchedulePopReport(
       !html ||
       !html
         .toLowerCase()
-        .includes("schedule")
+        .includes(
+          "schedule"
+        )
     ) {
       return {
         ok: false,
@@ -425,6 +479,28 @@ chrome.runtime.onMessage.addListener(
         );
     } else if (
       message?.type ===
+      "SEND_PACE_STATUS"
+    ) {
+      if (
+        !isTrustedPaceSender(
+          sender
+        )
+      ) {
+        operation =
+          Promise.resolve({
+            ok: false,
+            error:
+              "PACE update was rejected because it did not originate from PACE."
+          });
+      } else {
+        operation =
+          sendAuthenticatedRequest(
+            "/api/pace/extension",
+            message.payload
+          );
+      }
+    } else if (
+      message?.type ===
       "FETCH_SCHEDULEPOP_REPORT"
     ) {
       operation =
@@ -437,22 +513,25 @@ chrome.runtime.onMessage.addListener(
     ) {
       operation =
         getStoredSession()
-          .then((session) => ({
-            ok: true,
+          .then(
+            (session) => ({
+              ok: true,
 
-            signedIn:
-              Boolean(
-                session.refresh_token
-              ),
+              signedIn:
+                Boolean(
+                  session
+                    .refresh_token
+                ),
 
-            user_email:
-              session.user_email ||
-              null,
+              user_email:
+                session.user_email ||
+                null,
 
-            expires_at:
-              session.expires_at ||
-              null
-          }));
+              expires_at:
+                session.expires_at ||
+                null
+            })
+          );
     }
 
     if (!operation) {
