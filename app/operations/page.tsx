@@ -379,14 +379,11 @@ export default async function OperationsPage() {
               alert={openHandoffs > 0 || outsideCompleteCount < outsideItemCount}
             />
           )}
+          <PerryWeatherWidget />
         </section>
 
-        <div className="mt-6">
-          <PerryWeatherWidget />
-        </div>
-
         {canOutsideOperations && scheduleImportedAt && (
-          <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
+                      <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
             <header className="flex flex-col gap-2 border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
               <div>
                 <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">SchedulePop</div>
