@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import BagStatusButton from "@/components/BagStatusButton";
 import CartNumberInput from "@/components/CartNumberInput";
 import TeeTimeEditRow from "@/components/TeeTimeEditRow";
+import TeeTimePaceRow, {
+  type PaceCartStatus,
+} from "@/components/TeeTimePaceRow";
 import AppNav from "@/components/AppNav";
 import TeeSheetDateSelector from "@/components/TeeSheetDateSelector";
 import { easternDateString } from "@/lib/golfops-date";
@@ -115,6 +118,16 @@ function normalizeName(value: string | null) {
 
 function normalizeBag(value: string | null) {
   return (value ?? "")
+    .trim()
+    .toUpperCase();
+}
+
+function normalizeCartNumber(
+  value: string | null
+) {
+  return (value ?? "")
+    .trim()
+    .replace(/^cart\s*/i, "")
     .trim()
     .toUpperCase();
 }
@@ -305,6 +318,62 @@ const today =
   }
 
   const slots = (data ?? []) as TeeSheetSlot[];
+
+  /*
+    Load live PACE cart status only
+    while viewing today's tee sheet.
+  */
+  let paceStatuses: PaceCartStatus[] = [];
+
+  if (selectedDate === today) {
+    const {
+      data: paceData,
+      error: paceError,
+    } = await supabase
+      .from("pace_cart_status")
+      .select(`
+        cart_number,
+        pace_vehicle_id,
+        course_id,
+        course_name,
+        hole_name,
+        hole_short_name,
+        hole_sequence,
+        current_pace,
+        pace_minutes,
+        start_time,
+        estimated_finish_at,
+        thru_holes,
+        is_online,
+        is_in_play,
+        is_available,
+        is_charging,
+        gps_valid,
+        needs_service,
+        position_at,
+        last_seen_at
+      `)
+      .eq("club_id", profile.club_id);
+
+    if (paceError) {
+      console.error(
+        "PACE status load error:",
+        paceError
+      );
+    } else {
+      paceStatuses =
+        (paceData ?? []) as PaceCartStatus[];
+    }
+  }
+
+  const paceStatusByCart = new Map(
+    paceStatuses.map((status) => [
+      normalizeCartNumber(
+        status.cart_number
+      ),
+      status,
+    ])
+  );
 
   /*
     Load latest import snapshot for this date
@@ -786,6 +855,33 @@ const today =
                   }
                 );
 
+              const groupCartNumbers =
+                Array.from(
+                  new Set(
+                    teeTime.players
+                      .map((player) =>
+                        normalizeCartNumber(
+                          player.cart_number
+                        )
+                      )
+                      .filter(Boolean)
+                  )
+                );
+
+              const groupPaceStatuses =
+                groupCartNumbers
+                  .map((cartNumber) =>
+                    paceStatusByCart.get(
+                      cartNumber
+                    )
+                  )
+                  .filter(
+                    (
+                      status
+                    ): status is PaceCartStatus =>
+                      Boolean(status)
+                  );
+
               return (
                 <div
                   key={[
@@ -796,13 +892,23 @@ const today =
                   ].join("|")}
                   className={[
                     "relative flex min-h-[112px] flex-col overflow-hidden rounded-lg border border-[var(--golfops-border)] md:grid md:grid-cols-[90px_repeat(4,minmax(0,1fr))_52px] md:rounded-md",
+                    selectedDate === today
+                      ? "md:grid-rows-[minmax(112px,auto)_34px]"
+                      : "",
                     groupHighlighted
                       ? "golfops-row-highlight"
                       : "bg-[var(--golfops-surface)]",
                   ].join(" ")}
                 >
                   {/* TIME / COURSE / HOLE */}
-                  <div className="flex items-center justify-between gap-3 border-b-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-4 py-3 text-center md:flex-col md:justify-center md:border-b-0 md:border-r-2 md:px-2 md:py-0">
+                  <div
+                    className={[
+                      "flex items-center justify-between gap-3 border-b-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-4 py-3 text-center md:flex-col md:justify-center md:border-b-0 md:border-r-2 md:px-2 md:py-0",
+                      selectedDate === today
+                        ? "md:row-span-2 md:row-start-1"
+                        : "",
+                    ].join(" ")}
+                  >
                     <div className="text-base font-bold text-[var(--golfops-text)]">
                       {formatTime(
                         teeTime.teeTime
@@ -833,7 +939,7 @@ const today =
                         return (
                           <div
                             key={position}
-                            className="golfops-open-slot min-h-[52px] border-b border-[var(--golfops-border)] md:min-h-0 md:border-b-0 md:border-r"
+                            className="golfops-open-slot min-h-[52px] border-b border-[var(--golfops-border)] md:row-start-1 md:min-h-0 md:border-b-0 md:border-r"
                           />
                         );
                       }
@@ -841,7 +947,7 @@ const today =
                       return (
                         <div
                           key={position}
-                          className="relative min-h-[108px] border-b border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-4 py-3 md:min-h-0 md:border-b-0 md:border-r md:px-3 md:py-2"
+                          className="relative min-h-[108px] border-b border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-4 py-3 md:row-start-1 md:min-h-0 md:border-b-0 md:border-r md:px-3 md:py-2"
                         >
                           {/* LARGE BAG NUMBER */}
                           <div className="pr-10 text-xl font-bold leading-none text-[var(--golfops-text)]">
@@ -904,8 +1010,33 @@ const today =
                     }
                   )}
 
+                  {selectedDate === today && (
+                    <TeeTimePaceRow
+                      cartNumbers={
+                        groupCartNumbers
+                      }
+                      statuses={
+                        groupPaceStatuses
+                      }
+                      course={
+                        teeTime.course
+                      }
+                      holes={
+                        teeTime.players[0]
+                          ?.holes ?? 18
+                      }
+                    />
+                  )}
+
                   {/* EDIT / DONE */}
-                  <div className="hidden items-center justify-center bg-[var(--golfops-surface)] md:flex">
+                  <div
+                    className={[
+                      "hidden items-center justify-center bg-[var(--golfops-surface)] md:col-start-6 md:row-start-1 md:flex",
+                      selectedDate === today
+                        ? "md:row-span-2"
+                        : "",
+                    ].join(" ")}
+                  >
                     <TeeTimeEditRow
                       slots={editSlots}
                     />
