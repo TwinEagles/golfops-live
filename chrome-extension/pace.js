@@ -240,6 +240,12 @@
       cart_number:
         cartNumber,
 
+      pace_label:
+        cleanText(
+          vehicle.pace_label,
+          100
+        ),
+
       course_id:
         cleanInteger(
           vehicle.course_id
@@ -385,6 +391,7 @@
       payload.vehicles.map(
         (vehicle) => [
           vehicle.cart_number,
+          vehicle.pace_label,
           vehicle.course_id,
           vehicle.course_name,
           vehicle.hole_name,

@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.3.2";
+  "1.3.3";
 
 const EXTENSION_RELEASE_DATE =
   "September 9, 2026";
@@ -54,9 +54,20 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.3.2",
+    version: "1.3.3",
     date: "September 9, 2026",
     current: true,
+    highlights: [
+      "Captures the starter-entered PACE cart label, such as 21 Kovach, with each live cart-status update.",
+      "Automatically fills a missing cart number when the PACE label uniquely matches one pairing on today's tee sheet.",
+      "Never replaces an existing GolfOps cart assignment and skips ambiguous or conflicting matches.",
+      "Adds each automatic PACE cart assignment to GolfOps Changes and the TV display.",
+    ],
+  },
+  {
+    version: "1.3.2",
+    date: "September 9, 2026",
+    current: false,
     highlights: [
       "Monitors today's normal live ForeTees tee sheet; staff do not need to keep a Print/Report page open.",
       "Uses the authenticated -ALL- Bag Report link embedded in the live sheet to check for updates once per minute.",

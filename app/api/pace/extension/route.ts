@@ -1,10 +1,12 @@
 import {
   createClient,
+  type SupabaseClient,
 } from "@supabase/supabase-js";
 
 type IncomingVehicle = {
   vehicle_id?: unknown;
   cart_number?: unknown;
+  pace_label?: unknown;
 
   course_id?: unknown;
   course_name?: unknown;
@@ -28,6 +30,28 @@ type IncomingVehicle = {
   needs_service?: unknown;
 
   position_at?: unknown;
+};
+
+type PaceAssignmentVehicle = {
+  cart_number: string;
+  pace_label: string | null;
+  is_online: boolean;
+  is_in_play: boolean;
+};
+
+type TeeSheetSlot = {
+  id: number;
+  import_id: number | null;
+  sheet_date: string;
+  tee_time: string;
+  course: string | null;
+  starting_hole: number | null;
+  starting_position: string | null;
+  slot_position: number;
+  player_name: string | null;
+  member_id: number | null;
+  bag_number: string | null;
+  cart_number: string | null;
 };
 
 function cleanText(
@@ -458,6 +482,29 @@ export async function POST(
       new Date()
         .toISOString();
 
+    const paceLabelsByCart =
+      new Map<string, string | null>();
+
+    for (
+      const vehicle of
+        incomingVehicles
+    ) {
+      const cartNumber =
+        normalizeCartNumber(
+          vehicle.cart_number
+        );
+
+      if (cartNumber) {
+        paceLabelsByCart.set(
+          cartNumber,
+          cleanText(
+            vehicle.pace_label,
+            100
+          )
+        );
+      }
+    }
+
     const sanitizedRows =
       incomingVehicles
         .map((vehicle) => {
@@ -678,12 +725,55 @@ export async function POST(
       );
     }
 
+    let cartReconciliation = {
+      assigned_groups: 0,
+      assigned_players: 0,
+      ambiguous: 0,
+      conflicts: 0,
+    };
+
+    try {
+      cartReconciliation =
+        await reconcilePaceCartAssignments(
+          adminSupabase,
+          profile.club_id,
+          uniqueRows.map(
+            (row) => ({
+              cart_number:
+                row.cart_number,
+              pace_label:
+                paceLabelsByCart.get(
+                  row.cart_number
+                ) ?? null,
+              is_online:
+                row.is_online,
+              is_in_play:
+                row.is_in_play,
+            })
+          )
+        );
+    } catch (reconcileError) {
+      /*
+        Cart reconciliation is
+        supplemental. A matching
+        problem must not interrupt
+        the live PACE status feed.
+      */
+
+      console.error(
+        "PACE cart reconciliation error:",
+        reconcileError
+      );
+    }
+
     return Response.json({
       ok: true,
       received:
         incomingVehicles.length,
       updated:
         uniqueRows.length,
+      cart_reconciliation:
+        cartReconciliation,
       received_at:
         receivedAt,
     });
@@ -706,4 +796,422 @@ export async function POST(
       }
     );
   }
+}
+
+function easternDateString() {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          "America/New_York",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }
+    ).formatToParts(
+      new Date()
+    );
+
+  const value =
+    Object.fromEntries(
+      parts.map((part) => [
+        part.type,
+        part.value,
+      ])
+    );
+
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function normalizedWords(
+  value: string | null
+) {
+  return (value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+const ignoredPaceLabelWords =
+  new Set([
+    "cart",
+    "golfer",
+    "guest",
+    "member",
+    "player",
+    "eagle",
+    "talon",
+    "course",
+    "the",
+  ]);
+
+function paceLabelWords(
+  label: string | null,
+  cartNumber: string
+) {
+  const normalizedCart =
+    cartNumber.toLowerCase();
+
+  return normalizedWords(label)
+    .filter(
+      (word) =>
+        word !== normalizedCart &&
+        !/^\d+$/.test(word) &&
+        word.length >= 3 &&
+        !ignoredPaceLabelWords.has(
+          word
+        )
+    );
+}
+
+function normalizedField(
+  value: string | null
+) {
+  return (value ?? "")
+    .trim()
+    .toUpperCase();
+}
+
+function pairNumber(
+  position: number
+) {
+  if (
+    position === 1 ||
+    position === 2
+  ) {
+    return 1;
+  }
+
+  if (
+    position === 3 ||
+    position === 4
+  ) {
+    return 2;
+  }
+
+  return position;
+}
+
+function sameGroup(
+  left: TeeSheetSlot,
+  right: TeeSheetSlot
+) {
+  return (
+    left.tee_time ===
+      right.tee_time &&
+    normalizedField(left.course) ===
+      normalizedField(
+        right.course
+      ) &&
+    left.starting_hole ===
+      right.starting_hole &&
+    normalizedField(
+      left.starting_position
+    ) ===
+      normalizedField(
+        right.starting_position
+      )
+  );
+}
+
+async function reconcilePaceCartAssignments(
+  supabase: SupabaseClient,
+  clubId: string | number,
+  vehicles: PaceAssignmentVehicle[]
+) {
+  const result = {
+    assigned_groups: 0,
+    assigned_players: 0,
+    ambiguous: 0,
+    conflicts: 0,
+  };
+
+  const activeVehicles =
+    vehicles.filter(
+      (vehicle) =>
+        vehicle.is_online &&
+        vehicle.is_in_play &&
+        paceLabelWords(
+          vehicle.pace_label,
+          vehicle.cart_number
+        ).length > 0
+    );
+
+  if (
+    activeVehicles.length === 0
+  ) {
+    return result;
+  }
+
+  const today =
+    easternDateString();
+
+  const {
+    data: slotData,
+    error: slotError,
+  } = await supabase
+    .from("tee_sheet_slots")
+    .select(`
+      id,
+      import_id,
+      sheet_date,
+      tee_time,
+      course,
+      starting_hole,
+      starting_position,
+      slot_position,
+      player_name,
+      member_id,
+      bag_number,
+      cart_number
+    `)
+    .eq("club_id", clubId)
+    .eq("sheet_date", today)
+    .not("player_name", "is", null);
+
+  if (slotError) {
+    throw slotError;
+  }
+
+  const slots =
+    (slotData ?? []) as
+      TeeSheetSlot[];
+
+  if (slots.length === 0) {
+    return result;
+  }
+
+  const changeRows:
+    Record<string, unknown>[] = [];
+
+  for (
+    const vehicle of
+      activeVehicles
+  ) {
+    const labelWords =
+      paceLabelWords(
+        vehicle.pace_label,
+        vehicle.cart_number
+      );
+
+    const matchingSlots =
+      slots.filter((slot) => {
+        const playerWords =
+          new Set(
+            normalizedWords(
+              slot.player_name
+            )
+          );
+
+        return labelWords.some(
+          (word) =>
+            playerWords.has(word)
+        );
+      });
+
+    const pairCandidates =
+      new Map<
+        string,
+        TeeSheetSlot
+      >();
+
+    for (
+      const slot of
+        matchingSlots
+    ) {
+      const key = [
+        slot.tee_time,
+        normalizedField(
+          slot.course
+        ),
+        slot.starting_hole ?? "",
+        normalizedField(
+          slot.starting_position
+        ),
+        pairNumber(
+          slot.slot_position
+        ),
+      ].join("|");
+
+      pairCandidates.set(
+        key,
+        slot
+      );
+    }
+
+    if (
+      pairCandidates.size !== 1
+    ) {
+      if (
+        pairCandidates.size > 1
+      ) {
+        result.ambiguous += 1;
+      }
+
+      continue;
+    }
+
+    const matchedSlot =
+      Array.from(
+        pairCandidates.values()
+      )[0];
+
+    const matchedPair =
+      pairNumber(
+        matchedSlot.slot_position
+      );
+
+    const pairSlots =
+      slots.filter(
+        (slot) =>
+          sameGroup(
+            slot,
+            matchedSlot
+          ) &&
+          pairNumber(
+            slot.slot_position
+          ) === matchedPair &&
+          Boolean(
+            slot.player_name
+              ?.trim()
+          )
+      );
+
+    const existingNumbers =
+      pairSlots
+        .map((slot) =>
+          normalizeCartNumber(
+            slot.cart_number
+          )
+        )
+        .filter(
+          (
+            value
+          ): value is string =>
+            Boolean(value)
+        );
+
+    if (
+      existingNumbers.some(
+        (value) =>
+          value !==
+            vehicle.cart_number
+      )
+    ) {
+      result.conflicts += 1;
+      continue;
+    }
+
+    const blankSlots =
+      pairSlots.filter(
+        (slot) =>
+          !normalizeCartNumber(
+            slot.cart_number
+          )
+      );
+
+    if (
+      blankSlots.length === 0
+    ) {
+      continue;
+    }
+
+    const {
+      error: updateError,
+    } = await supabase
+      .from("tee_sheet_slots")
+      .update({
+        cart_number:
+          vehicle.cart_number,
+      })
+      .eq("club_id", clubId)
+      .in(
+        "id",
+        blankSlots.map(
+          (slot) => slot.id
+        )
+      );
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    for (
+      const slot of blankSlots
+    ) {
+      slot.cart_number =
+        vehicle.cart_number;
+    }
+
+    const playerNames =
+      blankSlots
+        .map(
+          (slot) =>
+            slot.player_name
+              ?.trim()
+        )
+        .filter(
+          (
+            value
+          ): value is string =>
+            Boolean(value)
+        );
+
+    changeRows.push({
+      club_id: clubId,
+      import_id:
+        matchedSlot.import_id,
+      sheet_date: today,
+      change_type:
+        "CART_ASSIGNED",
+      member_id:
+        matchedSlot.member_id,
+      player_name:
+        playerNames.join(" / ") ||
+        matchedSlot.player_name,
+      bag_number:
+        matchedSlot.bag_number,
+      cart_number:
+        vehicle.cart_number,
+      tee_time:
+        matchedSlot.tee_time,
+      starting_hole:
+        matchedSlot.starting_hole,
+      detail:
+        `PACE assigned Cart ${vehicle.cart_number} to ${playerNames.join(" and ")}.`,
+      old_value: {
+        cart_number: null,
+      },
+      new_value: {
+        cart_number:
+          vehicle.cart_number,
+        pace_label:
+          vehicle.pace_label,
+      },
+      status: "OPEN",
+    });
+
+    result.assigned_groups += 1;
+    result.assigned_players +=
+      blankSlots.length;
+  }
+
+  if (changeRows.length > 0) {
+    const {
+      error: changeError,
+    } = await supabase
+      .from("tee_sheet_changes")
+      .insert(changeRows);
+
+    if (changeError) {
+      throw changeError;
+    }
+  }
+
+  return result;
 }

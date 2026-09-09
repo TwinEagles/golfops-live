@@ -166,6 +166,13 @@
       cart_number:
         cartNumber,
 
+      pace_label:
+        firstDefined(
+          vehicle.Label,
+          vehicle.DriverName,
+          vehicle.PassengerName
+        ),
+
       course_id:
         firstDefined(
           vehicle.CurrentCourseId,
