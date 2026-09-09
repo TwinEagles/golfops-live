@@ -88,14 +88,17 @@ export default async function OperationsPage() {
 
   if (!access) redirect("/");
 
-  const canTeeSheet = access.isAdmin || access.permissions.tee_sheet;
-  const canChanges = access.isAdmin || access.permissions.changes;
-  const canProShop = access.isAdmin || access.permissions.pro_shop;
-  const canGolfCarts = access.isAdmin || access.permissions.golf_carts;
-  const canOutsideOperations = access.isAdmin || access.permissions.outside_operations;
-  const allowed = canTeeSheet || canChanges || canProShop || canGolfCarts || canOutsideOperations;
-
-  if (!allowed) redirect("/settings/account");
+  /*
+    Operations is the shared club dashboard. Every
+    authenticated GolfOps user sees the same daily
+    operating picture here; module permissions still
+    protect the individual destination pages.
+  */
+  const canTeeSheet = true;
+  const canChanges = true;
+  const canProShop = true;
+  const canGolfCarts = true;
+  const canOutsideOperations = true;
 
   const supabase = await createClient();
   const today = easternDateString();
@@ -379,11 +382,12 @@ export default async function OperationsPage() {
               alert={openHandoffs > 0 || outsideCompleteCount < outsideItemCount}
             />
           )}
+
           <PerryWeatherWidget />
         </section>
 
         {canOutsideOperations && scheduleImportedAt && (
-                      <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
+          <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
             <header className="flex flex-col gap-2 border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
               <div>
                 <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">SchedulePop</div>

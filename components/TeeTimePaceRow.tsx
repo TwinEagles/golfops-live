@@ -739,19 +739,17 @@ function CartPaceStatus({
     );
   }
 
-  const positionAge =
-    ageInMilliseconds(
-      status.position_at
-    );
-
-  const positionIsStale =
-    positionAge !== null &&
-    positionAge >
-      3 * 60 * 1000;
+  /*
+    PACE can publish a current online/in-play
+    status while its PositionTimestamp retains
+    an older value. Feed freshness is already
+    validated above using last_seen_at, so the
+    vehicle's position timestamp must not hide
+    otherwise valid hole and pace information.
+  */
 
   if (
-    status.is_online === false ||
-    positionIsStale
+    status.is_online === false
   ) {
     const colors =
       toneClasses("gray");
