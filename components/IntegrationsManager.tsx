@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.3.1";
+  "1.3.2";
 
 const EXTENSION_RELEASE_DATE =
   "September 9, 2026";
@@ -54,15 +54,24 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.3.1",
+    version: "1.3.2",
     date: "September 9, 2026",
     current: true,
     highlights: [
-      "Added automatic monitoring for today's open ForeTees Print/Report tee sheet.",
-      "Checks once per minute and sends a new snapshot only when the visible tee-sheet rows change.",
-      "Routes detected additions, removals, replacements, time changes, and starting-hole changes into GolfOps Changes.",
-      "Activates automatically at midnight Eastern when the next day's report was left open overnight.",
+      "Monitors today's normal live ForeTees tee sheet; staff do not need to keep a Print/Report page open.",
+      "Uses the authenticated -ALL- Bag Report link embedded in the live sheet to check for updates once per minute.",
+      "Routes detected additions, removals, replacements, time changes, and starting-hole changes into GolfOps Changes and the TV display.",
+      "Sends a new snapshot only when the underlying tee-sheet rows change.",
       "Preserves GolfOps cart assignments, check-ins, and manual tee-sheet overrides during monitored updates.",
+    ],
+  },
+  {
+    version: "1.3.1",
+    date: "September 9, 2026",
+    current: false,
+    highlights: [
+      "Introduced day-of ForeTees change monitoring and mobile Tee Sheet pace formatting.",
+      "Superseded by version 1.3.2, which monitors the normal live ForeTees tee sheet.",
     ],
   },
   {
@@ -316,6 +325,11 @@ export default function IntegrationsManager() {
                   with ForeTees,
                   ForeTees Admin, and
                   SchedulePop. On the
+                  ForeTees workstation,
+                  keep today's normal
+                  live tee sheet open to
+                  monitor day-of changes.
+                  On the
                   designated PACE
                   workstation, keep the
                   authenticated PACE page
@@ -373,7 +387,8 @@ export default function IntegrationsManager() {
                       "Select Bag Report, then Double Line, then Large Font.",
                       "Allow the report page to load while the extension sends it automatically.",
                       "Wait for the green Import Successful confirmation.",
-                      "Keep the Print/Report page open; monitoring activates automatically at midnight Eastern and checks once per minute during that date.",
+                      "Return to today's normal live ForeTees tee sheet and leave it open; GolfOps checks it once per minute for day-of changes.",
+                      "The Print/Report page does not need to remain open after the initial import.",
                       "Return to GolfOps Live and verify the imported date and player count.",
                     ]}
                   />
