@@ -10,10 +10,10 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.3.0";
+  "1.3.1";
 
 const EXTENSION_RELEASE_DATE =
-  "September 8, 2026";
+  "September 9, 2026";
 
 const extensionApplications = [
   {
@@ -23,6 +23,7 @@ const extensionApplications = [
     workflows: [
       "Tee sheet imports",
       "Lesson imports",
+      "Day-of change monitoring",
     ],
   },
   {
@@ -53,9 +54,21 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
+    version: "1.3.1",
+    date: "September 9, 2026",
+    current: true,
+    highlights: [
+      "Added automatic monitoring for today's open ForeTees Print/Report tee sheet.",
+      "Checks once per minute and sends a new snapshot only when the visible tee-sheet rows change.",
+      "Routes detected additions, removals, replacements, time changes, and starting-hole changes into GolfOps Changes.",
+      "Activates automatically at midnight Eastern when the next day's report was left open overnight.",
+      "Preserves GolfOps cart assignments, check-ins, and manual tee-sheet overrides during monitored updates.",
+    ],
+  },
+  {
     version: "1.3.0",
     date: "September 8, 2026",
-    current: true,
+    current: false,
     highlights: [
       "Added PACE / Textron GPS cart-status synchronization.",
       "Updates GolfOps Live approximately once per minute while the authenticated PACE page is open.",
@@ -180,7 +193,7 @@ export default function IntegrationsManager() {
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
-                Import ForeTees tee sheets and lessons, synchronize ForeTees Admin bag slots, send SchedulePop staffing, and connect live PACE cart status to GolfOps Live.
+                Import ForeTees tee sheets and lessons, monitor day-of tee-sheet changes, synchronize ForeTees Admin bag slots, send SchedulePop staffing, and connect live PACE cart status to GolfOps Live.
               </p>
             </div>
           </div>
@@ -199,12 +212,12 @@ export default function IntegrationsManager() {
                 </h3>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  One extension connects four applications and five GolfOps workflows.
+                  One extension connects four applications and six GolfOps workflows.
                 </p>
               </div>
 
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                4 applications · 5 workflows
+                4 applications · 6 workflows
               </span>
             </div>
 
@@ -360,6 +373,7 @@ export default function IntegrationsManager() {
                       "Select Bag Report, then Double Line, then Large Font.",
                       "Allow the report page to load while the extension sends it automatically.",
                       "Wait for the green Import Successful confirmation.",
+                      "Keep the Print/Report page open; monitoring activates automatically at midnight Eastern and checks once per minute during that date.",
                       "Return to GolfOps Live and verify the imported date and player count.",
                     ]}
                   />
@@ -379,7 +393,7 @@ export default function IntegrationsManager() {
                   <GuideBlock
                     title="Connect PACE"
                     steps={[
-                      "Install extension version 1.3.0 on the designated PACE workstation.",
+                      "Install the current extension version on the designated PACE workstation.",
                       "Open the GolfOps Live extension and confirm that it is signed in.",
                       "Open tekgps.net/main and sign in to PACE.",
                       "Keep the PACE tab open, Chrome running, and the workstation awake.",

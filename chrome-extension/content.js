@@ -268,6 +268,405 @@ function detectTeeSheetDate() {
   return null;
 }
 
+/*
+  DAY-OF FORETEES MONITOR
+
+  The open ForeTees Print/Report page acts as
+  the authenticated source. Beginning on the
+  displayed date, GolfOps checks that same
+  report once per minute and sends it only when
+  its visible tee-sheet rows have changed.
+*/
+
+const DAY_OF_MONITOR_INTERVAL_MS =
+  60 * 1000;
+
+let dayOfMonitorInFlight =
+  false;
+
+let lastDayOfSignature =
+  null;
+
+function easternToday() {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          "America/New_York",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric"
+      }
+    ).formatToParts(
+      new Date()
+    );
+
+  const value =
+    Object.fromEntries(
+      parts.map(
+        (part) => [
+          part.type,
+          part.value
+        ]
+      )
+    );
+
+  return (
+    Number(value.month) +
+    "/" +
+    Number(value.day) +
+    "/" +
+    value.year
+  );
+}
+
+function stableTeeSheetText(
+  html
+) {
+  const documentCopy =
+    new DOMParser()
+      .parseFromString(
+        html,
+        "text/html"
+      );
+
+  documentCopy
+    .querySelectorAll(
+      "script, style, noscript, svg, link, meta, input[type='hidden']"
+    )
+    .forEach(
+      (element) =>
+        element.remove()
+    );
+
+  const rows =
+    Array.from(
+      documentCopy
+        .querySelectorAll(
+          "tr"
+        )
+    )
+      .map(
+        (row) =>
+          (
+            row.innerText ||
+            row.textContent ||
+            ""
+          )
+            .replace(
+              /\s+/g,
+              " "
+            )
+            .trim()
+      )
+      .filter(Boolean);
+
+  if (rows.length > 0) {
+    return rows.join("\n");
+  }
+
+  return (
+    documentCopy.body
+      ?.textContent ||
+    ""
+  )
+    .replace(
+      /\s+/g,
+      " "
+    )
+    .trim();
+}
+
+function teeSheetSignature(
+  html
+) {
+  const text =
+    stableTeeSheetText(
+      html
+    );
+
+  let hash =
+    2166136261;
+
+  for (
+    let index = 0;
+    index < text.length;
+    index += 1
+  ) {
+    hash ^=
+      text.charCodeAt(
+        index
+      );
+
+    hash = Math.imul(
+      hash,
+      16777619
+    );
+  }
+
+  return `${text.length}:${(
+    hash >>> 0
+  ).toString(16)}`;
+}
+
+function monitoredReportLooksValid(
+  html
+) {
+  if (
+    typeof html !== "string" ||
+    html.length < 1000
+  ) {
+    return false;
+  }
+
+  const parsed =
+    new DOMParser()
+      .parseFromString(
+        html,
+        "text/html"
+      );
+
+  const rows =
+    parsed.querySelectorAll(
+      "tr"
+    ).length;
+
+  const text =
+    (
+      parsed.body
+        ?.textContent ||
+      ""
+    ).toLowerCase();
+
+  const looksLikeLogin =
+    text.includes(
+      "session expired"
+    ) ||
+    (
+      text.includes("password") &&
+      text.includes("log in")
+    );
+
+  return (
+    rows > 1 &&
+    !looksLikeLogin
+  );
+}
+
+function sendDayOfSnapshot(
+  html,
+  sheetDate
+) {
+  return new Promise(
+    (resolve) => {
+      chrome.runtime.sendMessage(
+        {
+          type:
+            "SEND_TEE_SHEET",
+
+          payload: {
+            html,
+            source: "A",
+            url:
+              window.location.href,
+            sheetDate,
+            timezone:
+              "America/New_York",
+            monitorMode: true
+          }
+        },
+
+        (response) => {
+          if (
+            chrome.runtime
+              .lastError
+          ) {
+            console.error(
+              "GolfOps Live day-of monitor extension error:",
+              chrome.runtime
+                .lastError
+                .message
+            );
+
+            resolve(false);
+            return;
+          }
+
+          if (!response?.ok) {
+            console.error(
+              "GolfOps Live day-of monitor import error:",
+              response?.error ||
+                "Unknown import error."
+            );
+
+            resolve(false);
+            return;
+          }
+
+          const changes =
+            typeof response
+              .changesDetected ===
+            "number"
+              ? response
+                  .changesDetected
+              : 0;
+
+          if (changes > 0) {
+            showStatus(
+              `GolfOps Changes updated — ${changes} day-of change${changes === 1 ? "" : "s"}.`,
+              "success"
+            );
+          }
+
+          console.log(
+            "GolfOps Live day-of monitor:",
+            changes,
+            "change(s) detected."
+          );
+
+          resolve(true);
+        }
+      );
+    }
+  );
+}
+
+async function checkForDayOfChanges() {
+  if (
+    dayOfMonitorInFlight ||
+    !isForeTeesTeeSheetPage()
+  ) {
+    return;
+  }
+
+  const sheetDate =
+    detectTeeSheetDate();
+
+  if (
+    !sheetDate ||
+    normalizeLessonDate(
+      sheetDate
+    ) !== easternToday()
+  ) {
+    return;
+  }
+
+  dayOfMonitorInFlight =
+    true;
+
+  try {
+    const response =
+      await fetch(
+        window.location.href,
+        {
+          method: "GET",
+          credentials:
+            "include",
+          cache: "no-store"
+        }
+      );
+
+    if (
+      !response.ok ||
+      response.redirected
+    ) {
+      console.warn(
+        "GolfOps Live day-of monitor could not refresh ForeTees:",
+        response.status
+      );
+      return;
+    }
+
+    const html =
+      await response.text();
+
+    if (
+      !monitoredReportLooksValid(
+        html
+      )
+    ) {
+      console.warn(
+        "GolfOps Live day-of monitor ignored an invalid or expired ForeTees response."
+      );
+      return;
+    }
+
+    const signature =
+      teeSheetSignature(
+        html
+      );
+
+    if (
+      signature ===
+      lastDayOfSignature
+    ) {
+      return;
+    }
+
+    const sent =
+      await sendDayOfSnapshot(
+        html,
+        sheetDate
+      );
+
+    if (sent) {
+      lastDayOfSignature =
+        signature;
+    }
+  } catch (error) {
+    console.error(
+      "GolfOps Live day-of monitor error:",
+      error
+    );
+  } finally {
+    dayOfMonitorInFlight =
+      false;
+  }
+}
+
+function startDayOfMonitor() {
+  if (
+    !isForeTeesTeeSheetPage()
+  ) {
+    return;
+  }
+
+  const sheetDate =
+    detectTeeSheetDate();
+
+  if (!sheetDate) {
+    console.log(
+      "GolfOps Live day-of monitor: unable to detect the displayed report date."
+    );
+    return;
+  }
+
+  lastDayOfSignature =
+    teeSheetSignature(
+      document
+        .documentElement
+        .outerHTML
+    );
+
+  const activeToday =
+    normalizeLessonDate(
+      sheetDate
+    ) === easternToday();
+
+  console.log(
+    activeToday
+      ? "GolfOps Live day-of monitor active for"
+      : "GolfOps Live day-of monitor standing by until the displayed date begins:",
+    sheetDate
+  );
+
+  window.setInterval(
+    checkForDayOfChanges,
+    DAY_OF_MONITOR_INTERVAL_MS
+  );
+}
+
 async function syncLessonsForDate(
   lessonDate
 ) {
@@ -554,13 +953,20 @@ function sendTeeSheet() {
         const lessonCount =
           lessonResult.lessonCount;
 
+        const monitorText =
+          normalizeLessonDate(
+            lessonDate
+          ) === easternToday()
+            ? " • Day-of monitoring active"
+            : "";
+
         const changeText =
           changes !== null
             ? ` • ${changes} changes`
             : "";
 
         showStatus(
-          `Import Successful — ${response.teeTimesFound} tee times / ${response.playersFound} players${changeText} • ${lessonCount} lesson${lessonCount === 1 ? "" : "s"}`,
+          `Import Successful — ${response.teeTimesFound} tee times / ${response.playersFound} players${changeText} • ${lessonCount} lesson${lessonCount === 1 ? "" : "s"}${monitorText}`,
           "success"
         );
 
@@ -596,4 +1002,9 @@ function sendTeeSheet() {
 window.setTimeout(
   sendTeeSheet,
   1500
+);
+
+window.setTimeout(
+  startDayOfMonitor,
+  3000
 );
