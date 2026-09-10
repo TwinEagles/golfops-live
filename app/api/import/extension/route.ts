@@ -36,6 +36,63 @@ function normalizeName(value: string) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function sameImportedPlayer(
+  existingSlot: ExistingSlot | null | undefined,
+  incomingMemberId: number | null,
+  incomingBagNumber: string | null,
+  incomingPlayerName: string | null
+) {
+  if (!existingSlot) {
+    return false;
+  }
+
+  if (
+    existingSlot.member_id &&
+    incomingMemberId &&
+    String(existingSlot.member_id) ===
+      String(incomingMemberId)
+  ) {
+    return true;
+  }
+
+  const existingBag =
+    normalizeBagNumber(
+      existingSlot.bag_number
+    );
+
+  const incomingBag =
+    normalizeBagNumber(
+      incomingBagNumber
+    );
+
+  if (
+    existingBag &&
+    incomingBag &&
+    existingBag === incomingBag
+  ) {
+    return true;
+  }
+
+  const existingName =
+    normalizeName(
+      existingSlot.player_name ??
+        ""
+    );
+
+  const incomingName =
+    normalizeName(
+      incomingPlayerName ??
+        ""
+    );
+
+  return Boolean(
+    existingName &&
+      incomingName &&
+      existingName ===
+        incomingName
+  );
+}
+
 function normalizeSheetDate(
   value: unknown
 ) {
@@ -976,6 +1033,106 @@ export async function POST(request: Request) {
       );
     }
 
+    /*
+      The live ForeTees report can
+      reformat shotgun positions when
+      the date becomes current. Build
+      unique player indexes so GolfOps
+      operational fields survive that
+      layout change.
+    */
+
+    type ExistingForeTeesSlot =
+      NonNullable<
+        typeof existingForeTeesSlots
+      >[number];
+
+    const existingByMember =
+      new Map<
+        string,
+        ExistingForeTeesSlot
+      >();
+
+    const existingByBag =
+      new Map<
+        string,
+        ExistingForeTeesSlot
+      >();
+
+    const existingByName =
+      new Map<
+        string,
+        ExistingForeTeesSlot
+      >();
+
+    const duplicateMembers =
+      new Set<string>();
+
+    const duplicateBags =
+      new Set<string>();
+
+    const duplicateNames =
+      new Set<string>();
+
+    function addUniqueSlot(
+      index: Map<
+        string,
+        ExistingForeTeesSlot
+      >,
+      duplicates: Set<string>,
+      key: string,
+      slot: ExistingForeTeesSlot
+    ) {
+      if (!key) {
+        return;
+      }
+
+      if (index.has(key)) {
+        index.delete(key);
+        duplicates.add(key);
+        return;
+      }
+
+      if (!duplicates.has(key)) {
+        index.set(key, slot);
+      }
+    }
+
+    for (
+      const slot of
+        existingForeTeesSlots ?? []
+    ) {
+      addUniqueSlot(
+        existingByMember,
+        duplicateMembers,
+        slot.member_id
+          ? String(slot.member_id)
+          : "",
+        slot
+      );
+
+      addUniqueSlot(
+        existingByBag,
+        duplicateBags,
+        normalizeBagNumber(
+          slot.bag_number
+        ),
+        slot
+      );
+
+      addUniqueSlot(
+        existingByName,
+        duplicateNames,
+        normalizeName(
+          slot.player_name ?? ""
+        ),
+        slot
+      );
+    }
+
+    const preservedExistingIds =
+      new Set<number>();
+
     let preservedCheckIns =
       0;
 
@@ -1125,29 +1282,94 @@ export async function POST(request: Request) {
                   position
                 );
 
-              const previousSlot =
+              let previousSlot =
                 existingByPosition.get(
                   physicalKey
                 );
 
-              const previousPlayer =
-                normalizeName(
-                  previousSlot
-                    ?.player_name ??
-                    ""
-                );
-
-              const incomingPlayer =
-                normalizeName(
+              let samePlayer =
+                sameImportedPlayer(
+                  previousSlot,
+                  matchedMember?.id ??
+                    null,
+                  bagNumber,
                   player.playerName ??
-                    ""
+                    null
                 );
 
-              const samePlayer =
-                !!previousPlayer &&
-                !!incomingPlayer &&
-                previousPlayer ===
-                  incomingPlayer;
+              if (
+                !samePlayer ||
+                (
+                  previousSlot &&
+                  preservedExistingIds.has(
+                    previousSlot.id
+                  )
+                )
+              ) {
+                const fallbackCandidates = [
+                  matchedMember?.id
+                    ? existingByMember.get(
+                        String(
+                          matchedMember.id
+                        )
+                      )
+                    : undefined,
+
+                  bagNumber
+                    ? existingByBag.get(
+                        normalizeBagNumber(
+                          bagNumber
+                        )
+                      )
+                    : undefined,
+
+                  player.playerName
+                    ? existingByName.get(
+                        normalizeName(
+                          player.playerName
+                        )
+                      )
+                    : undefined,
+                ];
+
+                previousSlot =
+                  fallbackCandidates.find(
+                    (candidate) =>
+                      Boolean(
+                        candidate &&
+                          !preservedExistingIds.has(
+                            candidate.id
+                          ) &&
+                          sameImportedPlayer(
+                            candidate,
+                            matchedMember?.id ??
+                              null,
+                            bagNumber,
+                            player.playerName ??
+                              null
+                          )
+                      )
+                  );
+
+                samePlayer =
+                  sameImportedPlayer(
+                    previousSlot,
+                    matchedMember?.id ??
+                      null,
+                    bagNumber,
+                    player.playerName ??
+                      null
+                  );
+              }
+
+              if (
+                samePlayer &&
+                previousSlot
+              ) {
+                preservedExistingIds.add(
+                  previousSlot.id
+                );
+              }
 
               const preservedCheckIn =
                 samePlayer

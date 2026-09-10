@@ -13,7 +13,8 @@ type ChangeRecord = {
     | "REMOVED"
     | "TIME_CHANGED"
     | "HOLE_CHANGED"
-    | "REPLACED";
+    | "REPLACED"
+    | "CART_ASSIGNED";
 
   player_name: string | null;
   bag_number: string | null;
@@ -176,6 +177,9 @@ function changeLabel(
 
     case "REPLACED":
       return "REPLACED";
+
+    case "CART_ASSIGNED":
+      return "CART ASSIGNED";
   }
 }
 
@@ -198,6 +202,9 @@ function badgeClasses(
 
     case "REPLACED":
       return "border-purple-400 bg-purple-100 text-purple-700";
+
+    case "CART_ASSIGNED":
+      return "border-blue-300 bg-blue-100 text-blue-700";
   }
 }
 
@@ -342,6 +349,12 @@ function createChangeDetail(
       }
 
       break;
+
+    case "CART_ASSIGNED":
+      return (
+        change.detail ??
+        `Cart ${change.cart_number ?? "assigned"}`
+      );
   }
 
   return (
@@ -512,23 +525,8 @@ export default async function ChangesPage({
   const now =
     new Date();
 
-  const today = [
-    now.getFullYear(),
-
-    String(
-      now.getMonth() + 1
-    ).padStart(
-      2,
-      "0"
-    ),
-
-    String(
-      now.getDate()
-    ).padStart(
-      2,
-      "0"
-    ),
-  ].join("-");
+  const today =
+    easternDateString();
 
   const tomorrow =
     addDays(
@@ -543,7 +541,7 @@ export default async function ChangesPage({
       params.date
     )
       ? params.date
-      : tomorrow;
+      : today;
 
   const view =
     params.view ===
@@ -578,6 +576,16 @@ export default async function ChangesPage({
     addDays(
       selectedDate,
       1
+    );
+
+  const selectedDayStart =
+    easternMidnightIso(
+      selectedDate
+    );
+
+  const selectedDayEnd =
+    easternMidnightIso(
+      nextDate
     );
 
   /*
@@ -651,6 +659,14 @@ export default async function ChangesPage({
         "sheet_date",
         selectedDate
       )
+      .gte(
+        "created_at",
+        selectedDayStart
+      )
+      .lt(
+        "created_at",
+        selectedDayEnd
+      )
       .order(
         "tee_time",
         {
@@ -698,6 +714,7 @@ export default async function ChangesPage({
       "TIME_CHANGED",
       "HOLE_CHANGED",
       "REPLACED",
+      "CART_ASSIGNED",
     ].includes(
       selectedType
     )
@@ -706,6 +723,22 @@ export default async function ChangesPage({
       query.eq(
         "change_type",
         selectedType
+      );
+  }
+
+  if (view === "changes") {
+    query =
+      query.neq(
+        "change_type",
+        "CART_ASSIGNED"
+      );
+  } else if (
+    view === "activity"
+  ) {
+    query =
+      query.eq(
+        "change_type",
+        "CART_ASSIGNED"
       );
   }
 
@@ -722,27 +755,11 @@ export default async function ChangesPage({
     );
   }
 
-  let changes =
+  const changes =
     (
       data ??
       []
     ) as ChangeRecord[];
-
-  /*
-    Activity will eventually include
-    manual edits, cart assignments,
-    check-ins, etc.
-
-    For now we only have tee-sheet
-    change records.
-  */
-
-  if (
-    view ===
-    "activity"
-  ) {
-    changes = [];
-  }
 
   /*
     Count open changes independently
@@ -770,6 +787,14 @@ export default async function ChangesPage({
       .eq(
         "sheet_date",
         selectedDate
+      )
+      .gte(
+        "created_at",
+        selectedDayStart
+      )
+      .lt(
+        "created_at",
+        selectedDayEnd
       )
       .eq(
         "status",
@@ -921,6 +946,13 @@ export default async function ChangesPage({
           "Replaced",
         value:
           "REPLACED",
+      },
+
+      {
+        label:
+          "Cart Assigned",
+        value:
+          "CART_ASSIGNED",
       },
     ];
 
@@ -1204,7 +1236,7 @@ export default async function ChangesPage({
             <p className="mt-2 text-sm text-slate-500">
               {view ===
               "activity"
-                ? "Operational activity will appear here as that feature is added."
+                ? "No PACE cart assignments were recorded for this date."
                 : showCleared
                   ? "No change records have been detected for this date."
                   : "No ForeTees changes have been detected for this date."}
@@ -1230,4 +1262,108 @@ export default async function ChangesPage({
       </main>
     </div>
   );
+}
+
+function easternDateString() {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          "America/New_York",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }
+    ).formatToParts(
+      new Date()
+    );
+
+  const values =
+    Object.fromEntries(
+      parts.map((part) => [
+        part.type,
+        part.value,
+      ])
+    );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function easternMidnightIso(
+  value: string
+) {
+  const [
+    year,
+    month,
+    day,
+  ] = value
+    .split("-")
+    .map(Number);
+
+  const target =
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    );
+
+  let candidate = target;
+
+  const formatter =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:
+          "America/New_York",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23",
+      }
+    );
+
+  for (
+    let attempt = 0;
+    attempt < 4;
+    attempt += 1
+  ) {
+    const parts =
+      Object.fromEntries(
+        formatter
+          .formatToParts(
+            new Date(candidate)
+          )
+          .map((part) => [
+            part.type,
+            part.value,
+          ])
+      );
+
+    const representedAsUtc =
+      Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+        Number(parts.hour),
+        Number(parts.minute),
+        Number(parts.second)
+      );
+
+    const adjustment =
+      target - representedAsUtc;
+
+    candidate += adjustment;
+
+    if (adjustment === 0) {
+      break;
+    }
+  }
+
+  return new Date(
+    candidate
+  ).toISOString();
 }
