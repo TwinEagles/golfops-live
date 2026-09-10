@@ -506,9 +506,11 @@ export default async function ChangesPage({
         )
       : {};
 
+  // Keep the live Changes view focused on items that still require
+  // attention. Cleared entries remain available through the explicit
+  // "Show cleared" control.
   const defaultShowCleared =
-    operationalSettings.showClearedChanges ===
-    true;
+    false;
 
   const retentionCandidate =
     Number(
