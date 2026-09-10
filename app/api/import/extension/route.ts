@@ -157,6 +157,128 @@ function normalizeSheetDate(
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+function validTimeZone(
+  value: string
+) {
+  try {
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone: value,
+      }
+    ).format(new Date());
+
+    return value;
+  } catch {
+    return "America/New_York";
+  }
+}
+
+function dateInTimeZone(
+  timeZone: string
+) {
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }
+    ).formatToParts(
+      new Date()
+    );
+
+  const values =
+    Object.fromEntries(
+      parts.map((part) => [
+        part.type,
+        part.value,
+      ])
+    );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function zonedMidnightIso(
+  value: string,
+  timeZone: string
+) {
+  const [
+    year,
+    month,
+    day,
+  ] = value
+    .split("-")
+    .map(Number);
+
+  const target =
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    );
+
+  let candidate = target;
+
+  const formatter =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23",
+      }
+    );
+
+  for (
+    let attempt = 0;
+    attempt < 4;
+    attempt += 1
+  ) {
+    const parts =
+      Object.fromEntries(
+        formatter
+          .formatToParts(
+            new Date(candidate)
+          )
+          .map((part) => [
+            part.type,
+            part.value,
+          ])
+      );
+
+    const representedAsUtc =
+      Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+        Number(parts.hour),
+        Number(parts.minute),
+        Number(parts.second)
+      );
+
+    const adjustment =
+      target - representedAsUtc;
+
+    candidate += adjustment;
+
+    if (adjustment === 0) {
+      break;
+    }
+  }
+
+  return new Date(
+    candidate
+  ).toISOString();
+}
+
 function splitPlayerName(value: string) {
   const cleaned =
     value.trim().replace(/\s+/g, " ");
@@ -318,9 +440,12 @@ export async function POST(request: Request) {
         : null;
 
     const timezone =
-      typeof body?.timezone === "string"
-        ? body.timezone
-        : "America/New_York";
+      validTimeZone(
+        typeof body?.timezone ===
+          "string"
+          ? body.timezone
+          : "America/New_York"
+      );
 
     const requestedSheetDate =
       normalizeSheetDate(
@@ -926,6 +1051,64 @@ export async function POST(request: Request) {
     const isNewDay =
       !priorImportCount ||
       priorImportCount === 0;
+
+    const operationalToday =
+      dateInTimeZone(
+        timezone
+      );
+
+    const operationalDayStart =
+      zonedMidnightIso(
+        operationalToday,
+        timezone
+      );
+
+    const {
+      count:
+        priorOperationalImportCount,
+      error:
+        priorOperationalImportError,
+    } = await supabase
+      .from(
+        "tee_sheet_imports"
+      )
+      .select(
+        "id",
+        {
+          count: "exact",
+          head: true,
+        }
+      )
+      .eq(
+        "club_id",
+        clubId
+      )
+      .eq(
+        "sheet_date",
+        parsed.sheetDate
+      )
+      .gte(
+        "created_at",
+        operationalDayStart
+      );
+
+    if (
+      priorOperationalImportError
+    ) {
+      console.error(
+        "Operational-day import lookup error:",
+        priorOperationalImportError
+      );
+    }
+
+    const establishesDailyBaseline =
+      !priorOperationalImportError &&
+      parsed.sheetDate ===
+        operationalToday &&
+      (
+        !priorOperationalImportCount ||
+        priorOperationalImportCount === 0
+      );
 
     /*
       CREATE IMPORT HISTORY
@@ -1610,6 +1793,7 @@ export async function POST(request: Request) {
 
     if (
       !isNewDay &&
+      !establishesDailyBaseline &&
       existingEffectiveSlots.length >
         0
     ) {
@@ -1757,6 +1941,182 @@ export async function POST(request: Request) {
             status: 500,
           }
         );
+      }
+    }
+
+    /*
+      Remove net-zero rollover noise.
+
+      If the same golfer appears as both
+      ADDED and REMOVED for the same time
+      and starting hole during the current
+      operational day, the two records
+      offset each other and should not
+      remain in the live Changes queue.
+    */
+
+    if (
+      parsed.sheetDate ===
+        operationalToday
+    ) {
+      const {
+        data: offsetCandidates,
+        error: offsetLookupError,
+      } = await supabase
+        .from(
+          "tee_sheet_changes"
+        )
+        .select(`
+          id,
+          change_type,
+          player_name,
+          bag_number,
+          tee_time,
+          starting_hole
+        `)
+        .eq(
+          "club_id",
+          clubId
+        )
+        .eq(
+          "sheet_date",
+          parsed.sheetDate
+        )
+        .eq(
+          "status",
+          "OPEN"
+        )
+        .gte(
+          "created_at",
+          operationalDayStart
+        )
+        .in(
+          "change_type",
+          [
+            "ADDED",
+            "REMOVED",
+          ]
+        );
+
+      if (offsetLookupError) {
+        console.error(
+          "Offsetting change lookup error:",
+          offsetLookupError
+        );
+      } else {
+        const offsets =
+          new Map<
+            string,
+            {
+              added: Array<
+                string | number
+              >;
+              removed: Array<
+                string | number
+              >;
+            }
+          >();
+
+        for (
+          const change of
+            offsetCandidates ?? []
+        ) {
+          const identity =
+            normalizeBagNumber(
+              change.bag_number
+            ) ||
+            normalizeName(
+              change.player_name ??
+                ""
+            );
+
+          if (!identity) {
+            continue;
+          }
+
+          const key = [
+            identity,
+            change.tee_time ?? "",
+            change.starting_hole ??
+              "",
+          ].join("|");
+
+          const pair =
+            offsets.get(key) ?? {
+              added: [],
+              removed: [],
+            };
+
+          if (
+            change.change_type ===
+              "ADDED"
+          ) {
+            pair.added.push(
+              change.id
+            );
+          } else if (
+            change.change_type ===
+              "REMOVED"
+          ) {
+            pair.removed.push(
+              change.id
+            );
+          }
+
+          offsets.set(
+            key,
+            pair
+          );
+        }
+
+        const offsetIds:
+          Array<string | number> =
+          [];
+
+        for (
+          const pair of
+            offsets.values()
+        ) {
+          if (
+            pair.added.length > 0 &&
+            pair.removed.length > 0
+          ) {
+            offsetIds.push(
+              ...pair.added,
+              ...pair.removed
+            );
+          }
+        }
+
+        if (offsetIds.length > 0) {
+          const {
+            error: offsetClearError,
+          } = await supabase
+            .from(
+              "tee_sheet_changes"
+            )
+            .update({
+              status: "CLEARED",
+              cleared_at:
+                new Date()
+                  .toISOString(),
+            })
+            .eq(
+              "club_id",
+              clubId
+            )
+            .in(
+              "id",
+              offsetIds
+            );
+
+          if (offsetClearError) {
+            console.error(
+              "Offsetting change cleanup error:",
+              offsetClearError
+            );
+          }
+        }
       }
     }
 
@@ -1946,6 +2306,8 @@ export async function POST(request: Request) {
       source,
 
       isNewDay,
+
+      establishesDailyBaseline,
     });
   } catch (error) {
     console.error(
