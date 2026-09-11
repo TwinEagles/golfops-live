@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { hasGolfOpsPermission } from "@/lib/permissions";
+import {
+  createClient as createAdminClient,
+} from "@supabase/supabase-js";
+import {
+  createClient,
+} from "@/lib/supabase/server";
+import {
+  hasGolfOpsPermission,
+} from "@/lib/permissions";
 
 const allowedValues = new Set([
   "",
@@ -55,7 +62,9 @@ export async function PUT(
       );
     }
 
-    const { data: profile } =
+    const {
+      data: profile,
+    } =
       await supabase
         .from("profiles")
         .select("club_id")
@@ -101,11 +110,51 @@ export async function PUT(
       );
     }
 
+    const supabaseUrl =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_URL;
+
+    const serviceRoleKey =
+      process.env
+        .SUPABASE_SERVICE_ROLE_KEY;
+
+    if (
+      !supabaseUrl ||
+      !serviceRoleKey
+    ) {
+      console.error(
+        "Check-in service environment variables are missing."
+      );
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Check-in service is not configured.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const adminSupabase =
+      createAdminClient(
+        supabaseUrl,
+        serviceRoleKey,
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        }
+      );
+
     const {
       data: slot,
       error,
     } =
-      await supabase
+      await adminSupabase
         .from("tee_sheet_slots")
         .update({
           check_in: value,
@@ -116,7 +165,7 @@ export async function PUT(
           profile.club_id
         )
         .select("id, check_in")
-        .single();
+        .maybeSingle();
 
     if (error) {
       console.error(
@@ -131,6 +180,19 @@ export async function PUT(
         },
         {
           status: 500,
+        }
+      );
+    }
+
+    if (!slot) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "This tee-sheet row is no longer current. Allow the page to refresh and try again.",
+        },
+        {
+          status: 404,
         }
       );
     }
