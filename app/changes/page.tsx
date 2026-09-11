@@ -580,16 +580,6 @@ export default async function ChangesPage({
       1
     );
 
-  const selectedDayStart =
-    easternMidnightIso(
-      selectedDate
-    );
-
-  const selectedDayEnd =
-    easternMidnightIso(
-      nextDate
-    );
-
   /*
     Retention is enforced as a display
     boundary here, not a destructive
@@ -660,14 +650,6 @@ export default async function ChangesPage({
       .eq(
         "sheet_date",
         selectedDate
-      )
-      .gte(
-        "created_at",
-        selectedDayStart
-      )
-      .lt(
-        "created_at",
-        selectedDayEnd
       )
       .order(
         "tee_time",
@@ -789,14 +771,6 @@ export default async function ChangesPage({
       .eq(
         "sheet_date",
         selectedDate
-      )
-      .gte(
-        "created_at",
-        selectedDayStart
-      )
-      .lt(
-        "created_at",
-        selectedDayEnd
       )
       .eq(
         "status",
@@ -1290,82 +1264,4 @@ function easternDateString() {
     );
 
   return `${values.year}-${values.month}-${values.day}`;
-}
-
-function easternMidnightIso(
-  value: string
-) {
-  const [
-    year,
-    month,
-    day,
-  ] = value
-    .split("-")
-    .map(Number);
-
-  const target =
-    Date.UTC(
-      year,
-      month - 1,
-      day
-    );
-
-  let candidate = target;
-
-  const formatter =
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone:
-          "America/New_York",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hourCycle: "h23",
-      }
-    );
-
-  for (
-    let attempt = 0;
-    attempt < 4;
-    attempt += 1
-  ) {
-    const parts =
-      Object.fromEntries(
-        formatter
-          .formatToParts(
-            new Date(candidate)
-          )
-          .map((part) => [
-            part.type,
-            part.value,
-          ])
-      );
-
-    const representedAsUtc =
-      Date.UTC(
-        Number(parts.year),
-        Number(parts.month) - 1,
-        Number(parts.day),
-        Number(parts.hour),
-        Number(parts.minute),
-        Number(parts.second)
-      );
-
-    const adjustment =
-      target - representedAsUtc;
-
-    candidate += adjustment;
-
-    if (adjustment === 0) {
-      break;
-    }
-  }
-
-  return new Date(
-    candidate
-  ).toISOString();
 }
