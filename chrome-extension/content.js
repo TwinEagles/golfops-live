@@ -288,7 +288,7 @@ function detectTeeSheetDate() {
 }
 
 /*
-  DAY-OF FORETEES MONITOR
+  NEXT-DAY AND DAY-OF FORETEES MONITOR
 
   The normal live ForeTees tee sheet contains
   authenticated Bag Report links. While that
@@ -400,6 +400,60 @@ function easternToday() {
     Number(value.day) +
     "/" +
     value.year
+  );
+}
+
+function addDaysToNormalizedDate(
+  value,
+  days
+) {
+  const match =
+    String(value).match(
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+    );
+
+  if (!match) {
+    return null;
+  }
+
+  const date =
+    new Date(
+      Date.UTC(
+        Number(match[3]),
+        Number(match[1]) - 1,
+        Number(match[2]) + days
+      )
+    );
+
+  return (
+    date.getUTCMonth() + 1 +
+    "/" +
+    date.getUTCDate() +
+    "/" +
+    date.getUTCFullYear()
+  );
+}
+
+function monitorDateIsActive(
+  sheetDate
+) {
+  const normalized =
+    normalizeLessonDate(
+      sheetDate
+    );
+
+  const today =
+    easternToday();
+
+  const tomorrow =
+    addDaysToNormalizedDate(
+      today,
+      1
+    );
+
+  return (
+    normalized === today ||
+    normalized === tomorrow
   );
 }
 
@@ -597,7 +651,7 @@ function sendDayOfSnapshot(
 
           if (changes > 0) {
             showStatus(
-              `GolfOps Changes updated — ${changes} day-of change${changes === 1 ? "" : "s"}.`,
+              `GolfOps Changes updated — ${changes} tee-sheet change${changes === 1 ? "" : "s"}.`,
               "success"
             );
           }
@@ -628,9 +682,9 @@ async function checkForDayOfChanges() {
 
   if (
     !sheetDate ||
-    normalizeLessonDate(
+    !monitorDateIsActive(
       sheetDate
-    ) !== easternToday()
+    )
   ) {
     return;
   }
@@ -736,19 +790,19 @@ function startDayOfMonitor() {
     return;
   }
 
-  const activeToday =
-    normalizeLessonDate(
+  const activeDate =
+    monitorDateIsActive(
       sheetDate
-    ) === easternToday();
+    );
 
   console.log(
-    activeToday
+    activeDate
       ? "GolfOps Live live-sheet monitor active for"
-      : "GolfOps Live live-sheet monitor standing by until the displayed date begins:",
+      : "GolfOps Live live-sheet monitor supports only today or tomorrow:",
     sheetDate
   );
 
-  if (activeToday) {
+  if (activeDate) {
     window.setTimeout(
       checkForDayOfChanges,
       1000

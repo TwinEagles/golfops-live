@@ -9,6 +9,7 @@ import TeeTimePaceRow, {
 } from "@/components/TeeTimePaceRow";
 import AppNav from "@/components/AppNav";
 import TeeSheetDateSelector from "@/components/TeeSheetDateSelector";
+import TeeSheetLiveRefresh from "@/components/TeeSheetLiveRefresh";
 import { easternDateString } from "@/lib/golfops-date";
 
 function formatStartingHole(
@@ -541,11 +542,20 @@ const today =
   const checkedInPlayers = slots.filter(
     (slot) =>
       slot.player_name &&
-      slot.check_in === "X"
+      [
+        "X",
+        "CHECKED",
+      ].includes(
+        (slot.check_in ?? "")
+          .trim()
+          .toUpperCase()
+      )
   ).length;
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
+      <TeeSheetLiveRefresh />
+
       {/* TOP NAVIGATION */}
      <AppNav
   active="tee-sheet"

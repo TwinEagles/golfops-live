@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "GolfOps Live",
-  "version": "1.3.3",
-  "description": "Sends ForeTees tee sheets, live day-of changes, lessons and bag-slot updates, SchedulePop staffing, and read-only PACE pace and cart assignments to GolfOps Live.",
+  "version": "1.3.4",
+  "description": "Sends ForeTees tee sheets, next-day and day-of changes, lessons and bag-slot updates, SchedulePop staffing, and read-only PACE pace and cart assignments to GolfOps Live.",
   "permissions": [
     "storage",
     "webRequest"

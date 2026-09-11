@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 type BagStatus =
   | "EMPTY"
@@ -20,7 +23,6 @@ function normalizeStatus(
     .trim()
     .toUpperCase();
 
-  // Preserve previously saved check-ins.
   if (
     normalized === "CHECKED" ||
     normalized === "X"
@@ -61,6 +63,21 @@ export default function BagStatusButton({
 
   const [saving, setSaving] =
     useState(false);
+
+  /*
+    A router refresh can deliver a newer
+    value after another device, an import,
+    or the day-of monitor updates this slot.
+  */
+
+  useEffect(() => {
+    setStatus(
+      normalizeStatus(initialStatus)
+    );
+  }, [
+    initialStatus,
+    slotId,
+  ]);
 
   async function cycleStatus() {
     if (saving) return;

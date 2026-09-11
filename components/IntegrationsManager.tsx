@@ -10,10 +10,10 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.3.3";
+  "1.3.4";
 
 const EXTENSION_RELEASE_DATE =
-  "September 9, 2026";
+  "September 11, 2026";
 
 const extensionApplications = [
   {
@@ -23,7 +23,7 @@ const extensionApplications = [
     workflows: [
       "Tee sheet imports",
       "Lesson imports",
-      "Day-of change monitoring",
+      "Next-day and day-of change monitoring",
     ],
   },
   {
@@ -54,9 +54,20 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
+    version: "1.3.4",
+    date: "September 11, 2026",
+    current: true,
+    highlights: [
+      "Begins monitoring tomorrow's live ForeTees tee sheet immediately after the initial Bag Report import.",
+      "Records changes made before midnight and continues monitoring the same sheet during play the next day.",
+      "Automatically refreshes open GolfOps tee-sheet screens so imports, check-ins, and cart assignments stay synchronized across devices.",
+      "Keeps active cart-number fields and check-in controls synchronized with the latest saved values.",
+    ],
+  },
+  {
     version: "1.3.3",
     date: "September 9, 2026",
-    current: true,
+    current: false,
     highlights: [
       "Captures the starter-entered PACE cart label, such as 21 Kovach, with each live cart-status update.",
       "Automatically fills a missing cart number when the PACE label uniquely matches one pairing on today's tee sheet.",
@@ -213,7 +224,7 @@ export default function IntegrationsManager() {
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
-                Import ForeTees tee sheets and lessons, monitor day-of tee-sheet changes, synchronize ForeTees Admin bag slots, send SchedulePop staffing, and connect live PACE cart status to GolfOps Live.
+                Import ForeTees tee sheets and lessons, monitor next-day and day-of tee-sheet changes, synchronize ForeTees Admin bag slots, send SchedulePop staffing, and connect live PACE cart status to GolfOps Live.
               </p>
             </div>
           </div>
@@ -337,9 +348,11 @@ export default function IntegrationsManager() {
                   ForeTees Admin, and
                   SchedulePop. On the
                   ForeTees workstation,
-                  keep today's normal
+                  keep the selected normal
                   live tee sheet open to
-                  monitor day-of changes.
+                  monitor tomorrow&apos;s changes
+                  after the initial import and
+                  continue through the day of play.
                   On the
                   designated PACE
                   workstation, keep the
