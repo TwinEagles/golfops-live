@@ -1059,7 +1059,10 @@ export async function POST(request: Request) {
       the date becomes current. Build
       unique player indexes so GolfOps
       operational fields survive that
-      layout change.
+      layout change. Keep every candidate
+      instead of discarding duplicate keys,
+      then rank the candidates during the
+      incoming-player match.
     */
 
     type ExistingForeTeesSlot =
@@ -1067,39 +1070,22 @@ export async function POST(request: Request) {
         typeof existingForeTeesSlots
       >[number];
 
-    const existingByMember =
-      new Map<
-        string,
-        ExistingForeTeesSlot
-      >();
+    type ExistingSlotIndex = Map<
+      string,
+      ExistingForeTeesSlot[]
+    >;
 
-    const existingByBag =
-      new Map<
-        string,
-        ExistingForeTeesSlot
-      >();
+    const existingByMember:
+      ExistingSlotIndex = new Map();
 
-    const existingByName =
-      new Map<
-        string,
-        ExistingForeTeesSlot
-      >();
+    const existingByBag:
+      ExistingSlotIndex = new Map();
 
-    const duplicateMembers =
-      new Set<string>();
+    const existingByName:
+      ExistingSlotIndex = new Map();
 
-    const duplicateBags =
-      new Set<string>();
-
-    const duplicateNames =
-      new Set<string>();
-
-    function addUniqueSlot(
-      index: Map<
-        string,
-        ExistingForeTeesSlot
-      >,
-      duplicates: Set<string>,
+    function addSlotCandidate(
+      index: ExistingSlotIndex,
       key: string,
       slot: ExistingForeTeesSlot
     ) {
@@ -1107,42 +1093,35 @@ export async function POST(request: Request) {
         return;
       }
 
-      if (index.has(key)) {
-        index.delete(key);
-        duplicates.add(key);
-        return;
-      }
+      const candidates =
+        index.get(key) ?? [];
 
-      if (!duplicates.has(key)) {
-        index.set(key, slot);
-      }
+      candidates.push(slot);
+      index.set(key, candidates);
     }
 
     for (
       const slot of
         existingForeTeesSlots ?? []
     ) {
-      addUniqueSlot(
+      addSlotCandidate(
         existingByMember,
-        duplicateMembers,
         slot.member_id
           ? String(slot.member_id)
           : "",
         slot
       );
 
-      addUniqueSlot(
+      addSlotCandidate(
         existingByBag,
-        duplicateBags,
         normalizeBagNumber(
           slot.bag_number
         ),
         slot
       );
 
-      addUniqueSlot(
+      addSlotCandidate(
         existingByName,
-        duplicateNames,
         normalizeName(
           slot.player_name ?? ""
         ),
@@ -1332,44 +1311,159 @@ export async function POST(request: Request) {
                         String(
                           matchedMember.id
                         )
-                      )
-                    : undefined,
+                      ) ?? []
+                    : [],
 
                   bagNumber
                     ? existingByBag.get(
                         normalizeBagNumber(
                           bagNumber
                         )
-                      )
-                    : undefined,
+                      ) ?? []
+                    : [],
 
                   player.playerName
                     ? existingByName.get(
                         normalizeName(
                           player.playerName
                         )
+                      ) ?? []
+                    : [],
+                ]
+                  .flat()
+                  .filter(
+                    (candidate, index, all) =>
+                      all.findIndex(
+                        (other) =>
+                          other.id ===
+                          candidate.id
+                      ) === index
+                  )
+                  .filter(
+                    (candidate) =>
+                      !preservedExistingIds.has(
+                        candidate.id
+                      ) &&
+                      sameImportedPlayer(
+                        candidate,
+                        matchedMember?.id ??
+                          null,
+                        bagNumber,
+                        player.playerName ??
+                          null
                       )
-                    : undefined,
-                ];
+                  )
+                  .sort((left, right) => {
+                    function candidateScore(
+                      candidate:
+                        ExistingForeTeesSlot
+                    ) {
+                      let score = 0;
+
+                      if (
+                        matchedMember?.id &&
+                        candidate.member_id &&
+                        String(
+                          candidate.member_id
+                        ) ===
+                          String(
+                            matchedMember.id
+                          )
+                      ) {
+                        score += 1000;
+                      }
+
+                      if (
+                        bagNumber &&
+                        normalizeBagNumber(
+                          candidate.bag_number
+                        ) ===
+                          normalizeBagNumber(
+                            bagNumber
+                          )
+                      ) {
+                        score += 500;
+                      }
+
+                      if (
+                        player.playerName &&
+                        normalizeName(
+                          candidate.player_name ??
+                            ""
+                        ) ===
+                          normalizeName(
+                            player.playerName
+                          )
+                      ) {
+                        score += 250;
+                      }
+
+                      if (
+                        candidate.tee_time ===
+                        convertedTime
+                      ) {
+                        score += 100;
+                      }
+
+                      if (
+                        candidate.course
+                          .trim()
+                          .toLowerCase() ===
+                        teeTime.course
+                          .trim()
+                          .toLowerCase()
+                      ) {
+                        score += 50;
+                      }
+
+                      if (
+                        (
+                          candidate.starting_position ??
+                          String(
+                            candidate.starting_hole
+                          )
+                        )
+                          .trim()
+                          .toUpperCase() ===
+                        teeTime.startingPosition
+                          .trim()
+                          .toUpperCase()
+                      ) {
+                        score += 25;
+                      }
+
+                      if (
+                        candidate.slot_position ===
+                        position
+                      ) {
+                        score += 10;
+                      }
+
+                      if (
+                        candidate.check_in
+                          ?.trim()
+                      ) {
+                        score += 2;
+                      }
+
+                      if (
+                        candidate.cart_number
+                          ?.trim()
+                      ) {
+                        score += 1;
+                      }
+
+                      return score;
+                    }
+
+                    return (
+                      candidateScore(right) -
+                      candidateScore(left)
+                    );
+                  });
 
                 previousSlot =
-                  fallbackCandidates.find(
-                    (candidate) =>
-                      Boolean(
-                        candidate &&
-                          !preservedExistingIds.has(
-                            candidate.id
-                          ) &&
-                          sameImportedPlayer(
-                            candidate,
-                            matchedMember?.id ??
-                              null,
-                            bagNumber,
-                            player.playerName ??
-                              null
-                          )
-                      )
-                  );
+                  fallbackCandidates[0];
 
                 samePlayer =
                   sameImportedPlayer(
@@ -1556,6 +1650,106 @@ export async function POST(request: Request) {
           ...slot
         }) => slot
       );
+
+    /*
+      OPERATIONAL-STATE SAFETY CHECK
+
+      A ForeTees refresh must never erase
+      most of the work already completed by
+      Outside Operations. If an unexpected
+      report format prevents player matching,
+      keep the current sheet intact instead
+      of deleting its check-ins or carts.
+    */
+
+    const existingCheckInCount =
+      (existingForeTeesSlots ?? [])
+        .filter(
+          (slot) =>
+            Boolean(
+              slot.check_in?.trim()
+            )
+        )
+        .length;
+
+    const existingCartNumberCount =
+      (existingForeTeesSlots ?? [])
+        .filter(
+          (slot) =>
+            Boolean(
+              slot.cart_number?.trim()
+            )
+        )
+        .length;
+
+    const minimumCheckInsToRetain =
+      Math.ceil(
+        existingCheckInCount * 0.5
+      );
+
+    const minimumCartNumbersToRetain =
+      Math.ceil(
+        existingCartNumberCount * 0.5
+      );
+
+    const unsafeCheckInReset =
+      existingCheckInCount >= 4 &&
+      preservedCheckIns <
+        minimumCheckInsToRetain;
+
+    const unsafeCartReset =
+      existingCartNumberCount >= 4 &&
+      preservedCartNumbers <
+        minimumCartNumbersToRetain;
+
+    if (
+      unsafeCheckInReset ||
+      unsafeCartReset
+    ) {
+      console.error(
+        "Blocked unsafe ForeTees operational-state reset.",
+        {
+          sheetDate:
+            parsed.sheetDate,
+          existingCheckInCount,
+          preservedCheckIns,
+          existingCartNumberCount,
+          preservedCartNumbers,
+        }
+      );
+
+      /*
+        This import did not replace the sheet,
+        so remove its provisional history row.
+      */
+
+      await supabase
+        .from(
+          "tee_sheet_imports"
+        )
+        .delete()
+        .eq(
+          "id",
+          importRecord.id
+        );
+
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "GolfOps protected the existing check-ins and cart numbers because this ForeTees refresh could not safely match the current players.",
+          sheetDate:
+            parsed.sheetDate,
+          existingCheckInCount,
+          preservedCheckIns,
+          existingCartNumberCount,
+          preservedCartNumbers,
+        },
+        {
+          status: 409,
+        }
+      );
+    }
 
     /*
       EFFECTIVE CURRENT SHEET
