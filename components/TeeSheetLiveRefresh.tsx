@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   useCallback,
@@ -8,7 +8,7 @@ import {
 import { useRouter } from "next/navigation";
 
 const REFRESH_INTERVAL_MS =
-  15_000;
+  120_000;
 
 function userIsEditing() {
   const activeElement =
@@ -96,3 +96,4 @@ export default function TeeSheetLiveRefresh() {
 
   return null;
 }
+
