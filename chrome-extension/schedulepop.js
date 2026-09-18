@@ -1,4 +1,4 @@
-const SCHEDULEPOP_EVENT =
+﻿const SCHEDULEPOP_EVENT =
   "golfops-schedulepop-report";
 
 const processedReports =
@@ -364,7 +364,7 @@ function parseSchedulePopHtml(
               details.length > 2
                 ? details
                     .slice(2)
-                    .join(" • ")
+                    .join(" â€¢ ")
                 : null
           });
         }
@@ -561,7 +561,7 @@ async function importSchedule(
     }
 
     showSchedulePopStatus(
-      `GolfOps updated — ${result.rowsImported} staffing records imported for ${parsed.dateStart} through ${parsed.dateEnd}.`,
+      `GolfOps updated â€” ${result.rowsImported} staffing records imported for ${parsed.dateStart} through ${parsed.dateEnd}.`,
       "success"
     );
   } catch (error) {
@@ -605,7 +605,7 @@ function addSyncButton() {
     button.style,
     {
       position: "fixed",
-      right: "20px",
+      left: "20px",
       bottom: "74px",
       zIndex:
         "2147483646",
