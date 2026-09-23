@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import BagStatusButton from "@/components/BagStatusButton";
@@ -554,7 +554,7 @@ const today =
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
-      <TeeSheetLiveRefresh />
+      <TeeSheetLiveRefresh sheetDate={selectedDate} />
 
       {/* TOP NAVIGATION */}
      <AppNav
@@ -607,7 +607,7 @@ const today =
             href={`/dashboard?date=${previousDate}`}
             className="shrink-0 rounded-md px-2 py-1 text-3xl leading-none text-[var(--golfops-text-secondary)] hover:bg-[var(--golfops-surface-soft)] sm:px-3"
           >
-            ‹
+            â€¹
           </Link>
 
           <TeeSheetDateSelector
@@ -620,7 +620,7 @@ const today =
             href={`/dashboard?date=${nextDate}`}
             className="shrink-0 rounded-md px-2 py-1 text-3xl leading-none text-[var(--golfops-text-secondary)] hover:bg-[var(--golfops-surface-soft)] sm:px-3"
           >
-            ›
+            â€º
           </Link>
         </div>
       </div>
@@ -632,7 +632,7 @@ const today =
           className="mb-4 overflow-hidden rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)]"
         >
           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--golfops-text-secondary)]">
-            ⓘ &nbsp; Legend
+            â“˜ &nbsp; Legend
 
             <span className="ml-2 text-xs font-normal text-[var(--golfops-text-dim)]">
               hide
@@ -683,7 +683,7 @@ const today =
 
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
-                  <span>1–9 minutes behind</span>
+                  <span>1â€“9 minutes behind</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -723,7 +723,7 @@ const today =
                   </span>
 
                   <span>
-                    — empty slot
+                    â€” empty slot
                   </span>
                 </div>
               </div>
@@ -775,7 +775,7 @@ const today =
 
                 <div className="flex items-center gap-2">
                   <span className="flex h-5 w-5 items-center justify-center rounded bg-[var(--golfops-accent)] text-[10px] font-bold text-white">
-                    ✓
+                    âœ“
                   </span>
 
                   <span>
@@ -786,7 +786,7 @@ const today =
                 {showPlayedTodayStar && (
                   <div className="flex items-center gap-2">
                     <span className="text-base">
-                      ⭐
+                      â­
                     </span>
 
                     <span>
@@ -1017,7 +1017,7 @@ const today =
                                 className="mr-1.5 text-base"
                                 title="This golfer is also on today's tee sheet"
                               >
-                                ⭐
+                                â­
                               </span>
                             )}
 
@@ -1116,3 +1116,4 @@ const today =
     </div>
   );
 }
+

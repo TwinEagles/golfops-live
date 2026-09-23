@@ -36,6 +36,25 @@ function normalizeName(value: string) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function operationalIdentityKey(
+  memberId: number | null | undefined,
+  bagNumber: string | null | undefined,
+  playerName: string | null | undefined
+) {
+  if (memberId !== null && memberId !== undefined) {
+    return `member:${String(memberId)}`;
+  }
+
+  const bag = normalizeBagNumber(bagNumber ?? null);
+
+  if (bag) {
+    return `bag:${bag}`;
+  }
+
+  const name = normalizeName(playerName ?? "");
+  return name ? `name:${name}` : null;
+}
+
 function sameImportedPlayer(
   existingSlot: ExistingSlot | null | undefined,
   incomingMemberId: number | null,
@@ -1054,6 +1073,92 @@ export async function POST(request: Request) {
     }
 
     /*
+      DURABLE OPERATIONAL STATE
+
+      Imported slot rows are replaced by every ForeTees refresh. Save the
+      current check-in and cart work in a stable, player-keyed record before
+      that replacement, then use it as a fallback when rebuilding the sheet.
+    */
+
+    const currentOperationalRows =
+      (existingForeTeesSlots ?? [])
+        .flatMap((slot) => {
+          const identityKey = operationalIdentityKey(
+            slot.member_id,
+            slot.bag_number,
+            slot.player_name
+          );
+
+          if (
+            !identityKey ||
+            (!slot.cart_number?.trim() && !slot.check_in?.trim())
+          ) {
+            return [];
+          }
+
+          return [{
+            club_id: String(clubId),
+            sheet_date: parsed.sheetDate,
+            identity_key: identityKey,
+            member_id:
+              slot.member_id === null
+                ? null
+                : String(slot.member_id),
+            bag_number: slot.bag_number,
+            player_name: slot.player_name,
+            cart_number: slot.cart_number,
+            check_in: slot.check_in ?? "",
+            updated_at: new Date().toISOString(),
+          }];
+        });
+
+    if (currentOperationalRows.length > 0) {
+      const { error: stateSaveError } = await supabase
+        .from("tee_sheet_operational_state")
+        .upsert(currentOperationalRows, {
+          onConflict: "club_id,sheet_date,identity_key",
+        });
+
+      if (stateSaveError) {
+        console.error("Operational state save error:", stateSaveError);
+        return Response.json(
+          {
+            ok: false,
+            error:
+              "GolfOps could not protect the current check-ins and cart numbers before refreshing the tee sheet.",
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    const { data: operationalState, error: stateLoadError } =
+      await supabase
+        .from("tee_sheet_operational_state")
+        .select("identity_key,cart_number,check_in")
+        .eq("club_id", String(clubId))
+        .eq("sheet_date", parsed.sheetDate);
+
+    if (stateLoadError) {
+      console.error("Operational state load error:", stateLoadError);
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "GolfOps could not restore the saved check-ins and cart numbers.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const operationalStateByIdentity = new Map(
+      (operationalState ?? []).map((row) => [
+        row.identity_key,
+        row,
+      ])
+    );
+
+    /*
       The live ForeTees report can
       reformat shotgun positions when
       the date becomes current. Build
@@ -1485,19 +1590,25 @@ export async function POST(request: Request) {
                 );
               }
 
+              const identityKey = operationalIdentityKey(
+                matchedMember?.id ?? null,
+                bagNumber,
+                player.playerName ?? null
+              );
+
+              const savedOperationalState = identityKey
+                ? operationalStateByIdentity.get(identityKey)
+                : null;
+
               const preservedCheckIn =
-                samePlayer
-                  ? previousSlot
-                      ?.check_in ??
-                    ""
-                  : "";
+                (samePlayer ? previousSlot?.check_in : null) ??
+                savedOperationalState?.check_in ??
+                "";
 
               const preservedCartNumber =
-                samePlayer
-                  ? previousSlot
-                      ?.cart_number ??
-                    null
-                  : null;
+                (samePlayer ? previousSlot?.cart_number : null) ??
+                savedOperationalState?.cart_number ??
+                null;
 
               if (
                 preservedCheckIn
