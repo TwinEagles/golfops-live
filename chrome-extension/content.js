@@ -1142,7 +1142,9 @@ window.setTimeout(
   1500
 );
 
-window.setTimeout(
-  startDayOfMonitor,
-  3000
-);
+/*
+  Automatic next-day/day-of monitoring is intentionally disabled.
+  It generated repeated Vercel function work while ForeTees remained open.
+  Staff can still import a tee sheet by opening the authenticated Print Bag
+  Report; sendTeeSheet above continues to handle that manual workflow.
+*/

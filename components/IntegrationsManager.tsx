@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.3.4";
+  "1.3.5";
 
 const EXTENSION_RELEASE_DATE =
   "September 11, 2026";
@@ -54,7 +54,7 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.3.4",
+    version: "1.3.5",
     date: "September 11, 2026",
     current: true,
     highlights: [

@@ -9,10 +9,10 @@
     "GOLFOPS_PACE_STATUS";
 
   const MIN_SEND_INTERVAL_MS =
-    20 * 1000;
+    5 * 60 * 1000;
 
   const HEARTBEAT_INTERVAL_MS =
-    60 * 1000;
+    5 * 60 * 1000;
 
   if (window[INSTALL_KEY]) {
     return;
@@ -405,8 +405,7 @@
           vehicle.is_available,
           vehicle.is_charging,
           vehicle.gps_valid,
-          vehicle.needs_service,
-          vehicle.position_at
+          vehicle.needs_service
         ]
       )
     );
