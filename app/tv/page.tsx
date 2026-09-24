@@ -1147,6 +1147,7 @@ export default async function TvPage({
             <div className="flex items-center gap-4">
               <Link
                 href={`/tv?date=${previousDate}`}
+                prefetch={false}
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--golfops-border)] text-xl text-[var(--golfops-text-muted)] transition hover:bg-[var(--golfops-surface-soft)] hover:text-[var(--golfops-text)]"
                 aria-label="Previous day"
               >
@@ -1167,6 +1168,7 @@ export default async function TvPage({
 
               <Link
                 href={`/tv?date=${nextDate}`}
+                prefetch={false}
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--golfops-border)] text-xl text-[var(--golfops-text-muted)] transition hover:bg-[var(--golfops-surface-soft)] hover:text-[var(--golfops-text)]"
                 aria-label="Next day"
               >
@@ -1295,6 +1297,7 @@ export default async function TvPage({
             <footer className="border-t border-[var(--golfops-border)] px-6 py-3 text-right">
               <Link
                 href={`/changes?date=${selectedDate}`}
+                prefetch={false}
                 className="text-sm font-bold text-[var(--golfops-accent-text)] hover:text-[var(--golfops-accent)]"
               >
                 Open Changes →
@@ -1411,6 +1414,7 @@ export default async function TvPage({
             <footer className="border-t border-[var(--golfops-border)] px-6 py-3 text-right">
               <Link
                 href="/proshop"
+                prefetch={false}
                 className="text-sm font-bold text-[var(--golfops-accent-text)] hover:text-[var(--golfops-accent)]"
               >
                 Open Pro Shop →

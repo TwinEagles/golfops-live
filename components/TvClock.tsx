@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function TvClock() {
-  const router = useRouter();
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -13,16 +11,10 @@ export default function TvClock() {
       1000
     );
 
-    const refreshTimer = window.setInterval(
-      () => router.refresh(),
-      30000
-    );
-
     return () => {
       window.clearInterval(clockTimer);
-      window.clearInterval(refreshTimer);
     };
-  }, [router]);
+  }, []);
 
   return (
     <div className="text-right">

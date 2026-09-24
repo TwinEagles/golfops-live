@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const REFRESH_INTERVAL_MS = 60_000;
+
 function easternDateString(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
@@ -21,6 +23,13 @@ export default function TvDisplayRefresh({
 
   useEffect(() => {
     function updateDisplay() {
+      if (
+        document.visibilityState !==
+        "visible"
+      ) {
+        return;
+      }
+
       const today = easternDateString();
 
       if (selectedDate !== today) {
@@ -31,7 +40,11 @@ export default function TvDisplayRefresh({
       router.refresh();
     }
 
-    const interval = window.setInterval(updateDisplay, 60_000);
+    const interval = window.setInterval(
+      updateDisplay,
+      REFRESH_INTERVAL_MS
+    );
+
     return () => window.clearInterval(interval);
   }, [router, selectedDate]);
 

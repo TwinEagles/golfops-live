@@ -1,9 +1,23 @@
 import Image from "next/image";
-import Link from "next/link";
+import NextLink from "next/link";
+import type { ComponentProps } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getGolfOpsAccess } from "@/lib/permissions";
 import { easternDateString } from "@/lib/golfops-date";
+
+type LinkProps = ComponentProps<
+  typeof NextLink
+>;
+
+function Link(props: LinkProps) {
+  return (
+    <NextLink
+      {...props}
+      prefetch={false}
+    />
+  );
+}
 
 // Navigation includes the permission-controlled Outside Operations workspace.
 
