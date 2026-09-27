@@ -1080,7 +1080,7 @@ export async function POST(request: Request) {
       that replacement, then use it as a fallback when rebuilding the sheet.
     */
 
-    const currentOperationalRows =
+    const currentOperationalRowCandidates =
       (existingForeTeesSlots ?? [])
         .flatMap((slot) => {
           const identityKey = operationalIdentityKey(
@@ -1111,6 +1111,58 @@ export async function POST(request: Request) {
             updated_at: new Date().toISOString(),
           }];
         });
+
+    /*
+      A member can appear more than once on the same ForeTees sheet. The
+      operational-state table intentionally has one row per player and date,
+      so collapse duplicate identities before sending the upsert. Preserve the
+      first nonblank value for each operational field and fill any gaps from a
+      later duplicate.
+    */
+    const currentOperationalRowsByIdentity = new Map<
+      string,
+      (typeof currentOperationalRowCandidates)[number]
+    >();
+
+    for (const row of currentOperationalRowCandidates) {
+      const existing = currentOperationalRowsByIdentity.get(
+        row.identity_key
+      );
+
+      if (!existing) {
+        currentOperationalRowsByIdentity.set(
+          row.identity_key,
+          row
+        );
+        continue;
+      }
+
+      currentOperationalRowsByIdentity.set(row.identity_key, {
+        ...existing,
+        member_id: existing.member_id ?? row.member_id,
+        bag_number:
+          existing.bag_number?.trim()
+            ? existing.bag_number
+            : row.bag_number,
+        player_name:
+          existing.player_name?.trim()
+            ? existing.player_name
+            : row.player_name,
+        cart_number:
+          existing.cart_number?.trim()
+            ? existing.cart_number
+            : row.cart_number,
+        check_in:
+          existing.check_in?.trim()
+            ? existing.check_in
+            : row.check_in,
+        updated_at: row.updated_at,
+      });
+    }
+
+    const currentOperationalRows = Array.from(
+      currentOperationalRowsByIdentity.values()
+    );
 
     if (currentOperationalRows.length > 0) {
       const { error: stateSaveError } = await supabase
