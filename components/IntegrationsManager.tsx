@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.4.4";
+  "1.4.5";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.4.4",
+    version: "1.4.5",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Matches ForeTees note times such as 10:53 to database tee times stored as 10:53:00.",
+      "Displays successfully captured notes beneath the corresponding GolfOps tee time.",
+    ],
+  },
+  {
+    version: "1.4.4",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Uses ForeTees' required notes=yes parameter when retrieving a tee-time note.",
       "Reads note text from ForeTees textarea and note-field formats in addition to labeled page text.",

@@ -280,8 +280,19 @@ function teeTimeNoteKey(
   teeTime: string,
   course: string
 ) {
+  const normalizedTime =
+    teeTime
+      .trim()
+      .match(
+        /^(\d{1,2}):(\d{2})(?::\d{2})?$/
+      );
+
+  const timeKey = normalizedTime
+    ? `${normalizedTime[1].padStart(2, "0")}:${normalizedTime[2]}`
+    : teeTime.trim();
+
   return [
-    teeTime.trim(),
+    timeKey,
     course.trim().toLowerCase(),
   ].join("|");
 }
