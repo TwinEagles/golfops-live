@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.3.9";
+  "1.4.0";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.3.9",
+    version: "1.4.0",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Scans the main ForeTees page and embedded same-origin frames for tee-time note links.",
+      "Retains the row-level legacy index=1 note popup detection added in version 1.3.9.",
+    ],
+  },
+  {
+    version: "1.3.9",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Detects ForeTees notes from the tee-time row’s legacy index=1 popup link.",
       "No longer depends on the visible N being rendered as a particular text or image element.",

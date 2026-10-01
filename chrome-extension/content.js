@@ -520,10 +520,55 @@ function noteTextFromHtml(html) {
     .trim();
 }
 
+function getForeTeesDocuments() {
+  const documents = [];
+  const visited = new Set();
+
+  function addDocument(currentDocument) {
+    if (
+      !currentDocument ||
+      visited.has(currentDocument)
+    ) {
+      return;
+    }
+
+    visited.add(currentDocument);
+    documents.push(currentDocument);
+
+    const frames = currentDocument
+      .querySelectorAll(
+        "iframe, frame"
+      );
+
+    for (const frame of frames) {
+      try {
+        addDocument(
+          frame.contentDocument
+        );
+      } catch {
+        // Ignore cross-origin frames. ForeTees tee-sheet frames are same-origin.
+      }
+    }
+  }
+
+  addDocument(document);
+
+  return documents;
+}
+
 async function collectForeTeesTeeTimeNotes() {
-  const teeTimeRows = Array.from(
-    document.querySelectorAll("tr")
-  );
+  const foreTeesDocuments =
+    getForeTeesDocuments();
+
+  const teeTimeRows =
+    foreTeesDocuments.flatMap(
+      (currentDocument) =>
+        Array.from(
+          currentDocument.querySelectorAll(
+            "tr"
+          )
+        )
+    );
 
   const candidates = [];
   let complete = true;
@@ -626,7 +671,9 @@ async function collectForeTeesTeeTimeNotes() {
     notes: notes.filter(Boolean),
     complete,
     markersFound,
-    candidatesFound: candidates.length
+    candidatesFound: candidates.length,
+    documentsScanned:
+      foreTeesDocuments.length
   };
 }
 
@@ -838,6 +885,8 @@ async function pullTeeSheetOnce(
           teeTimeNoteCapture.candidatesFound,
         noteCaptureComplete:
           teeTimeNoteCapture.complete,
+        noteDocumentsScanned:
+          teeTimeNoteCapture.documentsScanned,
         sheetDate
       };
     }

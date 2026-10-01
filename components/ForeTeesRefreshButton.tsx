@@ -24,6 +24,7 @@ type RefreshResult = {
   noteMarkersFound?: number;
   noteCandidatesFound?: number;
   noteCaptureComplete?: boolean;
+  noteDocumentsScanned?: number;
 };
 
 type ExtensionMessage = {
@@ -156,7 +157,9 @@ export default function ForeTeesRefreshButton({
         (result.noteMarkersFound ?? 0) > 0 &&
         notes === 0
           ? " ForeTees note detected but could not be imported."
-          : ` ${notes} note${notes === 1 ? "" : "s"} imported.`;
+          : notes === 0
+            ? ` 0 notes imported. Scanned ${result.noteDocumentsScanned ?? 1} ForeTees page section${(result.noteDocumentsScanned ?? 1) === 1 ? "" : "s"}.`
+            : ` ${notes} note${notes === 1 ? "" : "s"} imported.`;
 
       setState("success");
       setMessage(
@@ -222,7 +225,7 @@ export default function ForeTeesRefreshButton({
             null;
           setState("error");
           setMessage(
-            "GolfOps Chrome extension version 1.3.9 is required. Reload or update the extension and try again."
+            "GolfOps Chrome extension version 1.4.0 is required. Reload or update the extension and try again."
           );
         }
       }, 2500);
