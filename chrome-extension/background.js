@@ -433,6 +433,120 @@ async function fetchSchedulePopReport(
   }
 }
 
+function isTrustedGolfOpsSender(
+  sender
+) {
+  const sourceUrl =
+    sender?.url ||
+    sender?.tab?.url ||
+    "";
+
+  try {
+    const url =
+      new URL(sourceUrl);
+
+    return (
+      url.protocol === "https:" &&
+      url.hostname ===
+        "golfops-live.vercel.app"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function findForeTeesTabs() {
+  return new Promise(
+    (resolve) => {
+      chrome.tabs.query(
+        {
+          url: [
+            "https://web.foretees.com/*",
+            "https://*.foretees.com/*"
+          ]
+        },
+        (tabs) => {
+          if (
+            chrome.runtime.lastError
+          ) {
+            resolve([]);
+            return;
+          }
+
+          resolve(tabs || []);
+        }
+      );
+    }
+  );
+}
+
+function askForeTeesTab(
+  tabId,
+  sheetDate
+) {
+  return new Promise(
+    (resolve) => {
+      chrome.tabs.sendMessage(
+        tabId,
+        {
+          type:
+            "PULL_FORETEES_TEE_SHEET",
+          sheetDate
+        },
+        (response) => {
+          if (
+            chrome.runtime.lastError
+          ) {
+            resolve(null);
+            return;
+          }
+
+          resolve(response || null);
+        }
+      );
+    }
+  );
+}
+
+async function pullForeTeesTeeSheet(
+  sheetDate
+) {
+  const tabs =
+    await findForeTeesTabs();
+
+  if (tabs.length === 0) {
+    return {
+      ok: false,
+      error:
+        "Open the matching live tee sheet in ForeTees on this computer, then try again."
+    };
+  }
+
+  for (const tab of tabs) {
+    if (
+      typeof tab.id !== "number"
+    ) {
+      continue;
+    }
+
+    const result =
+      await askForeTeesTab(
+        tab.id,
+        sheetDate
+      );
+
+    if (result?.handled) {
+      return result;
+    }
+  }
+
+  return {
+    ok: false,
+    error:
+      "Open the live ForeTees tee sheet for the selected GolfOps date, then try again."
+  };
+}
+
 chrome.runtime.onMessage.addListener(
   (
     message,
@@ -450,6 +564,27 @@ chrome.runtime.onMessage.addListener(
           "/api/import/extension",
           message.payload
         );
+    } else if (
+      message?.type ===
+      "PULL_FORETEES_TEE_SHEET"
+    ) {
+      if (
+        !isTrustedGolfOpsSender(
+          sender
+        )
+      ) {
+        operation =
+          Promise.resolve({
+            ok: false,
+            error:
+              "The manual ForeTees refresh request was rejected."
+          });
+      } else {
+        operation =
+          pullForeTeesTeeSheet(
+            message.sheetDate
+          );
+      }
     } else if (
       message?.type ===
       "SEND_LESSONS"

@@ -288,25 +288,13 @@ function detectTeeSheetDate() {
 }
 
 /*
-  NEXT-DAY AND DAY-OF FORETEES MONITOR
+  MANUAL FORETEES REFRESH
 
-  The normal live ForeTees tee sheet contains
-  authenticated Bag Report links. While that
-  live sheet remains open, GolfOps retrieves the
-  -ALL-, Double Line, Large Font Bag Report once
-  per minute and sends it only when its tee-sheet
-  rows have changed. Staff never need to leave a
-  Print/Report page open.
+  GolfOps never polls ForeTees automatically. When a staff member clicks
+  Update from ForeTees on the GolfOps Tee Sheet, the extension retrieves one
+  authenticated -ALL- Bag Report from the matching live ForeTees tee sheet and
+  sends that single snapshot through the normal import pipeline.
 */
-
-const DAY_OF_MONITOR_INTERVAL_MS =
-  60 * 1000;
-
-let dayOfMonitorInFlight =
-  false;
-
-let lastDayOfSignature =
-  null;
 
 function getLiveBagReportUrl() {
   if (
@@ -369,183 +357,6 @@ function getLiveBagReportUrl() {
     null;
 }
 
-function easternToday() {
-  const parts =
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone:
-          "America/New_York",
-        year: "numeric",
-        month: "numeric",
-        day: "numeric"
-      }
-    ).formatToParts(
-      new Date()
-    );
-
-  const value =
-    Object.fromEntries(
-      parts.map(
-        (part) => [
-          part.type,
-          part.value
-        ]
-      )
-    );
-
-  return (
-    Number(value.month) +
-    "/" +
-    Number(value.day) +
-    "/" +
-    value.year
-  );
-}
-
-function addDaysToNormalizedDate(
-  value,
-  days
-) {
-  const match =
-    String(value).match(
-      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
-    );
-
-  if (!match) {
-    return null;
-  }
-
-  const date =
-    new Date(
-      Date.UTC(
-        Number(match[3]),
-        Number(match[1]) - 1,
-        Number(match[2]) + days
-      )
-    );
-
-  return (
-    date.getUTCMonth() + 1 +
-    "/" +
-    date.getUTCDate() +
-    "/" +
-    date.getUTCFullYear()
-  );
-}
-
-function monitorDateIsActive(
-  sheetDate
-) {
-  const normalized =
-    normalizeLessonDate(
-      sheetDate
-    );
-
-  const today =
-    easternToday();
-
-  const tomorrow =
-    addDaysToNormalizedDate(
-      today,
-      1
-    );
-
-  return (
-    normalized === today ||
-    normalized === tomorrow
-  );
-}
-
-function stableTeeSheetText(
-  html
-) {
-  const documentCopy =
-    new DOMParser()
-      .parseFromString(
-        html,
-        "text/html"
-      );
-
-  documentCopy
-    .querySelectorAll(
-      "script, style, noscript, svg, link, meta, input[type='hidden']"
-    )
-    .forEach(
-      (element) =>
-        element.remove()
-    );
-
-  const rows =
-    Array.from(
-      documentCopy
-        .querySelectorAll(
-          "tr"
-        )
-    )
-      .map(
-        (row) =>
-          (
-            row.innerText ||
-            row.textContent ||
-            ""
-          )
-            .replace(
-              /\s+/g,
-              " "
-            )
-            .trim()
-      )
-      .filter(Boolean);
-
-  if (rows.length > 0) {
-    return rows.join("\n");
-  }
-
-  return (
-    documentCopy.body
-      ?.textContent ||
-    ""
-  )
-    .replace(
-      /\s+/g,
-      " "
-    )
-    .trim();
-}
-
-function teeSheetSignature(
-  html
-) {
-  const text =
-    stableTeeSheetText(
-      html
-    );
-
-  let hash =
-    2166136261;
-
-  for (
-    let index = 0;
-    index < text.length;
-    index += 1
-  ) {
-    hash ^=
-      text.charCodeAt(
-        index
-      );
-
-    hash = Math.imul(
-      hash,
-      16777619
-    );
-  }
-
-  return `${text.length}:${(
-    hash >>> 0
-  ).toString(16)}`;
-}
-
 function monitoredReportLooksValid(
   html
 ) {
@@ -590,7 +401,7 @@ function monitoredReportLooksValid(
   );
 }
 
-function sendDayOfSnapshot(
+function sendManualSnapshot(
   html,
   sheetDate,
   reportUrl
@@ -609,8 +420,7 @@ function sendDayOfSnapshot(
               reportUrl,
             sheetDate,
             timezone:
-              "America/New_York",
-            monitorMode: true
+              "America/New_York"
           }
         },
 
@@ -620,24 +430,36 @@ function sendDayOfSnapshot(
               .lastError
           ) {
             console.error(
-              "GolfOps Live day-of monitor extension error:",
+              "GolfOps Live manual refresh extension error:",
               chrome.runtime
                 .lastError
                 .message
             );
 
-            resolve(false);
+            resolve({
+              ok: false,
+              error:
+                chrome.runtime
+                  .lastError
+                  .message ||
+                "Unable to contact the GolfOps extension."
+            });
             return;
           }
 
           if (!response?.ok) {
             console.error(
-              "GolfOps Live day-of monitor import error:",
+              "GolfOps Live manual refresh import error:",
               response?.error ||
                 "Unknown import error."
             );
 
-            resolve(false);
+            resolve({
+              ok: false,
+              error:
+                response?.error ||
+                "Tee sheet import failed."
+            });
             return;
           }
 
@@ -649,58 +471,60 @@ function sendDayOfSnapshot(
                   .changesDetected
               : 0;
 
-          if (changes > 0) {
-            showStatus(
-              `GolfOps Changes updated — ${changes} tee-sheet change${changes === 1 ? "" : "s"}.`,
-              "success"
-            );
-          }
-
-          console.log(
-            "GolfOps Live day-of monitor:",
-            changes,
-            "change(s) detected."
-          );
-
-          resolve(true);
+          resolve({
+            ...response,
+            ok: true,
+            changesDetected:
+              changes
+          });
         }
       );
     }
   );
 }
 
-async function checkForDayOfChanges() {
-  if (
-    dayOfMonitorInFlight ||
-    !isForeTeesLiveSheetPage()
-  ) {
-    return;
-  }
-
-  const sheetDate =
-    detectTeeSheetDate();
-
-  if (
-    !sheetDate ||
-    !monitorDateIsActive(
-      sheetDate
-    )
-  ) {
-    return;
-  }
-
-  dayOfMonitorInFlight =
-    true;
-
+async function pullTeeSheetOnce(
+  requestedDate
+) {
   try {
+    if (!isForeTeesLiveSheetPage()) {
+      return {
+        handled: false,
+        ok: false
+      };
+    }
+
+    const sheetDate =
+      detectTeeSheetDate();
+
+    const normalizedRequestedDate =
+      normalizeLessonDate(
+        requestedDate
+      );
+
+    if (
+      !sheetDate ||
+      !normalizedRequestedDate ||
+      sheetDate !==
+        normalizedRequestedDate
+    ) {
+      return {
+        handled: false,
+        ok: false,
+        sheetDate
+      };
+    }
+
     const reportUrl =
       getLiveBagReportUrl();
 
     if (!reportUrl) {
-      console.warn(
-        "GolfOps Live day-of monitor could not find the -ALL- Bag Report link on the live ForeTees tee sheet."
-      );
-      return;
+      return {
+        handled: true,
+        ok: false,
+        error:
+          "GolfOps could not find the -ALL- Bag Report link on the open ForeTees tee sheet."
+      };
     }
 
     const response =
@@ -718,11 +542,12 @@ async function checkForDayOfChanges() {
       !response.ok ||
       response.redirected
     ) {
-      console.warn(
-        "GolfOps Live day-of monitor could not refresh ForeTees:",
-        response.status
-      );
-      return;
+      return {
+        handled: true,
+        ok: false,
+        error:
+          `ForeTees could not return the Bag Report (${response.status}).`
+      };
     }
 
     const html =
@@ -733,86 +558,52 @@ async function checkForDayOfChanges() {
         html
       )
     ) {
-      console.warn(
-        "GolfOps Live day-of monitor ignored an invalid or expired ForeTees response."
-      );
-      return;
+      return {
+        handled: true,
+        ok: false,
+        error:
+          "ForeTees returned an invalid or expired Bag Report. Sign in again and retry."
+      };
     }
 
-    const signature =
-      teeSheetSignature(
-        html
-      );
-
-    if (
-      signature ===
-      lastDayOfSignature
-    ) {
-      return;
-    }
-
-    const sent =
-      await sendDayOfSnapshot(
+    const result =
+      await sendManualSnapshot(
         html,
         sheetDate,
         reportUrl
       );
 
-    if (sent) {
-      lastDayOfSignature =
-        signature;
+    if (result.ok) {
+      const changes =
+        result.changesDetected ??
+        0;
+
+      showStatus(
+        `GolfOps updated — ${changes} tee-sheet change${changes === 1 ? "" : "s"}.`,
+        "success"
+      );
     }
+
+    return {
+      handled: true,
+      ...result,
+      sheetDate
+    };
   } catch (error) {
     console.error(
-      "GolfOps Live day-of monitor error:",
+      "GolfOps Live manual refresh error:",
       error
     );
-  } finally {
-    dayOfMonitorInFlight =
-      false;
+
+    return {
+      handled: true,
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to retrieve the ForeTees Bag Report."
+    };
   }
-}
-
-function startDayOfMonitor() {
-  if (
-    !isForeTeesLiveSheetPage()
-  ) {
-    return;
-  }
-
-  const sheetDate =
-    detectTeeSheetDate();
-
-  if (!sheetDate) {
-    console.log(
-      "GolfOps Live day-of monitor: unable to detect the displayed report date."
-    );
-    return;
-  }
-
-  const activeDate =
-    monitorDateIsActive(
-      sheetDate
-    );
-
-  console.log(
-    activeDate
-      ? "GolfOps Live live-sheet monitor active for"
-      : "GolfOps Live live-sheet monitor supports only today or tomorrow:",
-    sheetDate
-  );
-
-  if (activeDate) {
-    window.setTimeout(
-      checkForDayOfChanges,
-      1000
-    );
-  }
-
-  window.setInterval(
-    checkForDayOfChanges,
-    DAY_OF_MONITOR_INTERVAL_MS
-  );
 }
 
 async function syncLessonsForDate(
@@ -1096,15 +887,13 @@ function sendTeeSheet() {
         const lessonCount =
           lessonResult.lessonCount;
 
-        const monitorText = "";
-
         const changeText =
           changes !== null
             ? ` • ${changes} changes`
             : "";
 
         showStatus(
-          `Import Successful — ${response.teeTimesFound} tee times / ${response.playersFound} players${changeText} • ${lessonCount} lesson${lessonCount === 1 ? "" : "s"}${monitorText}`,
+          `Import Successful — ${response.teeTimesFound} tee times / ${response.playersFound} players${changeText} • ${lessonCount} lesson${lessonCount === 1 ? "" : "s"}`,
           "success"
         );
 
@@ -1132,6 +921,42 @@ function sendTeeSheet() {
   );
 }
 
+chrome.runtime.onMessage.addListener(
+  (
+    message,
+    _sender,
+    sendResponse
+  ) => {
+    if (
+      message?.type !==
+      "PULL_FORETEES_TEE_SHEET"
+    ) {
+      return false;
+    }
+
+    if (!isForeTeesLiveSheetPage()) {
+      return false;
+    }
+
+    pullTeeSheetOnce(
+      message.sheetDate
+    )
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          handled: true,
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unable to update the GolfOps Tee Sheet."
+        });
+      });
+
+    return true;
+  }
+);
+
 /*
   Give ForeTees a moment to finish
   rendering the Print/Report page.
@@ -1142,9 +967,4 @@ window.setTimeout(
   1500
 );
 
-/*
-  Automatic next-day/day-of monitoring is intentionally disabled.
-  It generated repeated Vercel function work while ForeTees remained open.
-  Staff can still import a tee sheet by opening the authenticated Print Bag
-  Report; sendTeeSheet above continues to handle that manual workflow.
-*/
+/* No automatic ForeTees monitoring or polling is started. */

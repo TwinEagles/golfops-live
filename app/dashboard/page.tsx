@@ -10,6 +10,7 @@ import TeeTimePaceRow, {
 import AppNav from "@/components/AppNav";
 import TeeSheetDateSelector from "@/components/TeeSheetDateSelector";
 import TeeSheetLiveRefresh from "@/components/TeeSheetLiveRefresh";
+import ForeTeesRefreshButton from "@/components/ForeTeesRefreshButton";
 import { easternDateString } from "@/lib/golfops-date";
 
 function formatStartingHole(
@@ -622,6 +623,10 @@ const today =
           >
             ›
           </Link>
+
+          <ForeTeesRefreshButton
+            sheetDate={selectedDate}
+          />
         </div>
       </div>
 
