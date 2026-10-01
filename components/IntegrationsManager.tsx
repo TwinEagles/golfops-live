@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.4.3";
+  "1.4.4";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.4.3",
+    version: "1.4.4",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Uses ForeTees' required notes=yes parameter when retrieving a tee-time note.",
+      "Reads note text from ForeTees textarea and note-field formats in addition to labeled page text.",
+    ],
+  },
+  {
+    version: "1.4.3",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Imports ForeTees tee-time notes through both the traditional Bag Report Print option and Update from ForeTees.",
       "Protects stored notes from being cleared when the traditional print page cannot access its originating live tee sheet.",

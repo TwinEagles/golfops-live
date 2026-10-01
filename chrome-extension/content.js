@@ -506,6 +506,25 @@ function noteTextFromHtml(html) {
       "text/html"
     );
 
+  const noteField =
+    parsed.querySelector(
+      "textarea[name*='note' i], textarea[id*='note' i], textarea, input[type='text'][name*='note' i], input[type='text'][id*='note' i]"
+    );
+
+  const fieldNote =
+    (
+      noteField?.value ||
+      noteField?.getAttribute?.("value") ||
+      noteField?.textContent ||
+      ""
+    )
+      .replace(/\s+/g, " ")
+      .trim();
+
+  if (fieldNote) {
+    return fieldNote;
+  }
+
   const bodyText =
     parsed.body?.innerText ||
     parsed.body?.textContent ||
@@ -673,6 +692,10 @@ function buildForeTeesNoteUrl(
         ? "1"
         : "0"
     );
+    noteUrl.searchParams.set(
+      "notes",
+      "yes"
+    );
 
     [
       "print",
@@ -770,6 +793,10 @@ async function collectForeTeesTeeTimeNotes(
     noteUrl.searchParams.set(
       "fb",
       noteWindowMatch[4]
+    );
+    noteUrl.searchParams.set(
+      "notes",
+      "yes"
     );
 
     const key =
