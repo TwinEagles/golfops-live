@@ -401,10 +401,208 @@ function monitoredReportLooksValid(
   );
 }
 
+function teeTimeTo24Hour(
+  hourText,
+  minuteText,
+  meridiem
+) {
+  let hour = Number(hourText);
+
+  if (
+    !Number.isFinite(hour) ||
+    hour < 1 ||
+    hour > 12
+  ) {
+    return null;
+  }
+
+  const suffix =
+    String(meridiem || "")
+      .trim()
+      .toUpperCase();
+
+  if (suffix === "PM" && hour < 12) {
+    hour += 12;
+  } else if (suffix === "AM" && hour === 12) {
+    hour = 0;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${minuteText}`;
+}
+
+function noteUrlFromElement(
+  element
+) {
+  const candidates = [
+    element.getAttribute?.("href"),
+    element.getAttribute?.("onclick"),
+    element.closest?.("a")?.getAttribute("href"),
+    element.closest?.("a")?.getAttribute("onclick"),
+    element.parentElement?.innerHTML
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const decoded = String(candidate)
+      .replace(/&amp;/gi, "&")
+      .replace(/\\u0026/gi, "&");
+
+    const match = decoded.match(
+      /((?:\/v5\/servlet\/)?Proshop_sheet\?[^"'\s)]+)/i
+    );
+
+    if (!match) {
+      continue;
+    }
+
+    try {
+      return new URL(
+        match[1],
+        window.location.origin
+      );
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null;
+}
+
+function noteTextFromHtml(html) {
+  const parsed = new DOMParser()
+    .parseFromString(
+      html,
+      "text/html"
+    );
+
+  const bodyText =
+    parsed.body?.innerText ||
+    parsed.body?.textContent ||
+    "";
+
+  const match = bodyText.match(
+    /\bNotes?\s*:\s*([\s\S]*?)(?:\s+Close\s*$|$)/i
+  );
+
+  return (match?.[1] || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function collectForeTeesTeeTimeNotes() {
+  const noteMarkers = Array.from(
+    document.querySelectorAll(
+      "a, button, td, span"
+    )
+  ).filter(
+    (element) =>
+      (element.textContent || "")
+        .trim()
+        .toUpperCase() === "N"
+  );
+
+  const candidates = [];
+  let complete = true;
+
+  for (const marker of noteMarkers) {
+    const row = marker.closest("tr");
+    const rowText =
+      row?.innerText ||
+      row?.textContent ||
+      "";
+
+    const timeMatch = rowText.match(
+      /\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/i
+    );
+
+    const noteUrl = noteUrlFromElement(marker);
+
+    if (!timeMatch || !noteUrl) {
+      complete = false;
+      continue;
+    }
+
+    const teeTime = teeTimeTo24Hour(
+      timeMatch[1],
+      timeMatch[2],
+      timeMatch[3]
+    );
+
+    const course =
+      noteUrl.searchParams.get("course") ||
+      rowText.match(/\b(Eagle|Talon)\b/i)?.[1] ||
+      "";
+
+    if (!teeTime || !course) {
+      complete = false;
+      continue;
+    }
+
+    const key = `${teeTime}|${course.toLowerCase()}`;
+
+    if (
+      !candidates.some(
+        (candidate) => candidate.key === key
+      )
+    ) {
+      candidates.push({
+        key,
+        teeTime,
+        course,
+        url: noteUrl.toString()
+      });
+    }
+  }
+
+  const notes = await Promise.all(
+    candidates.map(async (candidate) => {
+      try {
+        const response = await fetch(
+          candidate.url,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store"
+          }
+        );
+
+        if (!response.ok) {
+          complete = false;
+          return null;
+        }
+
+        const note = noteTextFromHtml(
+          await response.text()
+        );
+
+        return note
+          ? {
+              teeTime: candidate.teeTime,
+              course: candidate.course,
+              note
+            }
+          : null;
+      } catch (error) {
+        complete = false;
+        console.warn(
+          "GolfOps Live could not read a ForeTees tee-time note:",
+          error
+        );
+        return null;
+      }
+    })
+  );
+
+  return {
+    notes: notes.filter(Boolean),
+    complete
+  };
+}
+
 function sendManualSnapshot(
   html,
   sheetDate,
-  reportUrl
+  reportUrl,
+  teeTimeNoteCapture
 ) {
   return new Promise(
     (resolve) => {
@@ -419,6 +617,10 @@ function sendManualSnapshot(
             url:
               reportUrl,
             sheetDate,
+            teeTimeNotes:
+              teeTimeNoteCapture.notes,
+            teeTimeNotesComplete:
+              teeTimeNoteCapture.complete,
             timezone:
               "America/New_York"
           }
@@ -527,8 +729,9 @@ async function pullTeeSheetOnce(
       };
     }
 
-    const response =
-      await fetch(
+    const [response, teeTimeNoteCapture] =
+      await Promise.all([
+        fetch(
         reportUrl,
         {
           method: "GET",
@@ -536,7 +739,9 @@ async function pullTeeSheetOnce(
             "include",
           cache: "no-store"
         }
-      );
+        ),
+        collectForeTeesTeeTimeNotes()
+      ]);
 
     if (
       !response.ok ||
@@ -570,18 +775,31 @@ async function pullTeeSheetOnce(
       await sendManualSnapshot(
         html,
         sheetDate,
-        reportUrl
+        reportUrl,
+        teeTimeNoteCapture
       );
 
     if (result.ok) {
+      const lessonResult =
+        await syncLessonsForDate(
+          sheetDate
+        );
+
       const changes =
         result.changesDetected ??
         0;
 
       showStatus(
-        `GolfOps updated — ${changes} tee-sheet change${changes === 1 ? "" : "s"}.`,
+        `GolfOps updated — ${changes} tee-sheet change${changes === 1 ? "" : "s"}${lessonResult.ok ? ` • ${lessonResult.lessonCount ?? 0} lesson${lessonResult.lessonCount === 1 ? "" : "s"}` : ""}.`,
         "success"
       );
+
+      return {
+        handled: true,
+        ...result,
+        lessonResult,
+        sheetDate
+      };
     }
 
     return {

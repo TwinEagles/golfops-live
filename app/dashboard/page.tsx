@@ -118,6 +118,92 @@ function normalizeName(value: string | null) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function nameTokens(value: string | null) {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/\bguest\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function editDistance(left: string, right: string) {
+  if (left === right) {
+    return 0;
+  }
+
+  if (!left.length) {
+    return right.length;
+  }
+
+  if (!right.length) {
+    return left.length;
+  }
+
+  let previous = Array.from(
+    { length: right.length + 1 },
+    (_, index) => index
+  );
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const substitutionCost =
+        left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + substitutionCost
+      );
+    }
+
+    previous = current;
+  }
+
+  return previous[right.length];
+}
+
+function namesLikelyMatch(
+  currentName: string | null,
+  previousName: string | null
+) {
+  const current = nameTokens(currentName);
+  const previous = nameTokens(previousName);
+
+  if (current.length < 2 || previous.length < 2) {
+    return false;
+  }
+
+  const currentFirst = current[0];
+  const previousFirst = previous[0];
+  const currentLast = current[current.length - 1];
+  const previousLast = previous[previous.length - 1];
+
+  if (
+    currentFirst[0] !== previousFirst[0] ||
+    currentLast[0] !== previousLast[0]
+  ) {
+    return false;
+  }
+
+  const firstDistance = editDistance(currentFirst, previousFirst);
+  const lastDistance = editDistance(currentLast, previousLast);
+
+  return (
+    (currentLast === previousLast && firstDistance <= 1) ||
+    (currentFirst === previousFirst && lastDistance <= 1) ||
+    (currentFirst.length >= 4 &&
+      previousFirst.length >= 4 &&
+      currentLast.length >= 5 &&
+      previousLast.length >= 5 &&
+      firstDistance <= 1 &&
+      lastDistance <= 1)
+  );
+}
+
 function normalizeBag(value: string | null) {
   return (value ?? "")
     .trim()
@@ -148,7 +234,16 @@ type TeeSheetSlot = {
   cw: string | null;
   cart_number: string | null;
   check_in: string | null;
+  notes: string | null;
   highlight: string | null;
+};
+
+type ForeTeesLesson = {
+  id: number | string;
+  lesson_time: string;
+  instructor_name: string;
+  member_name: string;
+  lesson_type: string | null;
 };
 
 type GroupedTeeTime = {
@@ -293,37 +388,62 @@ const today =
   /*
     Load selected day's tee sheet.
   */
-  const { data, error } = await supabase
-    .from("tee_sheet_slots")
-    .select(`
-      id,
-      tee_time,
-      course,
-      starting_hole,
-      starting_position,
-      holes,
-      slot_position,
-      player_name,
-      member_id,
-      bag_number,
-      cw,
-      cart_number,
-      check_in,
-      highlight
-    `)
-    .eq("club_id", profile.club_id)
-    .eq("sheet_date", selectedDate)
-    .order("tee_time", { ascending: true })
-    .order("course", { ascending: true })
-    .order("starting_hole", { ascending: true })
-    .order("starting_position", { ascending: true })
-    .order("slot_position", { ascending: true });
+  const [teeSheetResult, lessonsResult] = await Promise.all([
+    supabase
+      .from("tee_sheet_slots")
+      .select(`
+        id,
+        tee_time,
+        course,
+        starting_hole,
+        starting_position,
+        holes,
+        slot_position,
+        player_name,
+        member_id,
+        bag_number,
+        cw,
+        cart_number,
+        check_in,
+        notes,
+        highlight
+      `)
+      .eq("club_id", profile.club_id)
+      .eq("sheet_date", selectedDate)
+      .order("tee_time", { ascending: true })
+      .order("course", { ascending: true })
+      .order("starting_hole", { ascending: true })
+      .order("starting_position", { ascending: true })
+      .order("slot_position", { ascending: true }),
+
+    supabase
+      .from("foretees_lessons")
+      .select(`
+        id,
+        lesson_time,
+        instructor_name,
+        member_name,
+        lesson_type
+      `)
+      .eq("club_id", profile.club_id)
+      .eq("lesson_date", selectedDate)
+      .eq("source", "FORETEES")
+      .order("lesson_time", { ascending: true }),
+  ]);
+
+  const { data, error } = teeSheetResult;
 
   if (error) {
     console.error("Tee sheet load error:", error);
   }
 
   const slots = (data ?? []) as TeeSheetSlot[];
+
+  if (lessonsResult.error) {
+    console.error("Lessons load error:", lessonsResult.error);
+  }
+
+  const lessons = (lessonsResult.data ?? []) as ForeTeesLesson[];
 
   /*
     Load live PACE cart status only while
@@ -405,16 +525,12 @@ const today =
     parsedSnapshot?.eventName ?? null;
 
   /*
-    Load today's players when viewing another date.
-    Used for the star indicator.
+    Load the prior day's players for the star indicator.
   */
-  let todaySlots: TeeSheetSlot[] = [];
+  let priorDaySlots: TeeSheetSlot[] = [];
 
-  if (
-    showPlayedTodayStar &&
-    selectedDate !== today
-  ) {
-    const { data: todayData } = await supabase
+  if (showPlayedTodayStar) {
+    const { data: priorDayData } = await supabase
       .from("tee_sheet_slots")
       .select(`
         id,
@@ -430,56 +546,68 @@ const today =
         cw,
         cart_number,
         check_in,
+        notes,
         highlight
       `)
       .eq("club_id", profile.club_id)
-      .eq("sheet_date", today);
+      .eq("sheet_date", previousDate);
 
-    todaySlots = (todayData ?? []) as TeeSheetSlot[];
+    priorDaySlots = (priorDayData ?? []) as TeeSheetSlot[];
   }
 
-  const todayMemberIds = new Set(
-    todaySlots
+  const priorDayMemberIds = new Set(
+    priorDaySlots
       .filter((slot) => slot.member_id)
       .map((slot) => slot.member_id as string)
   );
 
-  const todayBags = new Set(
-    todaySlots
+  const priorDayBags = new Set(
+    priorDaySlots
       .filter((slot) => slot.bag_number)
       .map((slot) => normalizeBag(slot.bag_number))
   );
 
-  const todayNames = new Set(
-    todaySlots
+  const priorDayNames = new Set(
+    priorDaySlots
       .filter((slot) => slot.player_name)
       .map((slot) => normalizeName(slot.player_name))
   );
 
-  function playerAlsoOnToday(slot: TeeSheetSlot) {
-    if (
-      !showPlayedTodayStar ||
-      selectedDate === today
-    ) {
+  const priorDayGuestNames = priorDaySlots
+    .filter((slot) => !slot.member_id && slot.player_name)
+    .map((slot) => slot.player_name);
+
+  function playerAlsoOnPriorDay(slot: TeeSheetSlot) {
+    if (!showPlayedTodayStar) {
       return false;
     }
 
     if (
       slot.member_id &&
-      todayMemberIds.has(slot.member_id)
+      priorDayMemberIds.has(slot.member_id)
     ) {
       return true;
     }
 
     const bag = normalizeBag(slot.bag_number);
 
-    if (bag && todayBags.has(bag)) {
+    if (bag && priorDayBags.has(bag)) {
       return true;
     }
 
     const name = normalizeName(slot.player_name);
 
-    return !!name && todayNames.has(name);
+    if (name && priorDayNames.has(name)) {
+      return true;
+    }
+
+    if (slot.member_id || !slot.player_name) {
+      return false;
+    }
+
+    return priorDayGuestNames.some((priorName) =>
+      namesLikelyMatch(slot.player_name, priorName)
+    );
   }
 
 
@@ -631,6 +759,60 @@ const today =
       </div>
 
       <main className="mx-auto max-w-[1280px] px-4 py-4">
+        {/* LESSONS FOR THE DISPLAYED TEE-SHEET DATE */}
+        <section className="mb-4 overflow-hidden rounded-lg border border-purple-400/40 bg-[var(--golfops-surface)]">
+          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/15 text-base text-purple-400">
+                ⛳
+              </span>
+
+              <div>
+                <h2 className="font-bold text-[var(--golfops-text)]">
+                  {selectedDate === today
+                    ? "Today’s Lessons"
+                    : selectedDate === tomorrow
+                      ? "Tomorrow’s Lessons"
+                      : "Lessons"}
+                </h2>
+
+                <p className="text-xs text-[var(--golfops-text-dim)]">
+                  {lessons.length} scheduled
+                </p>
+              </div>
+            </div>
+
+            {lessons.length > 0 ? (
+              <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 sm:pb-0">
+                {lessons.map((lesson) => (
+                  <div
+                    key={lesson.id}
+                    className="min-w-[180px] rounded-md bg-purple-500/10 px-3 py-2"
+                  >
+                    <div className="text-sm font-bold text-purple-400">
+                      {formatTime(lesson.lesson_time)}
+                    </div>
+
+                    <div className="truncate text-sm font-semibold text-[var(--golfops-text)]">
+                      {lesson.member_name}
+                    </div>
+
+                    <div className="truncate text-xs text-[var(--golfops-text-muted)]">
+                      {[lesson.instructor_name, lesson.lesson_type]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--golfops-text-muted)]">
+                No ForeTees lessons scheduled for this date.
+              </p>
+            )}
+          </div>
+        </section>
+
         {/* LEGEND */}
         <details
           open
@@ -795,7 +977,7 @@ const today =
                     </span>
 
                     <span>
-                      Also on today's tee sheet
+                      Also played the prior day
                     </span>
                   </div>
                 )}
@@ -930,6 +1112,14 @@ const today =
                       Boolean(status)
                   );
 
+              const groupNotes = Array.from(
+                new Set(
+                  teeTime.players
+                    .map((player) => player.notes?.trim())
+                    .filter((note): note is string => Boolean(note))
+                )
+              );
+
               return (
                 <div
                   key={[
@@ -951,7 +1141,7 @@ const today =
                   {/* TIME / COURSE / HOLE */}
                   <div
                     className={[
-                      "flex items-center justify-between gap-3 border-b-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-4 py-3 text-center md:col-start-1 md:row-start-1 md:flex-col md:justify-center md:border-b-0 md:border-r-2 md:px-2 md:py-0",
+                      "flex flex-wrap items-center justify-between gap-3 border-b-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-4 py-3 text-center md:col-start-1 md:row-start-1 md:flex-col md:flex-nowrap md:justify-center md:border-b-0 md:border-r-2 md:px-2 md:py-0",
                       showPaceForSelectedDate
                         ? "md:row-span-2"
                         : "",
@@ -973,6 +1163,16 @@ const today =
                         teeTime.startingHole
                       )}
                     </div>
+
+                    {groupNotes.length > 0 && (
+                      <div
+                        className="basis-full rounded-md bg-purple-500/15 px-2 py-1 text-left text-[11px] font-semibold leading-4 text-purple-400 md:mt-2 md:basis-auto md:text-center"
+                        title={groupNotes.join(" • ")}
+                      >
+                        <span aria-hidden="true">📝 </span>
+                        {groupNotes.join(" • ")}
+                      </div>
+                    )}
                   </div>
 
                   {/* FOUR PLAYER POSITIONS */}
@@ -1015,12 +1215,12 @@ const today =
                         >
                           {/* LARGE BAG NUMBER */}
                           <div className="pr-10 text-xl font-bold leading-none text-[var(--golfops-text)]">
-                            {playerAlsoOnToday(
+                            {playerAlsoOnPriorDay(
                               player
                             ) && (
                               <span
                                 className="mr-1.5 text-base"
-                                title="This golfer is also on today's tee sheet"
+                                title="This golfer also played on the prior day's tee sheet"
                               >
                                 ⭐
                               </span>

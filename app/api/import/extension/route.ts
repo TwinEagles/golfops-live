@@ -270,6 +270,22 @@ type ExistingSlot = {
   source?: string | null;
 };
 
+type IncomingTeeTimeNote = {
+  teeTime: string;
+  course: string;
+  note: string;
+};
+
+function teeTimeNoteKey(
+  teeTime: string,
+  course: string
+) {
+  return [
+    teeTime.trim(),
+    course.trim().toLowerCase(),
+  ].join("|");
+}
+
 export async function POST(request: Request) {
   try {
     /*
@@ -365,6 +381,49 @@ export async function POST(request: Request) {
       normalizeSheetDate(
         body?.sheetDate
       );
+
+    const teeTimeNotesComplete =
+      body?.teeTimeNotesComplete === true;
+
+    const incomingTeeTimeNotes =
+      (Array.isArray(body?.teeTimeNotes)
+        ? body.teeTimeNotes
+        : [])
+        .map((value: unknown): IncomingTeeTimeNote | null => {
+          const candidate =
+            value && typeof value === "object"
+              ? value as Record<string, unknown>
+              : {};
+
+          const teeTime =
+            typeof candidate.teeTime === "string"
+              ? candidate.teeTime.trim()
+              : "";
+
+          const course =
+            typeof candidate.course === "string"
+              ? candidate.course.trim()
+              : "";
+
+          const note =
+            typeof candidate.note === "string"
+              ? candidate.note.trim().slice(0, 1000)
+              : "";
+
+          return /^\d{2}:\d{2}$/.test(teeTime) && course && note
+            ? { teeTime, course, note }
+            : null;
+        })
+        .filter(
+          (value: IncomingTeeTimeNote | null): value is IncomingTeeTimeNote => Boolean(value)
+        );
+
+    const teeTimeNotesByGroup = new Map(
+      incomingTeeTimeNotes.map((value: IncomingTeeTimeNote) => [
+        teeTimeNoteKey(value.teeTime, value.course),
+        value.note,
+      ] as const)
+    );
 
     if (!html) {
       return Response.json(
@@ -1324,6 +1383,14 @@ export async function POST(request: Request) {
               teeTime.teeTime
             );
 
+          const importedTeeTimeNote =
+            teeTimeNotesByGroup.get(
+              teeTimeNoteKey(
+                convertedTime,
+                teeTime.course
+              )
+            ) ?? null;
+
           return teeTime.players.map(
             (
               player,
@@ -1741,11 +1808,12 @@ export async function POST(request: Request) {
                   preservedCheckIn,
 
                 notes:
-                  samePlayer
-                    ? previousSlot
-                        ?.notes ??
-                      null
-                    : null,
+                  importedTeeTimeNote ??
+                  (teeTimeNotesComplete
+                    ? null
+                    : samePlayer
+                      ? previousSlot?.notes ?? null
+                      : null),
 
                 highlight:
                   samePlayer

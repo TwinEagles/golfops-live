@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.3.6";
+  "1.3.7";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,19 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.3.6",
+    version: "1.3.7",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Brings ForeTees tee-time notes into the GolfOps Tee Sheet during a staff-requested update.",
+      "Refreshes the ForeTees Lesson Book with the same manual update and shows the selected date’s lessons above the tee sheet.",
+      "Flags members and conservatively matched guests who also played on the prior day.",
+    ],
+  },
+  {
+    version: "1.3.6",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Adds an Update from ForeTees button to the GolfOps Tee Sheet.",
       "Retrieves one authenticated Bag Report only when a staff member requests it.",
