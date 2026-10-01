@@ -553,7 +553,42 @@ function getForeTeesDocuments() {
 
   addDocument(document);
 
+  try {
+    addDocument(window.top?.document);
+  } catch {
+    // Ignore a cross-origin parent document.
+  }
+
+  try {
+    addDocument(window.opener?.document);
+    addDocument(window.opener?.top?.document);
+  } catch {
+    // Ignore an unavailable or cross-origin opener.
+  }
+
   return documents;
+}
+
+function isLiveForeTeesDocument(
+  currentDocument
+) {
+  try {
+    const url = new URL(
+      currentDocument.location.href
+    );
+
+    return (
+      url.pathname
+        .toLowerCase()
+        .includes(
+          "/servlet/proshop_sheet"
+        ) &&
+      !url.searchParams.get("print") &&
+      url.searchParams.has("index")
+    );
+  } catch {
+    return false;
+  }
 }
 
 function rowContainsNoteMarker(row) {
@@ -673,6 +708,86 @@ async function collectForeTeesTeeTimeNotes(
   const candidates = [];
   let complete = true;
   let markersFound = 0;
+
+  // ForeTees' legacy note control does not always live in the same
+  // table row as the visible tee time. Its onclick handler contains the
+  // authoritative note-window arguments, for example:
+  // openNotesWindow(1,'Eagle',1053,0)
+  const noteInputs =
+    foreTeesDocuments.flatMap(
+      (currentDocument) =>
+        Array.from(
+          currentDocument.querySelectorAll(
+            "input[onclick]"
+          )
+        )
+    );
+
+  for (const noteInput of noteInputs) {
+    const action =
+      noteInput.getAttribute("onclick") ||
+      "";
+
+    const noteWindowMatch = action.match(
+      /openNotesWindow\(\s*(\d+)\s*,\s*['"]([^'"]+)['"]\s*,\s*(\d{3,4})\s*,\s*(\d+)\s*\)/i
+    );
+
+    if (!noteWindowMatch) {
+      continue;
+    }
+
+    markersFound += 1;
+
+    const rawTime =
+      noteWindowMatch[3].padStart(4, "0");
+    const teeTime = `${rawTime.slice(0, 2)}:${rawTime.slice(2)}`;
+    const course =
+      noteWindowMatch[2].trim();
+    const noteUrl = buildForeTeesNoteUrl(
+      noteInput,
+      teeTime,
+      course,
+      reportUrl
+    );
+
+    if (!noteUrl) {
+      complete = false;
+      continue;
+    }
+
+    noteUrl.searchParams.set(
+      "index",
+      noteWindowMatch[1]
+    );
+    noteUrl.searchParams.set(
+      "course",
+      course
+    );
+    noteUrl.searchParams.set(
+      "time",
+      noteWindowMatch[3]
+    );
+    noteUrl.searchParams.set(
+      "fb",
+      noteWindowMatch[4]
+    );
+
+    const key =
+      `${teeTime}|${course.toLowerCase()}`;
+
+    if (
+      !candidates.some(
+        (candidate) => candidate.key === key
+      )
+    ) {
+      candidates.push({
+        key,
+        teeTime,
+        course,
+        url: noteUrl.toString()
+      });
+    }
+  }
 
   for (const row of teeTimeRows) {
     const rowText =
@@ -805,7 +920,11 @@ async function collectForeTeesTeeTimeNotes(
 
   return {
     notes: notes.filter(Boolean),
-    complete,
+    complete:
+      complete &&
+      foreTeesDocuments.some(
+        isLiveForeTeesDocument
+      ),
     markersFound,
     candidatesFound: candidates.length,
     documentsScanned:
@@ -1212,7 +1331,7 @@ async function syncLessonsForDate(
   }
 }
 
-function sendTeeSheet() {
+async function sendTeeSheet() {
   if (
     !isForeTeesReportPage()
   ) {
@@ -1232,8 +1351,13 @@ function sendTeeSheet() {
   );
 
   showStatus(
-    "Sending tee sheet to GolfOps Live..."
+    "Reading ForeTees notes and sending the tee sheet to GolfOps Live..."
   );
+
+  const teeTimeNoteCapture =
+    await collectForeTeesTeeTimeNotes(
+      window.location.href
+    );
 
   chrome.runtime.sendMessage(
     {
@@ -1254,6 +1378,12 @@ function sendTeeSheet() {
 
         sheetDate:
           detectedDate,
+
+        teeTimeNotes:
+          teeTimeNoteCapture.notes,
+
+        teeTimeNotesComplete:
+          teeTimeNoteCapture.complete,
 
         timezone:
           "America/New_York"
@@ -1337,8 +1467,12 @@ function sendTeeSheet() {
             ? ` • ${changes} changes`
             : "";
 
+        const noteCount =
+          teeTimeNoteCapture
+            .notes.length;
+
         showStatus(
-          `Import Successful — ${response.teeTimesFound} tee times / ${response.playersFound} players${changeText} • ${lessonCount} lesson${lessonCount === 1 ? "" : "s"}`,
+          `Import Successful — ${response.teeTimesFound} tee times / ${response.playersFound} players${changeText} • ${noteCount} note${noteCount === 1 ? "" : "s"} • ${lessonCount} lesson${lessonCount === 1 ? "" : "s"}`,
           "success"
         );
 

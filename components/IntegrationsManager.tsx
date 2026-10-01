@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.4.1";
+  "1.4.3";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,27 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.4.1",
+    version: "1.4.3",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Imports ForeTees tee-time notes through both the traditional Bag Report Print option and Update from ForeTees.",
+      "Protects stored notes from being cleared when the traditional print page cannot access its originating live tee sheet.",
+    ],
+  },
+  {
+    version: "1.4.2",
+    date: "October 1, 2026",
+    current: false,
+    highlights: [
+      "Reads the exact course, tee time, and side directly from ForeTees openNotesWindow controls.",
+      "Imports notes even when ForeTees renders the N control in a different table row from its tee time.",
+    ],
+  },
+  {
+    version: "1.4.1",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Finds the visible N marker inside ForeTees frames and reconstructs its authenticated note request.",
       "Uses the tee-time row plus Bag Report date parameters when ForeTees does not expose the popup URL in HTML.",
