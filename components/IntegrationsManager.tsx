@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.4.5";
+  "1.4.6";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.4.5",
+    version: "1.4.6",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Moves tee-time notes out of the narrow time column into a full-width row beneath the players.",
+      "Allows longer notes to wrap naturally while keeping the Pace row separate and easy to scan.",
+    ],
+  },
+  {
+    version: "1.4.5",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Matches ForeTees note times such as 10:53 to database tee times stored as 10:53:00.",
       "Displays successfully captured notes beneath the corresponding GolfOps tee time.",

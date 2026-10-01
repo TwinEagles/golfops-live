@@ -1122,6 +1122,10 @@ const today =
                 )
               );
 
+              const hasTeeTimeFooter =
+                groupNotes.length > 0 ||
+                showPaceForSelectedDate;
+
               return (
                 <div
                   key={[
@@ -1132,8 +1136,8 @@ const today =
                   ].join("|")}
                   className={[
                     "relative flex min-h-[112px] flex-col overflow-hidden rounded-lg border border-[var(--golfops-border)] md:grid md:grid-cols-[90px_repeat(4,minmax(0,1fr))_52px] md:rounded-md",
-                    showPaceForSelectedDate
-                      ? "md:grid-rows-[minmax(112px,auto)_34px]"
+                    hasTeeTimeFooter
+                      ? "md:grid-rows-[minmax(112px,auto)_auto]"
                       : "",
                     groupHighlighted
                       ? "golfops-row-highlight"
@@ -1144,7 +1148,7 @@ const today =
                   <div
                     className={[
                       "flex flex-wrap items-center justify-between gap-3 border-b-2 border-[var(--golfops-border-strong)] bg-[var(--golfops-surface-soft)] px-4 py-3 text-center md:col-start-1 md:row-start-1 md:flex-col md:flex-nowrap md:justify-center md:border-b-0 md:border-r-2 md:px-2 md:py-0",
-                      showPaceForSelectedDate
+                      hasTeeTimeFooter
                         ? "md:row-span-2"
                         : "",
                     ].join(" ")}
@@ -1166,15 +1170,6 @@ const today =
                       )}
                     </div>
 
-                    {groupNotes.length > 0 && (
-                      <div
-                        className="basis-full rounded-md bg-purple-500/15 px-2 py-1 text-left text-[11px] font-semibold leading-4 text-purple-400 md:mt-2 md:basis-auto md:text-center"
-                        title={groupNotes.join(" • ")}
-                      >
-                        <span aria-hidden="true">📝 </span>
-                        {groupNotes.join(" • ")}
-                      </div>
-                    )}
                   </div>
 
                   {/* FOUR PLAYER POSITIONS */}
@@ -1276,29 +1271,50 @@ const today =
                     }
                   )}
 
-                  {showPaceForSelectedDate && (
-                    <TeeTimePaceRow
-                      cartNumbers={
-                        groupCartNumbers
-                      }
-                      statuses={
-                        groupPaceStatuses
-                      }
-                      course={
-                        teeTime.course
-                      }
-                      holes={
-                        teeTime.players[0]
-                          ?.holes ?? 18
-                      }
-                    />
+                  {hasTeeTimeFooter && (
+                    <div className="flex w-full flex-col md:col-start-2 md:col-end-6 md:row-start-2">
+                      {groupNotes.length > 0 && (
+                        <div
+                          className="flex min-w-0 items-start gap-2 border-t border-purple-400/30 bg-purple-500/10 px-3 py-2 text-xs leading-5 text-purple-300"
+                          title={groupNotes.join(" • ")}
+                        >
+                          <span
+                            className="shrink-0 font-bold uppercase tracking-[0.1em] text-purple-400"
+                          >
+                            Note
+                          </span>
+
+                          <span className="min-w-0 whitespace-pre-wrap break-words font-semibold">
+                            {groupNotes.join(" • ")}
+                          </span>
+                        </div>
+                      )}
+
+                      {showPaceForSelectedDate && (
+                        <TeeTimePaceRow
+                          cartNumbers={
+                            groupCartNumbers
+                          }
+                          statuses={
+                            groupPaceStatuses
+                          }
+                          course={
+                            teeTime.course
+                          }
+                          holes={
+                            teeTime.players[0]
+                              ?.holes ?? 18
+                          }
+                        />
+                      )}
+                    </div>
                   )}
 
                   {/* EDIT / DONE */}
                   <div
                     className={[
                       "hidden items-center justify-center bg-[var(--golfops-surface)] md:col-start-6 md:row-start-1 md:flex",
-                      showPaceForSelectedDate
+                      hasTeeTimeFooter
                         ? "md:row-span-2"
                         : "",
                     ].join(" ")}
