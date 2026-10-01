@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.4.0";
+  "1.4.1";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.4.0",
+    version: "1.4.1",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Finds the visible N marker inside ForeTees frames and reconstructs its authenticated note request.",
+      "Uses the tee-time row plus Bag Report date parameters when ForeTees does not expose the popup URL in HTML.",
+    ],
+  },
+  {
+    version: "1.4.0",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Scans the main ForeTees page and embedded same-origin frames for tee-time note links.",
       "Retains the row-level legacy index=1 note popup detection added in version 1.3.9.",

@@ -225,7 +225,7 @@ export default function ForeTeesRefreshButton({
             null;
           setState("error");
           setMessage(
-            "GolfOps Chrome extension version 1.4.0 is required. Reload or update the extension and try again."
+            "GolfOps Chrome extension version 1.4.1 is required. Reload or update the extension and try again."
           );
         }
       }, 2500);

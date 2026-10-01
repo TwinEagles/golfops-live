@@ -556,7 +556,107 @@ function getForeTeesDocuments() {
   return documents;
 }
 
-async function collectForeTeesTeeTimeNotes() {
+function rowContainsNoteMarker(row) {
+  const elements = Array.from(
+    row.querySelectorAll(
+      "a, button, td, span, b, strong, font, img, input, div"
+    )
+  );
+
+  return elements.some((element) => {
+    const text =
+      (element.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
+
+    const labels = [
+      element.getAttribute?.("alt"),
+      element.getAttribute?.("title"),
+      element.getAttribute?.("aria-label"),
+      element.getAttribute?.("value"),
+      element.getAttribute?.("name"),
+      element.getAttribute?.("src")
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toUpperCase();
+
+    return (
+      text === "N" ||
+      /(^|[^A-Z])N([^A-Z]|$)/.test(labels) ||
+      /\bNOTES?\b/.test(labels)
+    );
+  });
+}
+
+function buildForeTeesNoteUrl(
+  row,
+  teeTime,
+  course,
+  reportUrl
+) {
+  try {
+    const noteUrl = new URL(
+      "/v5/servlet/Proshop_sheet",
+      window.location.origin
+    );
+
+    const sourceUrls = [
+      row.ownerDocument?.location?.href,
+      window.location.href,
+      reportUrl
+    ].filter(Boolean);
+
+    for (const source of sourceUrls) {
+      const sourceUrl = new URL(
+        source,
+        window.location.origin
+      );
+
+      for (const [name, value] of sourceUrl.searchParams) {
+        if (!noteUrl.searchParams.has(name)) {
+          noteUrl.searchParams.set(name, value);
+        }
+      }
+    }
+
+    const rowText =
+      row.innerText ||
+      row.textContent ||
+      "";
+
+    noteUrl.searchParams.set("index", "1");
+    noteUrl.searchParams.set("course", course);
+    noteUrl.searchParams.set(
+      "time",
+      teeTime.replace(":", "")
+    );
+    noteUrl.searchParams.set(
+      "fb",
+      /\bB(?:9|9\/18)?\b/i.test(rowText)
+        ? "1"
+        : "0"
+    );
+
+    [
+      "print",
+      "report",
+      "double_line",
+      "fsz"
+    ].forEach((name) =>
+      noteUrl.searchParams.delete(name)
+    );
+
+    return noteUrl;
+  } catch {
+    return null;
+  }
+}
+
+async function collectForeTeesTeeTimeNotes(
+  reportUrl
+) {
   const foreTeesDocuments =
     getForeTeesDocuments();
 
@@ -588,13 +688,49 @@ async function collectForeTeesTeeTimeNotes() {
       continue;
     }
 
-    const noteUrl = noteUrlFromElement(row);
+    const hasNoteMarker =
+      rowContainsNoteMarker(row);
+
+    let noteUrl =
+      noteUrlFromElement(row);
+
+    if (hasNoteMarker) {
+      markersFound += 1;
+    }
+
+    if (
+      !noteUrl &&
+      hasNoteMarker
+    ) {
+      const fallbackCourse =
+        rowText.match(
+          /\b(Eagle|Talon)\b/i
+        )?.[1] ||
+        "";
+
+      const fallbackTime =
+        teeTimeTo24Hour(
+          timeMatch[1],
+          timeMatch[2],
+          timeMatch[3]
+        );
+
+      if (
+        fallbackTime &&
+        fallbackCourse
+      ) {
+        noteUrl = buildForeTeesNoteUrl(
+          row,
+          fallbackTime,
+          fallbackCourse,
+          reportUrl
+        );
+      }
+    }
 
     if (!noteUrl) {
       continue;
     }
-
-    markersFound += 1;
 
     const teeTime = teeTimeTo24Hour(
       timeMatch[1],
@@ -819,7 +955,9 @@ async function pullTeeSheetOnce(
           cache: "no-store"
         }
         ),
-        collectForeTeesTeeTimeNotes()
+        collectForeTeesTeeTimeNotes(
+          reportUrl
+        )
       ]);
 
     if (
