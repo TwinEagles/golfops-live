@@ -457,24 +457,42 @@ function noteUrlFromElement(
       .replace(/&amp;/gi, "&")
       .replace(/&#38;/gi, "&")
       .replace(/&#x26;/gi, "&")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
       .replace(/\\\//g, "/")
       .replace(/\\u0026/gi, "&");
 
-    const match = decoded.match(
-      /((?:https?:\/\/[^"'\s)]+)?(?:\/v5\/servlet\/)?Proshop_sheet\?[^"'\s)<>]+)/i
+    const matches = Array.from(
+      decoded.matchAll(
+        /((?:https?:\/\/[^"'\s)]+)?(?:\/v5\/servlet\/)?Proshop_sheet\?[^"'\s)<>]+)/gi
+      )
     );
 
-    if (!match) {
-      continue;
-    }
+    const urls = matches
+      .map((match) => {
+        try {
+          return new URL(
+            match[1],
+            window.location.origin
+          );
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
 
-    try {
-      return new URL(
-        match[1],
-        window.location.origin
+    const noteUrl =
+      urls.find(
+        (url) =>
+          url.searchParams.get("index") === "1"
+      ) ||
+      urls.find(
+        (url) =>
+          /notes?/i.test(url.toString())
       );
-    } catch {
-      // Try the next candidate.
+
+    if (noteUrl) {
+      return noteUrl;
     }
   }
 
@@ -503,74 +521,35 @@ function noteTextFromHtml(html) {
 }
 
 async function collectForeTeesTeeTimeNotes() {
-  const possibleMarkers = Array.from(
-    document.querySelectorAll(
-      "a, button, td, span, b, strong, font, img, input"
-    )
-  );
-
-  const noteMarkers = possibleMarkers.filter(
-    (element) => {
-      const text =
-        (element.textContent || "")
-          .trim()
-          .toUpperCase();
-
-      const label = [
-        element.getAttribute?.("alt"),
-        element.getAttribute?.("title"),
-        element.getAttribute?.("aria-label"),
-        element.getAttribute?.("value"),
-        element.getAttribute?.("src")
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toUpperCase();
-
-      const action = [
-        element.getAttribute?.("href"),
-        element.getAttribute?.("onclick"),
-        element.closest?.("a")?.getAttribute("href"),
-        element.closest?.("a")?.getAttribute("onclick")
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toUpperCase();
-
-      return (
-        text === "N" ||
-        /\bNOTES?\b/.test(label) ||
-        (
-          action.includes("PROSHOP_SHEET") &&
-          (
-            action.includes("NOTES") ||
-            action.includes("INDEX=1")
-          )
-        )
-      );
-    }
+  const teeTimeRows = Array.from(
+    document.querySelectorAll("tr")
   );
 
   const candidates = [];
   let complete = true;
+  let markersFound = 0;
 
-  for (const marker of noteMarkers) {
-    const row = marker.closest("tr");
+  for (const row of teeTimeRows) {
     const rowText =
-      row?.innerText ||
-      row?.textContent ||
+      row.innerText ||
+      row.textContent ||
       "";
 
     const timeMatch = rowText.match(
       /\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/i
     );
 
-    const noteUrl = noteUrlFromElement(marker);
-
-    if (!timeMatch || !noteUrl) {
-      complete = false;
+    if (!timeMatch) {
       continue;
     }
+
+    const noteUrl = noteUrlFromElement(row);
+
+    if (!noteUrl) {
+      continue;
+    }
+
+    markersFound += 1;
 
     const teeTime = teeTimeTo24Hour(
       timeMatch[1],
@@ -646,7 +625,7 @@ async function collectForeTeesTeeTimeNotes() {
   return {
     notes: notes.filter(Boolean),
     complete,
-    markersFound: noteMarkers.length,
+    markersFound,
     candidatesFound: candidates.length
   };
 }
