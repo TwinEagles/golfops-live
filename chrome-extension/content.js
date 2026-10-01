@@ -433,21 +433,35 @@ function teeTimeTo24Hour(
 function noteUrlFromElement(
   element
 ) {
+  const link =
+    element.closest?.("a") ||
+    element;
+
+  const row =
+    element.closest?.("tr");
+
   const candidates = [
     element.getAttribute?.("href"),
     element.getAttribute?.("onclick"),
-    element.closest?.("a")?.getAttribute("href"),
-    element.closest?.("a")?.getAttribute("onclick"),
-    element.parentElement?.innerHTML
+    element.onclick?.toString?.(),
+    link.getAttribute?.("href"),
+    link.getAttribute?.("onclick"),
+    link.onclick?.toString?.(),
+    element.outerHTML,
+    element.parentElement?.outerHTML,
+    row?.outerHTML
   ].filter(Boolean);
 
   for (const candidate of candidates) {
     const decoded = String(candidate)
       .replace(/&amp;/gi, "&")
+      .replace(/&#38;/gi, "&")
+      .replace(/&#x26;/gi, "&")
+      .replace(/\\\//g, "/")
       .replace(/\\u0026/gi, "&");
 
     const match = decoded.match(
-      /((?:\/v5\/servlet\/)?Proshop_sheet\?[^"'\s)]+)/i
+      /((?:https?:\/\/[^"'\s)]+)?(?:\/v5\/servlet\/)?Proshop_sheet\?[^"'\s)<>]+)/i
     );
 
     if (!match) {
@@ -480,7 +494,7 @@ function noteTextFromHtml(html) {
     "";
 
   const match = bodyText.match(
-    /\bNotes?\s*:\s*([\s\S]*?)(?:\s+Close\s*$|$)/i
+    /\bNotes?\s*:\s*([\s\S]*?)(?:\s+Close\b|$)/i
   );
 
   return (match?.[1] || "")
@@ -489,15 +503,52 @@ function noteTextFromHtml(html) {
 }
 
 async function collectForeTeesTeeTimeNotes() {
-  const noteMarkers = Array.from(
+  const possibleMarkers = Array.from(
     document.querySelectorAll(
-      "a, button, td, span"
+      "a, button, td, span, b, strong, font, img, input"
     )
-  ).filter(
-    (element) =>
-      (element.textContent || "")
-        .trim()
-        .toUpperCase() === "N"
+  );
+
+  const noteMarkers = possibleMarkers.filter(
+    (element) => {
+      const text =
+        (element.textContent || "")
+          .trim()
+          .toUpperCase();
+
+      const label = [
+        element.getAttribute?.("alt"),
+        element.getAttribute?.("title"),
+        element.getAttribute?.("aria-label"),
+        element.getAttribute?.("value"),
+        element.getAttribute?.("src")
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toUpperCase();
+
+      const action = [
+        element.getAttribute?.("href"),
+        element.getAttribute?.("onclick"),
+        element.closest?.("a")?.getAttribute("href"),
+        element.closest?.("a")?.getAttribute("onclick")
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toUpperCase();
+
+      return (
+        text === "N" ||
+        /\bNOTES?\b/.test(label) ||
+        (
+          action.includes("PROSHOP_SHEET") &&
+          (
+            action.includes("NOTES") ||
+            action.includes("INDEX=1")
+          )
+        )
+      );
+    }
   );
 
   const candidates = [];
@@ -594,7 +645,9 @@ async function collectForeTeesTeeTimeNotes() {
 
   return {
     notes: notes.filter(Boolean),
-    complete
+    complete,
+    markersFound: noteMarkers.length,
+    candidatesFound: candidates.length
   };
 }
 
@@ -798,6 +851,14 @@ async function pullTeeSheetOnce(
         handled: true,
         ...result,
         lessonResult,
+        notesImported:
+          teeTimeNoteCapture.notes.length,
+        noteMarkersFound:
+          teeTimeNoteCapture.markersFound,
+        noteCandidatesFound:
+          teeTimeNoteCapture.candidatesFound,
+        noteCaptureComplete:
+          teeTimeNoteCapture.complete,
         sheetDate
       };
     }

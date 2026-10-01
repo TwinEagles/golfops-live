@@ -761,7 +761,7 @@ const today =
       <main className="mx-auto max-w-[1280px] px-4 py-4">
         {/* LESSONS FOR THE DISPLAYED TEE-SHEET DATE */}
         <section className="mb-4 overflow-hidden rounded-lg border border-purple-400/40 bg-[var(--golfops-surface)]">
-          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-start">
             <div className="flex shrink-0 items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/15 text-base text-purple-400">
                 ⛳
@@ -783,21 +783,23 @@ const today =
             </div>
 
             {lessons.length > 0 ? (
-              <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 sm:pb-0">
+              <div className="grid min-w-0 flex-1 grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {lessons.map((lesson) => (
                   <div
                     key={lesson.id}
-                    className="min-w-[180px] rounded-md bg-purple-500/10 px-3 py-2"
+                    className="min-w-0 rounded-md bg-purple-500/10 px-2.5 py-1.5"
                   >
-                    <div className="text-sm font-bold text-purple-400">
-                      {formatTime(lesson.lesson_time)}
+                    <div className="flex min-w-0 items-baseline gap-2">
+                      <span className="shrink-0 text-xs font-bold text-purple-400">
+                        {formatTime(lesson.lesson_time)}
+                      </span>
+
+                      <span className="truncate text-sm font-semibold text-[var(--golfops-text)]">
+                        {lesson.member_name}
+                      </span>
                     </div>
 
-                    <div className="truncate text-sm font-semibold text-[var(--golfops-text)]">
-                      {lesson.member_name}
-                    </div>
-
-                    <div className="truncate text-xs text-[var(--golfops-text-muted)]">
+                    <div className="mt-0.5 truncate text-[11px] text-[var(--golfops-text-muted)]">
                       {[lesson.instructor_name, lesson.lesson_type]
                         .filter(Boolean)
                         .join(" • ")}

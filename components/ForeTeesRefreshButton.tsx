@@ -20,6 +20,10 @@ type RefreshResult = {
   changesDetected?: number;
   teeTimesFound?: number;
   playersFound?: number;
+  notesImported?: number;
+  noteMarkersFound?: number;
+  noteCandidatesFound?: number;
+  noteCaptureComplete?: boolean;
 };
 
 type ExtensionMessage = {
@@ -145,9 +149,18 @@ export default function ForeTeesRefreshButton({
       const changes =
         result.changesDetected ?? 0;
 
+      const notes =
+        result.notesImported ?? 0;
+
+      const noteStatus =
+        (result.noteMarkersFound ?? 0) > 0 &&
+        notes === 0
+          ? " ForeTees note detected but could not be imported."
+          : ` ${notes} note${notes === 1 ? "" : "s"} imported.`;
+
       setState("success");
       setMessage(
-        `ForeTees update complete. ${changes} change${changes === 1 ? "" : "s"} detected.`
+        `ForeTees update complete. ${changes} change${changes === 1 ? "" : "s"} detected.${noteStatus}`
       );
 
       router.refresh();
@@ -209,7 +222,7 @@ export default function ForeTeesRefreshButton({
             null;
           setState("error");
           setMessage(
-            "GolfOps Chrome extension version 1.3.6 is required. Reload or update the extension and try again."
+            "GolfOps Chrome extension version 1.3.8 is required. Reload or update the extension and try again."
           );
         }
       }, 2500);

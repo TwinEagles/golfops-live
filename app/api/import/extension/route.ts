@@ -385,10 +385,13 @@ export async function POST(request: Request) {
     const teeTimeNotesComplete =
       body?.teeTimeNotesComplete === true;
 
+    const rawTeeTimeNotes: unknown[] =
+      Array.isArray(body?.teeTimeNotes)
+        ? body.teeTimeNotes as unknown[]
+        : [];
+
     const incomingTeeTimeNotes =
-      (Array.isArray(body?.teeTimeNotes)
-        ? body.teeTimeNotes
-        : [])
+      rawTeeTimeNotes
         .map((value: unknown): IncomingTeeTimeNote | null => {
           const candidate =
             value && typeof value === "object"
@@ -415,7 +418,8 @@ export async function POST(request: Request) {
             : null;
         })
         .filter(
-          (value: IncomingTeeTimeNote | null): value is IncomingTeeTimeNote => Boolean(value)
+          (value: IncomingTeeTimeNote | null): value is IncomingTeeTimeNote =>
+            Boolean(value)
         );
 
     const teeTimeNotesByGroup = new Map(

@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.3.7";
+  "1.3.8";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,19 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.3.7",
+    version: "1.3.8",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Broadens ForeTees tee-time note detection to include image and legacy popup links.",
+      "Reports the number of ForeTees notes imported after each staff-requested update.",
+      "Displays lessons in a compact responsive grid without a horizontal scrollbar.",
+    ],
+  },
+  {
+    version: "1.3.7",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Brings ForeTees tee-time notes into the GolfOps Tee Sheet during a staff-requested update.",
       "Refreshes the ForeTees Lesson Book with the same manual update and shows the selected date’s lessons above the tee sheet.",
