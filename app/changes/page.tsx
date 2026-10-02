@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import ChangeSelectionList from "@/components/ChangeSelectionList";
 import ChangesPrintMenu from "@/components/ChangesPrintMenu";
 import AppNav from "@/components/AppNav";
+import ChangesLiveRefresh from "@/components/ChangesLiveRefresh";
 
 type ChangeRecord = {
   id: string;
@@ -934,6 +935,9 @@ export default async function ChangesPage({
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
+      <ChangesLiveRefresh
+        sheetDate={selectedDate}
+      />
       {/* TOP NAVIGATION */}
 
       <AppNav
