@@ -106,7 +106,7 @@ export default async function ProShopPage() {
 
       <main className="mx-auto max-w-[1000px] px-4 py-6">
         <h1 className="mb-5 text-2xl font-bold tracking-tight">
-          Pro Shop
+          Member Requests
         </h1>
 
         <ProShopRequestsManager

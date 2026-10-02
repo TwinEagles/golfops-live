@@ -36,7 +36,7 @@ type PermissionKey =
 const permissionColumns: Array<{ key: PermissionKey; label: string }> = [
   { key: "tee_sheet", label: "Tee Sheet" },
   { key: "changes", label: "Changes" },
-  { key: "pro_shop", label: "Pro Shop" },
+  { key: "pro_shop", label: "Member Requests" },
   { key: "reciprocals", label: "Reciprocals" },
   { key: "bag_finder", label: "Bag Finder" },
   { key: "golf_carts", label: "Golf Carts" },

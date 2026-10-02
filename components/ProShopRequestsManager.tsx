@@ -332,6 +332,10 @@ export default function ProShopRequestsManager({
 
   return (
     <div>
+      <p className="mb-5 text-sm text-[var(--golfops-text-muted)]">
+        Create and manage practice, takeaway, and lesson requests.
+      </p>
+
       <section className="mb-6 rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] p-6">
         <h2 className="mb-4 text-sm font-semibold text-[var(--golfops-text-muted)]">
           Select Member
