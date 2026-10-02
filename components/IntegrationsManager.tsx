@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.4.6";
+  "1.4.7";
 
 const EXTENSION_RELEASE_DATE =
   "October 1, 2026";
@@ -53,9 +53,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.4.6",
+    version: "1.4.7",
     date: "October 1, 2026",
     current: true,
+    highlights: [
+      "Collects tee-time notes from every open ForeTees tab matching the selected date.",
+      "Combines Eagle and Talon notes by course and tee time before running one Bag Report import.",
+    ],
+  },
+  {
+    version: "1.4.6",
+    date: "October 1, 2026",
+    current: false,
     highlights: [
       "Moves tee-time notes out of the narrow time column into a full-width row beneath the players.",
       "Allows longer notes to wrap naturally while keeping the Pace row separate and easy to scan.",

@@ -1046,8 +1046,54 @@ function sendManualSnapshot(
   );
 }
 
-async function pullTeeSheetOnce(
+async function collectTeeTimeNotesForDate(
   requestedDate
+) {
+  if (!isForeTeesLiveSheetPage()) {
+    return {
+      handled: false,
+      ok: false
+    };
+  }
+
+  const sheetDate =
+    detectTeeSheetDate();
+  const normalizedRequestedDate =
+    normalizeLessonDate(
+      requestedDate
+    );
+
+  if (
+    !sheetDate ||
+    !normalizedRequestedDate ||
+    sheetDate !== normalizedRequestedDate
+  ) {
+    return {
+      handled: false,
+      ok: false,
+      sheetDate
+    };
+  }
+
+  const reportUrl =
+    getLiveBagReportUrl() ||
+    window.location.href;
+  const capture =
+    await collectForeTeesTeeTimeNotes(
+      reportUrl
+    );
+
+  return {
+    handled: true,
+    ok: true,
+    sheetDate,
+    ...capture
+  };
+}
+
+async function pullTeeSheetOnce(
+  requestedDate,
+  sharedNoteCapture = null
 ) {
   try {
     if (!isForeTeesLiveSheetPage()) {
@@ -1101,9 +1147,13 @@ async function pullTeeSheetOnce(
           cache: "no-store"
         }
         ),
-        collectForeTeesTeeTimeNotes(
-          reportUrl
-        )
+        sharedNoteCapture
+          ? Promise.resolve(
+              sharedNoteCapture
+            )
+          : collectForeTeesTeeTimeNotes(
+              reportUrl
+            )
       ]);
 
     if (
@@ -1534,8 +1584,30 @@ chrome.runtime.onMessage.addListener(
     sendResponse
   ) => {
     if (
+      message?.type ===
+      "COLLECT_FORETEES_TEE_TIME_NOTES"
+    ) {
+      collectTeeTimeNotesForDate(
+        message.sheetDate
+      )
+        .then(sendResponse)
+        .catch((error) => {
+          sendResponse({
+            handled: true,
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Unable to collect ForeTees tee-time notes."
+          });
+        });
+
+      return true;
+    }
+
+    if (
       message?.type !==
-      "PULL_FORETEES_TEE_SHEET"
+        "PULL_FORETEES_TEE_SHEET"
     ) {
       return false;
     }
@@ -1545,7 +1617,9 @@ chrome.runtime.onMessage.addListener(
     }
 
     pullTeeSheetOnce(
-      message.sheetDate
+      message.sheetDate,
+      message.teeTimeNoteCapture ||
+        null
     )
       .then(sendResponse)
       .catch((error) => {

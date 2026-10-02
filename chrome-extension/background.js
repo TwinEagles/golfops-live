@@ -482,17 +482,13 @@ function findForeTeesTabs() {
 
 function askForeTeesTab(
   tabId,
-  sheetDate
+  message
 ) {
   return new Promise(
     (resolve) => {
       chrome.tabs.sendMessage(
         tabId,
-        {
-          type:
-            "PULL_FORETEES_TEE_SHEET",
-          sheetDate
-        },
+        message,
         (response) => {
           if (
             chrome.runtime.lastError
@@ -505,6 +501,137 @@ function askForeTeesTab(
         }
       );
     }
+  );
+}
+
+async function collectOpenForeTeesNotes(
+  sheetDate,
+  suppliedTabs = null
+) {
+  const tabs =
+    suppliedTabs ||
+    await findForeTeesTabs();
+
+  const responses =
+    await Promise.all(
+      tabs
+        .filter(
+          (tab) =>
+            typeof tab.id === "number"
+        )
+        .map((tab) =>
+          askForeTeesTab(
+            tab.id,
+            {
+              type:
+                "COLLECT_FORETEES_TEE_TIME_NOTES",
+              sheetDate
+            }
+          )
+        )
+    );
+
+  const handledResponses =
+    responses.filter(
+      (response) =>
+        response?.handled
+    );
+  const successfulResponses =
+    handledResponses.filter(
+      (response) =>
+        response?.ok
+    );
+  const notesByGroup = new Map();
+
+  for (const response of successfulResponses) {
+    for (const note of response.notes || []) {
+      const teeTime =
+        String(note?.teeTime || "").trim();
+      const course =
+        String(note?.course || "").trim();
+      const text =
+        String(note?.note || "").trim();
+
+      if (!teeTime || !course || !text) {
+        continue;
+      }
+
+      notesByGroup.set(
+        `${teeTime}|${course.toLowerCase()}`,
+        {
+          teeTime,
+          course,
+          note: text
+        }
+      );
+    }
+  }
+
+  return {
+    hasMatchingTabs:
+      handledResponses.length > 0,
+    notes: Array.from(
+      notesByGroup.values()
+    ),
+    complete:
+      handledResponses.length > 0 &&
+      handledResponses.every(
+        (response) =>
+          response?.ok &&
+          response.complete === true
+      ),
+    markersFound:
+      successfulResponses.reduce(
+        (total, response) =>
+          total +
+          Number(
+            response.markersFound || 0
+          ),
+        0
+      ),
+    candidatesFound:
+      successfulResponses.reduce(
+        (total, response) =>
+          total +
+          Number(
+            response.candidatesFound || 0
+          ),
+        0
+      ),
+    documentsScanned:
+      successfulResponses.reduce(
+        (total, response) =>
+          total +
+          Number(
+            response.documentsScanned || 0
+          ),
+        0
+      )
+  };
+}
+
+async function sendTeeSheetWithOpenNotes(
+  payload
+) {
+  const openTabCapture =
+    await collectOpenForeTeesNotes(
+      payload?.sheetDate
+    );
+
+  const enhancedPayload =
+    openTabCapture.hasMatchingTabs
+      ? {
+          ...payload,
+          teeTimeNotes:
+            openTabCapture.notes,
+          teeTimeNotesComplete:
+            openTabCapture.complete
+        }
+      : payload;
+
+  return sendAuthenticatedRequest(
+    "/api/import/extension",
+    enhancedPayload
   );
 }
 
@@ -522,6 +649,12 @@ async function pullForeTeesTeeSheet(
     };
   }
 
+  const teeTimeNoteCapture =
+    await collectOpenForeTeesNotes(
+      sheetDate,
+      tabs
+    );
+
   for (const tab of tabs) {
     if (
       typeof tab.id !== "number"
@@ -532,7 +665,16 @@ async function pullForeTeesTeeSheet(
     const result =
       await askForeTeesTab(
         tab.id,
-        sheetDate
+        {
+          type:
+            "PULL_FORETEES_TEE_SHEET",
+          sheetDate,
+          teeTimeNoteCapture:
+            teeTimeNoteCapture
+              .hasMatchingTabs
+              ? teeTimeNoteCapture
+              : null
+        }
       );
 
     if (result?.handled) {
@@ -560,8 +702,7 @@ chrome.runtime.onMessage.addListener(
       "SEND_TEE_SHEET"
     ) {
       operation =
-        sendAuthenticatedRequest(
-          "/api/import/extension",
+        sendTeeSheetWithOpenNotes(
           message.payload
         );
     } else if (
