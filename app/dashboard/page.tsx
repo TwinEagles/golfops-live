@@ -694,7 +694,7 @@ const today =
       {/* DATE / PRINT BAR */}
       <div className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-muted)]">
         <div className="mx-auto flex max-w-[1280px] items-center justify-center gap-1 px-2 py-3 sm:gap-4 sm:px-4 lg:gap-6">
-          <Link
+          <Link prefetch={false}
             href={`/print/placards?mode=all&date=${selectedDate}`}
             target="_blank"
             title="Print Cart Signs"
@@ -732,7 +732,7 @@ const today =
             </svg>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href={`/dashboard?date=${previousDate}`}
             className="shrink-0 rounded-md px-2 py-1 text-3xl leading-none text-[var(--golfops-text-secondary)] hover:bg-[var(--golfops-surface-soft)] sm:px-3"
           >
@@ -745,7 +745,7 @@ const today =
             today={today}
           />
 
-          <Link
+          <Link prefetch={false}
             href={`/dashboard?date=${nextDate}`}
             className="shrink-0 rounded-md px-2 py-1 text-3xl leading-none text-[var(--golfops-text-secondary)] hover:bg-[var(--golfops-surface-soft)] sm:px-3"
           >

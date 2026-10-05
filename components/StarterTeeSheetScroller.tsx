@@ -34,6 +34,7 @@ export default function StarterTeeSheetScroller({
           scrollAreaRef.current;
 
         if (
+          document.visibilityState !== "visible" ||
           !scrollArea ||
           pausedRef.current
         ) {
@@ -87,8 +88,10 @@ export default function StarterTeeSheetScroller({
 
     const refreshTimer =
       window.setInterval(() => {
-        router.refresh();
-      }, 60_000);
+        if (document.visibilityState === "visible") {
+          router.refresh();
+        }
+      }, 120_000);
 
     return () => {
       window.clearInterval(

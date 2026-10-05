@@ -949,7 +949,7 @@ export default async function ChangesPage({
 
       <div className="border-b border-slate-200 bg-[#ededed]">
         <div className="mx-auto flex max-w-[1280px] items-center justify-center gap-6 px-4 py-3">
-          <Link
+          <Link prefetch={false}
             href={buildHref({
               date:
                 previousDate,
@@ -979,7 +979,7 @@ export default async function ChangesPage({
             )}
           </div>
 
-          <Link
+          <Link prefetch={false}
             href={buildHref({
               date:
                 nextDate,
@@ -1024,7 +1024,7 @@ export default async function ChangesPage({
 
         <div className="mb-4">
           <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
-            <Link
+            <Link prefetch={false}
               href={buildHref({
                 date:
                   selectedDate,
@@ -1051,7 +1051,7 @@ export default async function ChangesPage({
               All
             </Link>
 
-            <Link
+            <Link prefetch={false}
               href={buildHref({
                 date:
                   selectedDate,
@@ -1078,7 +1078,7 @@ export default async function ChangesPage({
               Changes
             </Link>
 
-            <Link
+            <Link prefetch={false}
               href={buildHref({
                 date:
                   selectedDate,
@@ -1174,7 +1174,7 @@ export default async function ChangesPage({
             </button>
           </form>
 
-          <Link
+          <Link prefetch={false}
             href={buildHref({
               date:
                 selectedDate,

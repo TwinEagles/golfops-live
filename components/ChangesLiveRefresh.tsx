@@ -7,8 +7,8 @@ type ChangesLiveRefreshProps = {
   sheetDate: string;
 };
 
-const REFRESH_INTERVAL_MS = 30_000;
-const REFRESH_THROTTLE_MS = 2_000;
+const REFRESH_INTERVAL_MS = 120_000;
+const REFRESH_THROTTLE_MS = 60_000;
 
 export default function ChangesLiveRefresh({
   sheetDate,
@@ -18,6 +18,7 @@ export default function ChangesLiveRefresh({
 
   useEffect(() => {
     function refreshChanges() {
+      if (document.visibilityState !== "visible") return;
       const now = Date.now();
 
       if (
@@ -40,7 +41,8 @@ export default function ChangesLiveRefresh({
       }
     }
 
-    refreshChanges();
+    // Initial server render already contains current data.
+    lastRefreshAt.current = Date.now();
 
     window.addEventListener(
       "focus",

@@ -80,7 +80,7 @@ function MetricCard({
     </div>
   );
 
-  return href ? <Link href={href}>{content}</Link> : content;
+  return href ? <Link prefetch={false} href={href}>{content}</Link> : content;
 }
 
 export default async function OperationsPage() {
@@ -310,8 +310,8 @@ export default async function OperationsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
-      <OperationsRefresh />
       <AppNav active="operations" selectedDate={today} />
+      <OperationsRefresh />
 
       <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-5 sm:py-8">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -393,7 +393,7 @@ export default async function OperationsPage() {
                 <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">SchedulePop</div>
                 <h2 className="mt-1 text-xl font-bold">Today&apos;s Golf TEAM</h2>
               </div>
-              <Link href="/outside-operations" className="text-sm font-bold text-[var(--golfops-accent-text)]">Open Outside Ops →</Link>
+              <Link prefetch={false} href="/outside-operations" className="text-sm font-bold text-[var(--golfops-accent-text)]">Open Outside Ops →</Link>
             </header>
 
             {scheduledStaff.length === 0 ? (
@@ -469,7 +469,7 @@ export default async function OperationsPage() {
 
             <div className="divide-y divide-[var(--golfops-border)]">
               {canChanges && (
-                <Link href={`/changes?date=${today}`} className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
+                <Link prefetch={false} href={`/changes?date=${today}`} className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
                   <div>
                     <div className="font-semibold">Tee Sheet Changes</div>
                     <div className="mt-1 text-sm text-[var(--golfops-text-muted)]">Review and clear today&apos;s imported changes.</div>
@@ -478,7 +478,7 @@ export default async function OperationsPage() {
                 </Link>
               )}
               {canProShop && (
-                <Link href="/proshop" className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
+                <Link prefetch={false} href="/proshop" className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
                   <div>
                     <div className="font-semibold">Golf Shop Requests</div>
                     <div className="mt-1 text-sm text-[var(--golfops-text-muted)]">Practice, takeaway, and lesson requests awaiting completion.</div>
@@ -487,7 +487,7 @@ export default async function OperationsPage() {
                 </Link>
               )}
               {canGolfCarts && (
-                <Link href="/carts" className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
+                <Link prefetch={false} href="/carts" className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
                   <div>
                     <div className="font-semibold">Cart Exceptions</div>
                     <div className="mt-1 text-sm text-[var(--golfops-text-muted)]">Out-of-service carts, damage, and overdue detailing.</div>
@@ -498,7 +498,7 @@ export default async function OperationsPage() {
                 </Link>
               )}
               {canOutsideOperations && (
-                <Link href="/outside-operations" className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
+                <Link prefetch={false} href="/outside-operations" className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
                   <div>
                     <div className="font-semibold">Outside Operations</div>
                     <div className="mt-1 text-sm text-[var(--golfops-text-muted)]">Complete daily checklists and review shift handoff items.</div>
@@ -517,7 +517,7 @@ export default async function OperationsPage() {
               <h2 className="mt-1 text-xl font-bold">Operational Integrations</h2>
             </header>
             <div className="divide-y divide-[var(--golfops-border)]">
-              <Link href="/outside-operations" className="block px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
+              <Link prefetch={false} href="/outside-operations" className="block px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-semibold">SchedulePop Staffing</span>
                   <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${scheduleImportedAt ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{scheduleImportedAt ? `${scheduledToday} Scheduled Today` : "Not Imported"}</span>
@@ -546,7 +546,7 @@ export default async function OperationsPage() {
           <section className="mt-6 overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
             <header className="flex items-center justify-between border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-5 py-4">
               <h2 className="text-xl font-bold">Active Requests</h2>
-              <Link href="/proshop" className="text-sm font-bold text-[var(--golfops-accent-text)]">Open Pro Shop →</Link>
+              <Link prefetch={false} href="/proshop" className="text-sm font-bold text-[var(--golfops-accent-text)]">Open Pro Shop →</Link>
             </header>
             <div className="divide-y divide-[var(--golfops-border)]">
               {requests.slice(0, 6).map((request) => (
