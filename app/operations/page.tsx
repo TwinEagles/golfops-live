@@ -1,3 +1,4 @@
+import { loadOperationsData } from "@/lib/display-data";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AppNav from "@/components/AppNav";
@@ -94,141 +95,13 @@ export default async function OperationsPage() {
     operating picture here; module permissions still
     protect the individual destination pages.
   */
-  const canTeeSheet = true;
-  const canChanges = true;
-  const canProShop = true;
-  const canGolfCarts = true;
-  const canOutsideOperations = true;
 
+  const canTeeSheet = true, canChanges = true, canProShop = true, canGolfCarts = true, canOutsideOperations = true;
   const supabase = await createClient();
   const today = easternDateString();
 
-  const emptyResult = { data: null, error: null };
 
-  const [
-    slotsResult,
-    changesResult,
-    importResult,
-    requestsResult,
-    lessonsResult,
-    cartsResult,
-    damageResult,
-    cleaningResult,
-    settingsResult,
-    outsideItemsResult,
-    outsideCompletionsResult,
-    handoffsResult,
-    scheduleStaffResult,
-    scheduleImportResult,
-  ] = await Promise.all([
-    canTeeSheet
-      ? supabase
-          .from("tee_sheet_slots")
-          .select("id, tee_time, course, starting_hole, starting_position, player_name, check_in")
-          .eq("club_id", access.clubId)
-          .eq("sheet_date", today)
-      : Promise.resolve(emptyResult),
-    canChanges
-      ? supabase
-          .from("tee_sheet_changes")
-          .select("id")
-          .eq("club_id", access.clubId)
-          .eq("sheet_date", today)
-          .eq("status", "OPEN")
-      : Promise.resolve(emptyResult),
-    canTeeSheet
-      ? supabase
-          .from("tee_sheet_imports")
-          .select("created_at, parsed_snapshot")
-          .eq("club_id", access.clubId)
-          .eq("sheet_date", today)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-      : Promise.resolve(emptyResult),
-    canProShop
-      ? supabase
-          .from("pro_shop_requests")
-          .select("id, request_type, member_name_snapshot, bag_number_snapshot, details, created_at")
-          .eq("club_id", access.clubId)
-          .eq("status", "ACTIVE")
-          .order("created_at", { ascending: true })
-      : Promise.resolve(emptyResult),
-    canProShop
-      ? supabase
-          .from("foretees_lessons")
-          .select("id, lesson_time, instructor_name, member_name, lesson_type")
-          .eq("club_id", access.clubId)
-          .eq("lesson_date", today)
-          .eq("source", "FORETEES")
-      : Promise.resolve(emptyResult),
-    canGolfCarts
-      ? supabase
-          .from("golf_carts")
-          .select("id, cart_number, status")
-          .eq("club_id", access.clubId)
-      : Promise.resolve(emptyResult),
-    canGolfCarts
-      ? supabase
-          .from("cart_damage")
-          .select("id, cart_id")
-          .eq("club_id", access.clubId)
-          .is("resolved_at", null)
-      : Promise.resolve(emptyResult),
-    canGolfCarts
-      ? supabase
-          .from("cart_cleaning_history")
-          .select("cart_id, cleaned_at")
-          .eq("club_id", access.clubId)
-          .order("cleaned_at", { ascending: false })
-      : Promise.resolve(emptyResult),
-    canGolfCarts
-      ? supabase
-          .from("club_operational_settings")
-          .select("settings")
-          .eq("club_id", access.clubId)
-          .maybeSingle()
-      : Promise.resolve(emptyResult),
-    canOutsideOperations
-      ? supabase
-          .from("outside_ops_checklist_items")
-          .select("id")
-          .eq("club_id", access.clubId)
-          .eq("active", true)
-      : Promise.resolve(emptyResult),
-    canOutsideOperations
-      ? supabase
-          .from("outside_ops_checklist_completions")
-          .select("id")
-          .eq("club_id", access.clubId)
-          .eq("work_date", today)
-      : Promise.resolve(emptyResult),
-    canOutsideOperations
-      ? supabase
-          .from("outside_ops_handoffs")
-          .select("id")
-          .eq("club_id", access.clubId)
-          .eq("work_date", today)
-          .eq("status", "OPEN")
-      : Promise.resolve(emptyResult),
-    canOutsideOperations
-      ? supabase
-          .from("schedulepop_shifts")
-          .select("id, employee_name, job_title, start_time, end_time, duty, zone, status, notes")
-          .eq("club_id", access.clubId)
-          .eq("shift_date", today)
-          .order("start_time")
-      : Promise.resolve(emptyResult),
-    canOutsideOperations
-      ? supabase
-          .from("schedulepop_imports")
-          .select("imported_at")
-          .eq("club_id", access.clubId)
-          .order("imported_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-      : Promise.resolve(emptyResult),
-  ]);
+  const { slotsResult, changesResult, importResult, requestsResult, lessonsResult, cartsResult, damageResult, cleaningResult, settingsResult, outsideItemsResult, outsideCompletionsResult, handoffsResult, scheduleStaffResult, scheduleImportResult, version } = await loadOperationsData(supabase, access.clubId, today);
 
   const slots = slotsResult.data ?? [];
   const occupiedPlayers = slots.filter((slot) => Boolean(slot.player_name));
@@ -311,7 +184,7 @@ export default async function OperationsPage() {
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
       <AppNav active="operations" selectedDate={today} />
-      <OperationsRefresh />
+      <OperationsRefresh selectedDate={today} version={version} />
 
       <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-5 sm:py-8">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

@@ -1,3 +1,4 @@
+import { loadChangesData } from "@/lib/display-data";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -525,8 +526,6 @@ export default async function ChangesPage({
       ? retentionCandidate
       : 30;
 
-  const now =
-    new Date();
 
   const today =
     easternDateString();
@@ -592,15 +591,6 @@ export default async function ChangesPage({
     should actually be deleted.
   */
 
-  const retentionCutoff =
-    new Date(
-      now.getTime() -
-        clearedChangesRetentionDays *
-          24 *
-          60 *
-          60 *
-          1000
-    ).toISOString();
 
   let dateLabel =
     "";
@@ -624,114 +614,7 @@ export default async function ChangesPage({
     change records.
   */
 
-  let query =
-    supabase
-      .from(
-        "tee_sheet_changes"
-      )
-      .select(`
-        id,
-        change_type,
-        player_name,
-        bag_number,
-        cart_number,
-        tee_time,
-        starting_hole,
-        detail,
-        status,
-        created_at,
-        cleared_at,
-        old_value,
-        new_value
-      `)
-      .eq(
-        "club_id",
-        profile.club_id
-      )
-      .eq(
-        "sheet_date",
-        selectedDate
-      )
-      .order(
-        "tee_time",
-        {
-          ascending: true,
-        }
-      )
-      .order(
-        "created_at",
-        {
-          ascending: true,
-        }
-      );
-
-  if (
-    !showCleared
-  ) {
-    query =
-      query.eq(
-        "status",
-        "OPEN"
-      );
-  } else {
-    /*
-      Always include OPEN changes.
-
-      Include CLEARED changes only when
-      they were cleared inside the saved
-      retention period. This makes the
-      retention setting operational now
-      without deleting historical data.
-    */
-
-    query =
-      query.or(
-        `status.eq.OPEN,and(status.eq.CLEARED,cleared_at.gte.${retentionCutoff})`
-      );
-  }
-
-  if (
-    selectedType !==
-      "ALL" &&
-    [
-      "ADDED",
-      "REMOVED",
-      "TIME_CHANGED",
-      "HOLE_CHANGED",
-      "REPLACED",
-      "CART_ASSIGNED",
-    ].includes(
-      selectedType
-    )
-  ) {
-    query =
-      query.eq(
-        "change_type",
-        selectedType
-      );
-  }
-
-  if (view === "changes") {
-    query =
-      query.neq(
-        "change_type",
-        "CART_ASSIGNED"
-      );
-  } else if (
-    view === "activity"
-  ) {
-    query =
-      query.eq(
-        "change_type",
-        "CART_ASSIGNED"
-      );
-  }
-
-  const {
-    data,
-    error,
-  } =
-    await query;
+  const { data, error, openCountResult, version } = await loadChangesData(supabase, profile.club_id, selectedDate, view, selectedType, showCleared, clearedChangesRetentionDays, settingsRow?.settings ?? null);
 
   if (error) {
     console.error(
@@ -750,33 +633,6 @@ export default async function ChangesPage({
     Count open changes independently
     from whether Show Cleared is active.
   */
-
-  const {
-    count: openCountResult,
-  } =
-    await supabase
-      .from(
-        "tee_sheet_changes"
-      )
-      .select(
-        "id",
-        {
-          count: "exact",
-          head: true,
-        }
-      )
-      .eq(
-        "club_id",
-        profile.club_id
-      )
-      .eq(
-        "sheet_date",
-        selectedDate
-      )
-      .eq(
-        "status",
-        "OPEN"
-      );
 
   const openCount =
     openCountResult ??
@@ -937,6 +793,10 @@ export default async function ChangesPage({
     <div className="min-h-screen bg-[#f5f5f5]">
       <ChangesLiveRefresh
         sheetDate={selectedDate}
+        version={version}
+        view={view}
+        selectedType={selectedType}
+        showCleared={showCleared}
       />
       {/* TOP NAVIGATION */}
 

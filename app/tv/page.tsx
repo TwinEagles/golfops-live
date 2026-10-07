@@ -1,3 +1,4 @@
+import { loadTvData } from "@/lib/display-data";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -638,173 +639,7 @@ export default async function TvPage({
     );
   }
 
-  const [
-    slotsResult,
-    changesResult,
-    importResult,
-    requestsResult,
-    lessonsResult,
-    paceResult,
-  ] =
-    await Promise.all([
-      supabase
-        .from(
-          "tee_sheet_slots"
-        )
-        .select(
-          "id, tee_time, course, starting_hole, starting_position, slot_position, player_name, cart_number, check_in"
-        )
-        .eq(
-          "club_id",
-          profile.club_id
-        )
-        .eq(
-          "sheet_date",
-          selectedDate
-        ),
-
-      supabase
-        .from(
-          "tee_sheet_changes"
-        )
-        .select(`
-          id,
-          change_type,
-          player_name,
-          bag_number,
-          tee_time,
-          starting_hole,
-          old_value,
-          new_value,
-          detail
-        `)
-        .eq(
-          "club_id",
-          profile.club_id
-        )
-        .eq(
-          "sheet_date",
-          selectedDate
-        )
-        .eq(
-          "status",
-          "OPEN"
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        ),
-
-      supabase
-        .from(
-          "tee_sheet_imports"
-        )
-        .select(
-          "created_at, source"
-        )
-        .eq(
-          "club_id",
-          profile.club_id
-        )
-        .eq(
-          "sheet_date",
-          selectedDate
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        )
-        .limit(1)
-        .maybeSingle(),
-
-      supabase
-        .from(
-          "pro_shop_requests"
-        )
-        .select(`
-          id,
-          request_type,
-          member_name_snapshot,
-          bag_number_snapshot,
-          details,
-          created_at
-        `)
-        .eq(
-          "club_id",
-          profile.club_id
-        )
-        .eq(
-          "status",
-          "ACTIVE"
-        )
-        .order(
-          "created_at",
-          {
-            ascending: true,
-          }
-        ),
-
-      /*
-        Lessons follow the selected TV date
-        so the displayed schedule matches
-        the date shown in the header.
-      */
-
-      supabase
-        .from(
-          "foretees_lessons"
-        )
-        .select(`
-          id,
-          lesson_time,
-          instructor_name,
-          member_name,
-          lesson_type
-        `)
-        .eq(
-          "club_id",
-          profile.club_id
-        )
-        .eq(
-          "lesson_date",
-          selectedDate
-        )
-        .eq(
-          "source",
-          "FORETEES"
-        )
-        .order(
-          "lesson_time",
-          {
-            ascending: true,
-          }
-        ),
-
-      supabase
-        .from(
-          "pace_cart_status"
-        )
-        .select(`
-          cart_number,
-          course_name,
-          hole_name,
-          hole_short_name,
-          hole_sequence,
-          current_pace,
-          pace_minutes,
-          estimated_finish_at,
-          is_in_play,
-          last_seen_at
-        `)
-        .eq(
-          "club_id",
-          profile.club_id
-        ),
-    ]);
+  const { slotsResult, changesResult, importResult, requestsResult, lessonsResult, paceResult, version } = await loadTvData(supabase, profile.club_id, selectedDate);
 
   const slots =
     (
@@ -1132,7 +967,7 @@ export default async function TvPage({
 
   return (
     <div className="min-h-screen bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
-      <TvDisplayRefresh selectedDate={selectedDate} />
+      <TvDisplayRefresh selectedDate={selectedDate} version={version} />
 
       <AppNav
         active="tv"
