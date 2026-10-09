@@ -18,6 +18,7 @@ export type GolfOpsUserRow = {
   bag_finder: boolean;
   golf_carts: boolean;
   outside_operations: boolean;
+  pto_calendar: boolean;
   tv: boolean;
   starter: boolean;
 };
@@ -30,6 +31,7 @@ type PermissionKey =
   | "bag_finder"
   | "golf_carts"
   | "outside_operations"
+  | "pto_calendar"
   | "tv"
   | "starter";
 
@@ -41,6 +43,7 @@ const permissionColumns: Array<{ key: PermissionKey; label: string }> = [
   { key: "bag_finder", label: "Bag Finder" },
   { key: "golf_carts", label: "Golf Carts" },
   { key: "outside_operations", label: "Outside Ops" },
+  { key: "pto_calendar", label: "PTO Calendar" },
   { key: "tv", label: "TV" },
   { key: "starter", label: "Starter" },
 ];
@@ -53,6 +56,7 @@ const defaultPermissions: Record<PermissionKey, boolean> = {
   bag_finder: true,
   golf_carts: true,
   outside_operations: true,
+  pto_calendar: false,
   tv: true,
   starter: false,
 };
@@ -188,6 +192,7 @@ export default function UserPermissionsManager({
             bag_finder: created.permissions?.bag_finder ?? true,
             golf_carts: created.permissions?.golf_carts ?? true,
             outside_operations: created.permissions?.outside_operations ?? true,
+            pto_calendar: created.permissions?.pto_calendar ?? false,
             tv: created.permissions?.tv ?? true,
             starter: created.permissions?.starter ?? false,
           },
@@ -260,18 +265,38 @@ export default function UserPermissionsManager({
     const previous = user[permission];
     updateLocalUser(user.id, { [permission]: enabled });
 
-    const { error: rpcError } = await supabase.rpc(
-      "set_golfops_user_permission",
-      {
-        target_user_id: user.id,
-        permission_name: permission,
-        permission_enabled: enabled,
-      }
-    );
+    let permissionError: string | null = null;
 
-    if (rpcError) {
+    if (permission === "pto_calendar") {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          permission,
+          enabled,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.ok) {
+        permissionError =
+          result?.error || "Unable to update PTO Calendar access.";
+      }
+    } else {
+      const { error: rpcError } = await supabase.rpc(
+        "set_golfops_user_permission",
+        {
+          target_user_id: user.id,
+          permission_name: permission,
+          permission_enabled: enabled,
+        }
+      );
+      permissionError = rpcError?.message ?? null;
+    }
+
+    if (permissionError) {
       updateLocalUser(user.id, { [permission]: previous });
-      setError(rpcError.message);
+      setError(permissionError);
       setSavingKey(null);
       return;
     }

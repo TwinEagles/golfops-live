@@ -18,6 +18,7 @@ type PermissionRow = {
   bag_finder: boolean;
   golf_carts: boolean;
   outside_operations: boolean;
+  pto_calendar: boolean;
   tv: boolean;
   starter: boolean;
 };
@@ -87,6 +88,7 @@ export default async function UsersSettingsPage() {
           bag_finder,
           golf_carts,
           outside_operations,
+          pto_calendar,
           tv,
           starter
         `)
@@ -257,6 +259,11 @@ export default async function UsersSettingsPage() {
           outside_operations:
             permission
               ?.outside_operations ??
+            false,
+
+          pto_calendar:
+            permission
+              ?.pto_calendar ??
             false,
 
           tv:

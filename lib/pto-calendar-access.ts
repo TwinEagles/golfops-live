@@ -16,7 +16,7 @@ export async function getPtoCalendarAccess(
     return { canInside: true, canOutside: true, department: null };
   }
 
-  if (!access.email) {
+  if (!access.permissions.pto_calendar || !access.email) {
     return { canInside: false, canOutside: false, department: null };
   }
 

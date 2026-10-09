@@ -18,6 +18,7 @@ type CreateUserBody = {
     bag_finder?: boolean;
     golf_carts?: boolean;
     outside_operations?: boolean;
+    pto_calendar?: boolean;
     tv?: boolean;
     starter?: boolean;
   };
@@ -25,6 +26,12 @@ type CreateUserBody = {
 
 type DeleteUserBody = {
   userId?: string;
+};
+
+type UpdatePermissionBody = {
+  userId?: string;
+  permission?: string;
+  enabled?: boolean;
 };
 
 function cleanEmail(value: string) {
@@ -293,6 +300,7 @@ export async function POST(
           bag_finder: true,
           golf_carts: true,
           outside_operations: true,
+          pto_calendar: true,
           tv: true,
           starter: true,
         }
@@ -331,6 +339,11 @@ export async function POST(
             requestedPermissions
               .outside_operations ??
             true,
+
+          pto_calendar:
+            requestedPermissions
+              .pto_calendar ??
+            false,
 
           tv:
             requestedPermissions
@@ -401,6 +414,110 @@ export async function POST(
       permissions,
     },
   });
+}
+
+export async function PATCH(
+  request: Request
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "You must be signed in." },
+      { status: 401 }
+    );
+  }
+
+  const { data: adminProfile } = await supabase
+    .from("profiles")
+    .select("club_id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (!adminProfile?.club_id || adminProfile.role !== "admin") {
+    return NextResponse.json(
+      { ok: false, error: "Admin access required." },
+      { status: 403 }
+    );
+  }
+
+  let body: UpdatePermissionBody;
+  try {
+    body = (await request.json()) as UpdatePermissionBody;
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Invalid request." },
+      { status: 400 }
+    );
+  }
+
+  const targetUserId =
+    typeof body.userId === "string" ? body.userId.trim() : "";
+
+  if (
+    !targetUserId ||
+    body.permission !== "pto_calendar" ||
+    typeof body.enabled !== "boolean"
+  ) {
+    return NextResponse.json(
+      { ok: false, error: "Invalid permission update." },
+      { status: 400 }
+    );
+  }
+
+  const { data: targetProfile } = await supabase
+    .from("profiles")
+    .select("club_id, role")
+    .eq("id", targetUserId)
+    .single();
+
+  if (!targetProfile || targetProfile.club_id !== adminProfile.club_id) {
+    return NextResponse.json(
+      { ok: false, error: "User was not found for your club." },
+      { status: 404 }
+    );
+  }
+
+  if (targetProfile.role === "admin") {
+    return NextResponse.json(
+      { ok: false, error: "Admin users already have full access." },
+      { status: 400 }
+    );
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Permission updates are not configured on the server.",
+      },
+      { status: 500 }
+    );
+  }
+
+  const adminSupabase = createAdminClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error } = await adminSupabase
+    .from("user_permissions")
+    .update({ pto_calendar: body.enabled })
+    .eq("user_id", targetUserId)
+    .eq("club_id", adminProfile.club_id);
+
+  if (error) {
+    return NextResponse.json(
+      { ok: false, error: error.message },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(

@@ -8,6 +8,7 @@ export type PermissionKey =
   | "bag_finder"
   | "golf_carts"
   | "outside_operations"
+  | "pto_calendar"
   | "tv"
   | "starter";
 
@@ -28,6 +29,7 @@ const ALL_ACCESS: Record<PermissionKey, boolean> = {
   bag_finder: true,
   golf_carts: true,
   outside_operations: true,
+  pto_calendar: true,
   tv: true,
   starter: true,
 };
@@ -79,6 +81,7 @@ export async function getGolfOpsAccess(): Promise<GolfOpsAccess | null> {
       bag_finder,
       golf_carts,
       outside_operations,
+      pto_calendar,
       tv,
       starter
     `)
@@ -113,6 +116,9 @@ export async function getGolfOpsAccess(): Promise<GolfOpsAccess | null> {
 
       outside_operations:
         permissionRow?.outside_operations ?? false,
+
+      pto_calendar:
+        permissionRow?.pto_calendar ?? false,
 
       tv:
         permissionRow?.tv ?? false,
