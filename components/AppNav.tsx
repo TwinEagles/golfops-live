@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getGolfOpsAccess } from "@/lib/permissions";
+import { getPtoCalendarAccess } from "@/lib/pto-calendar-access";
 import { easternDateString } from "@/lib/golfops-date";
 
 type LinkProps = ComponentProps<
@@ -25,6 +26,7 @@ type AppNavProps = {
   active:
     | "operations"
     | "outside-operations"
+    | "pto-calendar"
     | "team-pto"
     | "tee-sheet"
     | "tv"
@@ -45,6 +47,7 @@ export default async function AppNav({
   selectedDate,
 }: AppNavProps) {
   const access = await getGolfOpsAccess();
+  const ptoAccess = access ? await getPtoCalendarAccess(access) : null;
 
   const canTeeSheet =
     access?.isAdmin ||
@@ -82,8 +85,10 @@ export default async function AppNav({
     access?.isAdmin ||
     access?.permissions.outside_operations === true;
 
-  const canTeamPto =
-    Boolean(access);
+  const canInsidePto = ptoAccess?.canInside === true;
+  const canOutsidePto = ptoAccess?.canOutside === true;
+  const canManagePto = access?.isAdmin === true;
+  const canPtoCalendar = canInsidePto || canOutsidePto || canManagePto;
 
   /*
     Upload is part of Tee Sheet access.
@@ -223,6 +228,15 @@ export default async function AppNav({
       ? "rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white"
       : "rounded-md px-3 py-2 text-slate-600 transition hover:bg-slate-100";
 
+  const ptoActive =
+    active === "pto-calendar" ||
+    active === "team-pto";
+
+  const ptoClass =
+    ptoActive
+      ? "rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white"
+      : "rounded-md px-3 py-2 text-slate-600 transition hover:bg-slate-100";
+
   async function signOut() {
     "use server";
 
@@ -287,13 +301,24 @@ export default async function AppNav({
               </Link>
             )}
 
-            {canTeamPto && (
-              <Link
-                href="/team-pto"
-                className={navClass("team-pto")}
-              >
-                TEAM PTO
-              </Link>
+            {canPtoCalendar && (
+              <div className="group relative">
+                <button
+                  type="button"
+                  className={[ptoClass, "flex items-center gap-1.5"].join(" ")}
+                  aria-haspopup="true"
+                >
+                  <span>PTO Calendar</span>
+                  <svg className="h-3 w-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                <div className="invisible absolute left-0 top-full z-50 min-w-[220px] pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                    {canInsidePto && <Link href="/pto-calendar/inside" className="block px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">Inside Operations</Link>}
+                    {canOutsidePto && <Link href="/pto-calendar/outside" className="block px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">Outside Operations</Link>}
+                    {canManagePto && <Link href="/team-pto" className="block border-t border-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950">Manage TEAM PTO</Link>}
+                  </div>
+                </div>
+              </div>
             )}
 
             {(canTeeSheet || canChanges) && (
@@ -505,10 +530,18 @@ export default async function AppNav({
                 </Link>
               )}
 
-              {canTeamPto && (
-                <Link href="/team-pto" className={navClass("team-pto")}>
-                  TEAM PTO
-                </Link>
+              {canPtoCalendar && (
+                <details className="group/pto">
+                  <summary className={[ptoClass, "flex cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden"].join(" ")}>
+                    <span>PTO Calendar</span>
+                    <span className="text-xs">⌄</span>
+                  </summary>
+                  <div className="mt-1 grid gap-1 border-l-2 border-indigo-100 pl-2">
+                    {canInsidePto && <Link href="/pto-calendar/inside" className="rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">Inside Operations</Link>}
+                    {canOutsidePto && <Link href="/pto-calendar/outside" className="rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">Outside Operations</Link>}
+                    {canManagePto && <Link href="/team-pto" className="rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">Manage TEAM PTO</Link>}
+                  </div>
+                </details>
               )}
 
               {(canTeeSheet || canChanges) && (

@@ -14,6 +14,7 @@ export type PermissionKey =
 export type GolfOpsAccess = {
   userId: string;
   clubId: string;
+  email: string | null;
   role: string;
   isAdmin: boolean;
   permissions: Record<PermissionKey, boolean>;
@@ -59,6 +60,7 @@ export async function getGolfOpsAccess(): Promise<GolfOpsAccess | null> {
     return {
       userId: user.id,
       clubId: profile.club_id,
+      email: user.email?.trim().toLowerCase() ?? null,
       role: profile.role,
       isAdmin: true,
       permissions: {
@@ -87,6 +89,7 @@ export async function getGolfOpsAccess(): Promise<GolfOpsAccess | null> {
   return {
     userId: user.id,
     clubId: profile.club_id,
+    email: user.email?.trim().toLowerCase() ?? null,
     role: profile.role,
     isAdmin: false,
     permissions: {

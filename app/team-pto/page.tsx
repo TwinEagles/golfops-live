@@ -6,6 +6,7 @@ import TeamPtoManager, {
 } from "@/components/TeamPtoManager";
 import { isGoogleCalendarConfigured } from "@/lib/google-calendar";
 import { getGolfOpsAccess } from "@/lib/permissions";
+import { getPtoCalendarAccess } from "@/lib/pto-calendar-access";
 import { createClient } from "@/lib/supabase/server";
 import { daysApart, localDate, ptoGroupKey } from "@/lib/team-pto";
 
@@ -39,6 +40,12 @@ type RequestRow = {
 export default async function TeamPtoPage() {
   const access = await getGolfOpsAccess();
   if (!access) redirect("/");
+  if (!access.isAdmin) {
+    const calendarAccess = await getPtoCalendarAccess(access);
+    if (calendarAccess.department === "INSIDE") redirect("/pto-calendar/inside");
+    if (calendarAccess.department === "OUTSIDE") redirect("/pto-calendar/outside");
+    redirect("/operations");
+  }
 
   const supabase = await createClient();
   const dateStart = easternDateString();

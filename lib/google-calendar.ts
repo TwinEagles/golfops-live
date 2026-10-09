@@ -23,6 +23,15 @@ type CalendarEventInput = {
   department: "INSIDE" | "OUTSIDE";
 };
 
+export type GoogleCalendarEvent = {
+  id: string;
+  summary: string;
+  description: string | null;
+  status: string;
+  start: { date?: string; dateTime?: string };
+  end: { date?: string; dateTime?: string };
+};
+
 function base64Url(value: string | Buffer) {
   return Buffer.from(value)
     .toString("base64")
@@ -180,4 +189,41 @@ export async function deleteCalendarEvent(
     const result = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
     throw new Error(result.error?.message || `Google event removal failed (${response.status}).`);
   }
+}
+
+export async function listCalendarEvents(
+  department: "INSIDE" | "OUTSIDE",
+  dateStart: string,
+  dateEndExclusive: string
+) {
+  const events: GoogleCalendarEvent[] = [];
+  let pageToken = "";
+
+  do {
+    const params = new URLSearchParams({
+      timeMin: `${dateStart}T00:00:00Z`,
+      timeMax: `${dateEndExclusive}T00:00:00Z`,
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "2500",
+      timeZone: "America/New_York",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+
+    const response = await calendarRequest(department, `/events?${params.toString()}`, {
+      method: "GET",
+    });
+    const result = (await response.json()) as {
+      items?: GoogleCalendarEvent[];
+      nextPageToken?: string;
+      error?: { message?: string };
+    };
+    if (!response.ok) {
+      throw new Error(result.error?.message || `Google Calendar read failed (${response.status}).`);
+    }
+    events.push(...(result.items ?? []).filter((event) => event.status !== "cancelled"));
+    pageToken = result.nextPageToken ?? "";
+  } while (pageToken);
+
+  return events;
 }
