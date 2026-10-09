@@ -24,6 +24,7 @@ type EmployeeRow = {
   id: string;
   schedulepop_user_id: number;
   resolved_department: "INSIDE" | "OUTSIDE" | "REVIEW";
+  active: boolean;
 };
 
 type SyncRow = {
@@ -54,7 +55,9 @@ function hashContent(value: unknown) {
 }
 
 function buildDesiredEvents(requests: RequestRow[], employees: EmployeeRow[]) {
-  const employeeMap = new Map(employees.map((row) => [Number(row.schedulepop_user_id), row]));
+  const employeeMap = new Map(
+    employees.filter((row) => row.active).map((row) => [Number(row.schedulepop_user_id), row])
+  );
   const buckets = new Map<string, RequestRow[]>();
 
   for (const request of requests) {
@@ -150,7 +153,7 @@ export async function reconcilePtoCalendars(
         .lte("start_local", `${dateEnd} 23:59:59`),
       admin
         .from("schedulepop_employees")
-        .select("id,schedulepop_user_id,resolved_department")
+        .select("id,schedulepop_user_id,resolved_department,active")
         .eq("club_id", clubId),
     ]);
 

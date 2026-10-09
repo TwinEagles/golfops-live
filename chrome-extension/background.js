@@ -488,6 +488,11 @@ function sanitizeSchedulePopPto(value) {
   };
 }
 
+function isActiveSchedulePopEmployee(value) {
+  const status = String(value?.userStatusTypeName || "").trim().toLowerCase();
+  return !["inactive", "terminated", "disabled"].includes(status);
+}
+
 async function schedulePopMapWithConcurrency(values, limit, mapper) {
   const results = new Array(values.length);
   let next = 0;
@@ -541,9 +546,12 @@ async function collectSchedulePopPto(payload) {
             `${base}/users/${userId}/availabilities?available=0&recurs=0&start=${encodeURIComponent(dateStart)}&end=${encodeURIComponent(dateEnd)}`
           )
         ]);
+        const employee = sanitizeSchedulePopEmployee(employeeResult);
         return {
-          employee: sanitizeSchedulePopEmployee(employeeResult),
-          requests: schedulePopArray(ptoResult).map(sanitizeSchedulePopPto).filter(Boolean)
+          employee,
+          requests: isActiveSchedulePopEmployee(employeeResult)
+            ? schedulePopArray(ptoResult).map(sanitizeSchedulePopPto).filter(Boolean)
+            : []
         };
       } catch (error) {
         failures.push(

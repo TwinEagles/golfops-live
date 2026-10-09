@@ -121,6 +121,7 @@ export async function POST(request: Request) {
       if (!Number.isInteger(schedulepopUserId) || schedulepopUserId <= 0) return null;
       const duty = primaryDuty(employee);
       const override = overrideMap.get(schedulepopUserId) ?? null;
+      const statusName = cleanText(employee.userStatusTypeName).toLowerCase();
       return {
         club_id: profile.club_id,
         schedulepop_user_id: schedulepopUserId,
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
         zones: Array.isArray(employee.userZones) ? employee.userZones : [],
         routing_override: override,
         resolved_department: resolvePtoDepartment(duty, override),
-        active: cleanText(employee.userStatusTypeName).toLowerCase() !== "inactive",
+        active: !["inactive", "terminated", "disabled"].includes(statusName),
         last_seen_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

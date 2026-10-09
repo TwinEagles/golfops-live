@@ -56,7 +56,7 @@ export default async function TeamPtoPage() {
       .order("start_local"),
     supabase
       .from("schedulepop_employees")
-      .select("id,schedulepop_user_id,first_name,last_name,primary_duty,routing_override,resolved_department")
+      .select("id,schedulepop_user_id,first_name,last_name,primary_duty,routing_override,resolved_department,active")
       .eq("club_id", access.clubId)
       .order("last_name"),
     supabase
@@ -73,7 +73,8 @@ export default async function TeamPtoPage() {
       .maybeSingle(),
   ]);
 
-  const employees = (employeeResult.data ?? []).map((row) => ({
+  const activeEmployeeRows = (employeeResult.data ?? []).filter((row) => row.active);
+  const employees = activeEmployeeRows.map((row) => ({
     id: String(row.id),
     name: `${row.first_name} ${row.last_name}`.trim(),
     primaryDuty: row.primary_duty,
@@ -81,7 +82,7 @@ export default async function TeamPtoPage() {
     resolvedDepartment: row.resolved_department,
   })) as TeamPtoEmployee[];
   const departmentMap = new Map(
-    (employeeResult.data ?? []).map((row) => [
+    activeEmployeeRows.map((row) => [
       Number(row.schedulepop_user_id),
       row.resolved_department as "INSIDE" | "OUTSIDE" | "REVIEW",
     ])
@@ -92,7 +93,8 @@ export default async function TeamPtoPage() {
 
   const buckets = new Map<string, RequestRow[]>();
   for (const request of (requestResult.data ?? []) as RequestRow[]) {
-    const department = departmentMap.get(Number(request.schedulepop_user_id)) ?? "REVIEW";
+    const department = departmentMap.get(Number(request.schedulepop_user_id));
+    if (!department) continue;
     const key = [request.schedulepop_user_id, department, request.request_type, request.all_day].join("|");
     const rows = buckets.get(key) ?? [];
     rows.push(request);

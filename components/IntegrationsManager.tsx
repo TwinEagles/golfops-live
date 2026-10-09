@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.5.2";
+  "1.5.3";
 
 const EXTENSION_RELEASE_DATE =
   "October 9, 2026";
@@ -54,9 +54,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.5.2",
+    version: "1.5.3",
     date: "October 9, 2026",
     current: true,
+    highlights: [
+      "Excludes inactive, terminated, and disabled SchedulePop employees from TEAM PTO.",
+      "Removes GolfOps-managed calendar events for employees who are no longer active.",
+    ],
+  },
+  {
+    version: "1.5.2",
+    date: "October 9, 2026",
+    current: false,
     highlights: [
       "Collects approved PTO through the extension background worker to avoid SchedulePop browser CORS restrictions.",
       "Keeps SchedulePop authorization temporary and local to the extension during synchronization.",
