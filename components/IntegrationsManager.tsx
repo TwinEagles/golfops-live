@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.5.0";
+  "1.5.1";
 
 const EXTENSION_RELEASE_DATE =
   "October 9, 2026";
@@ -54,9 +54,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.5.0",
+    version: "1.5.1",
     date: "October 9, 2026",
     current: true,
+    highlights: [
+      "Reuses SchedulePop's active in-page authorization for approved PTO collection.",
+      "Keeps the SchedulePop bearer credential inside the SchedulePop browser tab.",
+    ],
+  },
+  {
+    version: "1.5.0",
+    date: "October 9, 2026",
+    current: false,
     highlights: [
       "Synchronizes approved SchedulePop PTO with the GolfOps TEAM PTO page.",
       "Routes PTO by primary duty to Inside or Outside Operations Google Calendar.",

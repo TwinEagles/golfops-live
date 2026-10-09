@@ -4,6 +4,7 @@
   const PTO_DATA_EVENT = "golfops-schedulepop-pto-data";
   const originalFetch = window.fetch;
   let locationId = null;
+  let schedulePopAuthorization = null;
 
   function parseUrl(value) {
     try { return new URL(String(value), window.location.href); } catch { return null; }
@@ -15,6 +16,29 @@
     const match = url.pathname.match(/\/locations\/(\d+)/);
     if (match) locationId = Number(match[1]);
     return url;
+  }
+
+  function rememberAuthorization(headers) {
+    if (!headers) return;
+
+    let value = null;
+    try {
+      if (headers instanceof Headers) {
+        value = headers.get("authorization");
+      } else if (Array.isArray(headers)) {
+        const entry = headers.find(([name]) => String(name).toLowerCase() === "authorization");
+        value = entry?.[1] || null;
+      } else if (typeof headers === "object") {
+        const key = Object.keys(headers).find((name) => name.toLowerCase() === "authorization");
+        value = key ? headers[key] : null;
+      }
+    } catch {
+      value = null;
+    }
+
+    if (typeof value === "string" && /^Bearer\s+\S+/i.test(value.trim())) {
+      schedulePopAuthorization = value.trim();
+    }
   }
 
   function announceReport(value) {
@@ -91,8 +115,20 @@
   }
 
   async function fetchJson(url) {
+    if (!schedulePopAuthorization) {
+      throw new Error(
+        "SchedulePop authorization was not detected. Refresh the SchedulePop page, wait for the dashboard to load, and try again."
+      );
+    }
+
     const response = await originalFetch.call(window, url, {
-      method: "GET", credentials: "include", cache: "no-store", headers: { Accept: "application/json" },
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        Authorization: schedulePopAuthorization,
+      },
     });
     if (!response.ok) throw new Error(`SchedulePop returned ${response.status}.`);
     return response.json();
@@ -163,6 +199,10 @@
   window.fetch = function (input, init) {
     const value = typeof input === "string" ? input : input?.url;
     const url = learnContext(value);
+    if (url?.hostname === "api.schedulepop.com") {
+      rememberAuthorization(init?.headers);
+      if (typeof input === "object") rememberAuthorization(input?.headers);
+    }
     announceReport(value);
     const method = String(init?.method || (typeof input === "object" ? input?.method : "GET") || "GET").toUpperCase();
     const promise = originalFetch.call(this, input, init);
@@ -172,9 +212,20 @@
 
   const originalXhrOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (method, url, ...args) {
-    learnContext(url);
+    this.__golfOpsSchedulePopUrl = learnContext(url);
     announceReport(url);
     return originalXhrOpen.call(this, method, url, ...args);
+  };
+
+  const originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+  XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+    if (
+      this.__golfOpsSchedulePopUrl?.hostname === "api.schedulepop.com" &&
+      String(name).toLowerCase() === "authorization"
+    ) {
+      rememberAuthorization({ Authorization: value });
+    }
+    return originalXhrSetRequestHeader.call(this, name, value);
   };
 
   document.addEventListener("click", (event) => {
