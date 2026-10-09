@@ -455,6 +455,64 @@ function isTrustedGolfOpsSender(
   }
 }
 
+function isTrustedSchedulePopSender(sender) {
+  const sourceUrl = sender?.url || sender?.tab?.url || "";
+  try {
+    const url = new URL(sourceUrl);
+    return url.protocol === "https:" && url.hostname === "app.schedulepop.com";
+  } catch {
+    return false;
+  }
+}
+
+function findSchedulePopTabs() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ url: ["https://app.schedulepop.com/*"] }, (tabs) => {
+      if (chrome.runtime.lastError) {
+        resolve([]);
+        return;
+      }
+      resolve(tabs || []);
+    });
+  });
+}
+
+function askSchedulePopTab(tabId) {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, { type: "START_SCHEDULEPOP_PTO_SYNC" }, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve({ ok: false, handled: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      resolve({
+        handled: true,
+        ...(response || { ok: false, error: "SchedulePop did not return a TEAM PTO result." })
+      });
+    });
+  });
+}
+
+async function pullSchedulePopPto() {
+  const tabs = await findSchedulePopTabs();
+  if (!tabs.length) {
+    return {
+      ok: false,
+      error: "Open SchedulePop in Chrome, then try Sync from SchedulePop again."
+    };
+  }
+
+  for (const tab of tabs) {
+    if (!Number.isInteger(tab.id)) continue;
+    const result = await askSchedulePopTab(tab.id);
+    if (result?.handled) return result;
+  }
+
+  return {
+    ok: false,
+    error: "Reload the open SchedulePop tab so the current GolfOps extension can connect, then try again."
+  };
+}
+
 function findForeTeesTabs() {
   return new Promise(
     (resolve) => {
@@ -744,6 +802,47 @@ chrome.runtime.onMessage.addListener(
           "/api/schedulepop/extension",
           message.payload
         );
+    } else if (
+      message?.type ===
+      "SEND_SCHEDULEPOP_PTO"
+    ) {
+      if (
+        !isTrustedSchedulePopSender(
+          sender
+        )
+      ) {
+        operation =
+          Promise.resolve({
+            ok: false,
+            error:
+              "TEAM PTO was rejected because it did not originate from SchedulePop."
+          });
+      } else {
+        operation =
+          sendAuthenticatedRequest(
+            "/api/schedulepop/pto/extension",
+            message.payload
+          );
+      }
+    } else if (
+      message?.type ===
+      "PULL_SCHEDULEPOP_PTO"
+    ) {
+      if (
+        !isTrustedGolfOpsSender(
+          sender
+        )
+      ) {
+        operation =
+          Promise.resolve({
+            ok: false,
+            error:
+              "The TEAM PTO sync request was rejected."
+          });
+      } else {
+        operation =
+          pullSchedulePopPto();
+      }
     } else if (
       message?.type ===
       "SEND_FORETEES_BAG_MEMBER"

@@ -1,10 +1,19 @@
 ﻿const SCHEDULEPOP_EVENT =
   "golfops-schedulepop-report";
 
+const SCHEDULEPOP_PTO_COMMAND_EVENT =
+  "golfops-schedulepop-pto-command";
+
+const SCHEDULEPOP_PTO_DATA_EVENT =
+  "golfops-schedulepop-pto-data";
+
 const processedReports =
   new Set();
 
 let lastReportUrl = "";
+
+const pendingPtoSyncs =
+  new Map();
 
 function clean(value) {
   return String(value ?? "")
@@ -650,6 +659,144 @@ function addSyncButton() {
     .appendChild(button);
 }
 
+function localDateString(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function ptoDateRange() {
+  const start = new Date();
+  start.setDate(1);
+  start.setMonth(start.getMonth() - 1);
+  const end = new Date();
+  end.setMonth(end.getMonth() + 18);
+  return {
+    dateStart: localDateString(start),
+    dateEnd: localDateString(end)
+  };
+}
+
+function runPtoSync() {
+  const requestId =
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  showSchedulePopStatus(
+    "Collecting approved TEAM PTO from SchedulePop..."
+  );
+
+  const promise = new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      pendingPtoSyncs.delete(requestId);
+      resolve({
+        ok: false,
+        error: "SchedulePop PTO collection timed out. Keep SchedulePop open and try again."
+      });
+    }, 120000);
+    pendingPtoSyncs.set(requestId, { resolve, timer });
+  });
+
+  window.dispatchEvent(
+    new CustomEvent(
+      SCHEDULEPOP_PTO_COMMAND_EVENT,
+      { detail: { requestId, ...ptoDateRange() } }
+    )
+  );
+
+  return promise;
+}
+
+function addPtoSyncButton() {
+  if (document.getElementById("golfops-schedulepop-pto-sync")) return;
+
+  const button = document.createElement("button");
+  button.id = "golfops-schedulepop-pto-sync";
+  button.type = "button";
+  button.textContent = "Sync Approved PTO";
+
+  Object.assign(button.style, {
+    position: "fixed",
+    left: "20px",
+    bottom: "20px",
+    zIndex: "2147483646",
+    padding: "11px 16px",
+    border: "0",
+    borderRadius: "8px",
+    background: "#0f766e",
+    color: "white",
+    fontFamily: "Arial, sans-serif",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
+    boxShadow: "0 4px 14px rgba(0,0,0,0.22)"
+  });
+
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    const result = await runPtoSync();
+    button.disabled = false;
+    if (!result?.ok) {
+      showSchedulePopStatus(
+        result?.error || "Unable to synchronize TEAM PTO.",
+        "error"
+      );
+    }
+  });
+
+  document.documentElement.appendChild(button);
+}
+
+window.addEventListener(
+  SCHEDULEPOP_PTO_DATA_EVENT,
+  async (event) => {
+    const detail = event.detail || {};
+    let result;
+
+    if (detail.error) {
+      result = { ok: false, error: detail.error };
+    } else {
+      try {
+        result = await sendMessage({
+          type: "SEND_SCHEDULEPOP_PTO",
+          payload: detail
+        });
+      } catch (error) {
+        result = {
+          ok: false,
+          error: error instanceof Error ? error.message : "Unable to contact GolfOps Live."
+        };
+      }
+    }
+
+    const pending = detail.requestId
+      ? pendingPtoSyncs.get(detail.requestId)
+      : null;
+    if (pending) {
+      window.clearTimeout(pending.timer);
+      pendingPtoSyncs.delete(detail.requestId);
+      pending.resolve(result);
+    }
+
+    if (result?.ok) {
+      const calendar = result.calendar || {};
+      const calendarMessage = calendar.configured === false
+        ? " PTO was saved; Google Calendar setup is still required."
+        : ` Calendar: ${calendar.created || 0} added, ${calendar.updated || 0} updated, ${calendar.removed || 0} removed.`;
+      showSchedulePopStatus(
+        `TEAM PTO synchronized — ${result.requestsImported || 0} SchedulePop records processed.${calendarMessage}`,
+        "success"
+      );
+    } else if (detail.requestId) {
+      showSchedulePopStatus(
+        result?.error || "Unable to synchronize TEAM PTO.",
+        "error"
+      );
+    }
+  }
+);
+
 window.addEventListener(
   SCHEDULEPOP_EVENT,
   (event) => {
@@ -689,13 +836,17 @@ if (
 ) {
   document.addEventListener(
     "DOMContentLoaded",
-    addSyncButton,
+    () => {
+      addSyncButton();
+      addPtoSyncButton();
+    },
     {
       once: true
     }
   );
 } else {
   addSyncButton();
+  addPtoSyncButton();
 }
 /*
   Receive SchedulePop report URLs
@@ -709,6 +860,25 @@ chrome.runtime.onMessage
       sender,
       sendResponse
     ) => {
+      if (
+        message?.type ===
+        "START_SCHEDULEPOP_PTO_SYNC"
+      ) {
+        runPtoSync()
+          .then(sendResponse)
+          .catch((error) => {
+            sendResponse({
+              ok: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Unable to synchronize TEAM PTO."
+            });
+          });
+
+        return true;
+      }
+
       if (
         message?.type !==
         "SCHEDULEPOP_REPORT_DETECTED"

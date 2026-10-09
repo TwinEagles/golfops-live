@@ -10,10 +10,10 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.4.7";
+  "1.5.0";
 
 const EXTENSION_RELEASE_DATE =
-  "October 1, 2026";
+  "October 9, 2026";
 
 const extensionApplications = [
   {
@@ -36,9 +36,10 @@ const extensionApplications = [
   {
     name: "SchedulePop",
     description:
-      "Imports printable staffing schedules for Staff Schedule and Operations.",
+      "Imports staffing schedules and synchronizes approved TEAM PTO.",
     workflows: [
       "Staff schedule imports",
+      "Approved PTO synchronization",
     ],
   },
   {
@@ -53,9 +54,19 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
+    version: "1.5.0",
+    date: "October 9, 2026",
+    current: true,
+    highlights: [
+      "Synchronizes approved SchedulePop PTO with the GolfOps TEAM PTO page.",
+      "Routes PTO by primary duty to Inside or Outside Operations Google Calendar.",
+      "Captures approvals and individual deletions and supports a manual batch reconciliation.",
+    ],
+  },
+  {
     version: "1.4.7",
     date: "October 1, 2026",
-    current: true,
+    current: false,
     highlights: [
       "Collects tee-time notes from every open ForeTees tab matching the selected date.",
       "Combines Eagle and Talon notes by course and tee time before running one Bag Report import.",
@@ -537,6 +548,17 @@ export default function IntegrationsManager() {
                       "Update the Bag Storage Number.",
                       "Click Save and Close.",
                       "Wait for the green GolfOps Bag Finder confirmation.",
+                    ]}
+                  />
+
+                  <GuideBlock
+                    title="Synchronize TEAM PTO"
+                    steps={[
+                      "Open SchedulePop in Chrome and sign in as a manager.",
+                      "Open the SchedulePop Dashboard or Users page once so the extension can identify the location.",
+                      "In GolfOps, open TEAM PTO and click Sync from SchedulePop.",
+                      "Keep the SchedulePop tab open until the green confirmation appears.",
+                      "GolfOps also captures approvals and individual PTO deletions made while the extension is active.",
                     ]}
                   />
 

@@ -25,6 +25,7 @@ type AppNavProps = {
   active:
     | "operations"
     | "outside-operations"
+    | "team-pto"
     | "tee-sheet"
     | "tv"
     | "starter"
@@ -80,6 +81,9 @@ export default async function AppNav({
   const canOutsideOperations =
     access?.isAdmin ||
     access?.permissions.outside_operations === true;
+
+  const canTeamPto =
+    Boolean(access);
 
   /*
     Upload is part of Tee Sheet access.
@@ -280,6 +284,15 @@ export default async function AppNav({
                 className={navClass("outside-operations")}
               >
                 Staff Schedule
+              </Link>
+            )}
+
+            {canTeamPto && (
+              <Link
+                href="/team-pto"
+                className={navClass("team-pto")}
+              >
+                TEAM PTO
               </Link>
             )}
 
@@ -489,6 +502,12 @@ export default async function AppNav({
               {canOutsideOperations && (
                 <Link href="/outside-operations" className={navClass("outside-operations")}>
                   Staff Schedule
+                </Link>
+              )}
+
+              {canTeamPto && (
+                <Link href="/team-pto" className={navClass("team-pto")}>
+                  TEAM PTO
                 </Link>
               )}
 
