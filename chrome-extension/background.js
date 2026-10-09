@@ -506,6 +506,129 @@ async function schedulePopMapWithConcurrency(values, limit, mapper) {
   return results;
 }
 
+function schedulePopDatePart(value) {
+  const match = String(value || "").match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] || "";
+}
+
+function schedulePopTimePart(value) {
+  const match = String(value || "").match(/(?:T|\s)(\d{1,2}):(\d{2})/);
+  return match ? `${match[1].padStart(2, "0")}:${match[2]}` : null;
+}
+
+function schedulePopEmployeeName(user, job, userId) {
+  const first = String(user?.firstname || job?.firstname || job?.userFirstname || "").trim();
+  const last = String(user?.lastname || job?.lastname || job?.userLastname || "").trim();
+  const combined = `${first} ${last}`.trim();
+  return combined || String(job?.userName || job?.employeeName || `SchedulePop employee ${userId}`);
+}
+
+async function collectSchedulePopSchedule(payload) {
+  try {
+    const authorization = String(payload?.authorization || "").trim();
+    const locationId = Number(payload?.locationId);
+    const dateStart = String(payload?.dateStart || "");
+    const dateEnd = String(payload?.dateEnd || "");
+
+    if (!/^Bearer\s+\S+/i.test(authorization)) {
+      throw new Error("SchedulePop authorization was not detected. Refresh SchedulePop and try again.");
+    }
+    if (!Number.isInteger(locationId) || locationId <= 0) {
+      throw new Error("The SchedulePop location could not be identified.");
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStart) || !/^\d{4}-\d{2}-\d{2}$/.test(dateEnd)) {
+      throw new Error("The displayed SchedulePop week is invalid.");
+    }
+
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: authorization
+    };
+    const base = `https://api.schedulepop.com/api/rest/admin/locations/${locationId}`;
+    const [scheduleResponse, usersResponse] = await Promise.all([
+      fetch(`${base}/scheduleData?scheduleDataTypes=staffView`, {
+        method: "POST",
+        cache: "no-store",
+        headers,
+        body: JSON.stringify({ start: dateStart, end: dateEnd })
+      }),
+      fetch(`${base}/users?active=1&fields=id,firstname,lastname,userStatusTypeName,userDuties,userZones`, {
+        method: "GET",
+        cache: "no-store",
+        headers: { Accept: "application/json", Authorization: authorization }
+      })
+    ]);
+
+    if (!scheduleResponse.ok) {
+      throw new Error(`SchedulePop schedule returned ${scheduleResponse.status}.`);
+    }
+    if (!usersResponse.ok) {
+      throw new Error(`SchedulePop employees returned ${usersResponse.status}.`);
+    }
+
+    const scheduleData = await scheduleResponse.json();
+    const users = schedulePopArray(await usersResponse.json());
+    const usersById = new Map(users.map((user) => [Number(user?.id), user]));
+    const shifts = [];
+    const userJobsByDay = scheduleData?.userJobsByDay;
+
+    if (!userJobsByDay || typeof userJobsByDay !== "object") {
+      throw new Error("SchedulePop did not return the weekly staffing data expected by GolfOps.");
+    }
+
+    for (const [rawUserId, jobsByDay] of Object.entries(userJobsByDay)) {
+      const userId = Number(rawUserId);
+      const user = usersById.get(userId);
+      if (!jobsByDay || typeof jobsByDay !== "object") continue;
+
+      for (const [day, dayJobs] of Object.entries(jobsByDay)) {
+        if (!Array.isArray(dayJobs)) continue;
+        for (const job of dayJobs) {
+          if (!job || typeof job !== "object" || job.published === false) continue;
+          const shiftDate = schedulePopDatePart(job.startDatetime) || schedulePopDatePart(day);
+          if (!shiftDate || shiftDate < dateStart || shiftDate > dateEnd) continue;
+
+          const duty = String(job.dutyName || job.duty?.name || job.shiftName || "").trim() || null;
+          const zone = String(job.zoneName || job.zone?.name || "").trim() || null;
+          shifts.push({
+            employeeName: schedulePopEmployeeName(user, job, userId),
+            jobTitle: zone || duty || "SchedulePop",
+            shiftDate,
+            startTime: schedulePopTimePart(job.startDatetime || job.start),
+            endTime: schedulePopTimePart(job.endDatetime || job.end),
+            duty,
+            zone,
+            status: "SCHEDULED",
+            notes: String(job.notes || job.note || "").trim() || null
+          });
+        }
+      }
+    }
+
+    if (!shifts.length) {
+      throw new Error(
+        "No published shifts were returned for the displayed week. Confirm the week is published in SchedulePop."
+      );
+    }
+
+    return {
+      ok: true,
+      payload: {
+        fileName: `SchedulePop direct sync ${dateStart} to ${dateEnd}`,
+        dateStart,
+        dateEnd,
+        shifts
+      }
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unable to collect the SchedulePop schedule."
+    };
+  }
+}
+
 async function collectSchedulePopPto(payload) {
   try {
     const authorization = String(payload?.authorization || "").trim();
@@ -974,6 +1097,27 @@ chrome.runtime.onMessage.addListener(
         operation =
           sendAuthenticatedRequest(
             "/api/schedulepop/pto/extension",
+            message.payload
+          );
+      }
+    } else if (
+      message?.type ===
+      "COLLECT_SCHEDULEPOP_SCHEDULE"
+    ) {
+      if (
+        !isTrustedSchedulePopSender(
+          sender
+        )
+      ) {
+        operation =
+          Promise.resolve({
+            ok: false,
+            error:
+              "SchedulePop schedule collection was rejected because it did not originate from SchedulePop."
+          });
+      } else {
+        operation =
+          collectSchedulePopSchedule(
             message.payload
           );
       }

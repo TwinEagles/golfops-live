@@ -2,9 +2,12 @@
   const REPORT_EVENT = "golfops-schedulepop-report";
   const PTO_COMMAND_EVENT = "golfops-schedulepop-pto-command";
   const PTO_DATA_EVENT = "golfops-schedulepop-pto-data";
+  const SCHEDULE_COMMAND_EVENT = "golfops-schedulepop-schedule-command";
+  const SCHEDULE_DATA_EVENT = "golfops-schedulepop-schedule-data";
   const originalFetch = window.fetch;
   let locationId = null;
   let schedulePopAuthorization = null;
+  let latestScheduleRange = null;
 
   function parseUrl(value) {
     try { return new URL(String(value), window.location.href); } catch { return null; }
@@ -39,6 +42,25 @@
     if (typeof value === "string" && /^Bearer\s+\S+/i.test(value.trim())) {
       schedulePopAuthorization = value.trim();
     }
+  }
+
+  function rememberScheduleRange(url, body) {
+    if (
+      !url ||
+      url.hostname !== "api.schedulepop.com" ||
+      !url.pathname.includes("/scheduleData") ||
+      url.searchParams.get("scheduleDataTypes") !== "staffView"
+    ) return;
+
+    try {
+      const value = typeof body === "string" ? JSON.parse(body) : body;
+      if (
+        /^\d{4}-\d{2}-\d{2}$/.test(String(value?.start || "")) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(String(value?.end || ""))
+      ) {
+        latestScheduleRange = { dateStart: value.start, dateEnd: value.end };
+      }
+    } catch { /* The content script can still derive the visible week from the URL. */ }
   }
 
   function announceReport(value) {
@@ -78,6 +100,10 @@
 
   function emitPto(detail) {
     window.dispatchEvent(new CustomEvent(PTO_DATA_EVENT, { detail }));
+  }
+
+  function emitSchedule(detail) {
+    window.dispatchEvent(new CustomEvent(SCHEDULE_DATA_EVENT, { detail }));
   }
 
   async function inspectPtoMutation(url, method, response) {
@@ -156,8 +182,8 @@
           "SchedulePop authorization was not detected. Refresh the SchedulePop page, wait for the dashboard to load, and try again."
         );
       }
-      const dateStart = String(detail?.dateStart || "");
-      const dateEnd = String(detail?.dateEnd || "");
+      const dateStart = String(latestScheduleRange?.dateStart || detail?.dateStart || "");
+      const dateEnd = String(latestScheduleRange?.dateEnd || detail?.dateEnd || "");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStart) || !/^\d{4}-\d{2}-\d{2}$/.test(dateEnd)) {
         throw new Error("The TEAM PTO date range is invalid.");
       }
@@ -175,6 +201,39 @@
     }
   }
 
+  function fullScheduleSync(detail) {
+    const requestId = detail?.requestId || null;
+    try {
+      if (!locationId) {
+        throw new Error("Open the SchedulePop Schedule page and wait for it to load, then try again.");
+      }
+      if (!schedulePopAuthorization) {
+        throw new Error(
+          "SchedulePop authorization was not detected. Refresh the SchedulePop page, wait for the schedule to load, and try again."
+        );
+      }
+      const dateStart = String(detail?.dateStart || "");
+      const dateEnd = String(detail?.dateEnd || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStart) || !/^\d{4}-\d{2}-\d{2}$/.test(dateEnd)) {
+        throw new Error("The displayed SchedulePop week could not be identified.");
+      }
+
+      emitSchedule({
+        requestId,
+        collectInExtension: true,
+        authorization: schedulePopAuthorization,
+        locationId,
+        dateStart,
+        dateEnd,
+      });
+    } catch (error) {
+      emitSchedule({
+        requestId,
+        error: error instanceof Error ? error.message : "Unable to collect the SchedulePop schedule.",
+      });
+    }
+  }
+
   const originalOpen = window.open;
   window.open = function (url, ...args) {
     announceReport(url);
@@ -187,6 +246,7 @@
     if (url?.hostname === "api.schedulepop.com") {
       rememberAuthorization(init?.headers);
       if (typeof input === "object") rememberAuthorization(input?.headers);
+      rememberScheduleRange(url, init?.body);
     }
     announceReport(value);
     const method = String(init?.method || (typeof input === "object" ? input?.method : "GET") || "GET").toUpperCase();
@@ -200,6 +260,12 @@
     this.__golfOpsSchedulePopUrl = learnContext(url);
     announceReport(url);
     return originalXhrOpen.call(this, method, url, ...args);
+  };
+
+  const originalXhrSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function (body) {
+    rememberScheduleRange(this.__golfOpsSchedulePopUrl, body);
+    return originalXhrSend.call(this, body);
   };
 
   const originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
@@ -219,4 +285,5 @@
   }, true);
 
   window.addEventListener(PTO_COMMAND_EVENT, (event) => fullPtoSync(event.detail));
+  window.addEventListener(SCHEDULE_COMMAND_EVENT, (event) => fullScheduleSync(event.detail));
 })();

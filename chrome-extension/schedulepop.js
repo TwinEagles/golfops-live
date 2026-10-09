@@ -1,794 +1,62 @@
-﻿const SCHEDULEPOP_EVENT =
-  "golfops-schedulepop-report";
+const SCHEDULEPOP_SCHEDULE_COMMAND_EVENT = "golfops-schedulepop-schedule-command";
+const SCHEDULEPOP_SCHEDULE_DATA_EVENT = "golfops-schedulepop-schedule-data";
+const SCHEDULEPOP_PTO_COMMAND_EVENT = "golfops-schedulepop-pto-command";
+const SCHEDULEPOP_PTO_DATA_EVENT = "golfops-schedulepop-pto-data";
 
-const SCHEDULEPOP_PTO_COMMAND_EVENT =
-  "golfops-schedulepop-pto-command";
-
-const SCHEDULEPOP_PTO_DATA_EVENT =
-  "golfops-schedulepop-pto-data";
-
-const processedReports =
-  new Set();
-
-let lastReportUrl = "";
-
-const pendingPtoSyncs =
-  new Map();
-
-let pendingScheduleSync = null;
-
+const pendingScheduleSyncs = new Map();
+const pendingPtoSyncs = new Map();
 let runSchedulePopSync = null;
 
-window.addEventListener(
-  "pointerdown",
-  (event) => {
-    const target =
-      event.target instanceof Element
-        ? event.target.closest("#golfops-schedulepop-sync")
-        : null;
-
-    if (!target || !runSchedulePopSync) return;
-
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    runSchedulePopSync();
-  },
-  true
-);
-
-function clean(value) {
-  return String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function showSchedulePopStatus(
-  message,
-  type = "normal"
-) {
-  let box =
-    document.getElementById(
-      "golfops-schedulepop-status"
-    );
-
-  if (!box) {
-    box =
-      document.createElement(
-        "div"
-      );
-
-    box.id =
-      "golfops-schedulepop-status";
-
-    Object.assign(
-      box.style,
-      {
-        position: "fixed",
-        right: "20px",
-        bottom: "20px",
-        zIndex: "2147483647",
-        padding: "14px 18px",
-        borderRadius: "10px",
-        fontFamily:
-          "Arial, sans-serif",
-        fontSize: "14px",
-        fontWeight: "600",
-        color: "white",
-        boxShadow:
-          "0 4px 16px rgba(0,0,0,0.25)",
-        maxWidth: "420px"
+function sendMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
       }
-    );
-
-    document.documentElement
-      .appendChild(box);
-  }
-
-  box.textContent =
-    message;
-
-  box.style.background =
-    type === "success"
-      ? "#15803d"
-      : type === "error"
-        ? "#b91c1c"
-        : "#334155";
-}
-
-function isoDate(
-  header,
-  year
-) {
-  const match =
-    clean(header).match(
-      /(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})/i
-    );
-
-  if (!match) {
-    return null;
-  }
-
-  const date =
-    new Date(
-      `${match[1]} ${match[2]}, ${year} 12:00:00`
-    );
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return null;
-  }
-
-  return [
-    date.getFullYear(),
-
-    String(
-      date.getMonth() + 1
-    ).padStart(2, "0"),
-
-    String(
-      date.getDate()
-    ).padStart(2, "0")
-  ].join("-");
-}
-
-function parseSchedulePopHtml(
-  rawHtml,
-  reportUrl
-) {
-  const html =
-    rawHtml.replace(
-      /<!--[\s\S]*?-->/g,
-      ""
-    );
-
-  const documentNode =
-    new DOMParser()
-      .parseFromString(
-        html,
-        "text/html"
-      );
-
-  const title =
-    clean(
-      documentNode
-        .querySelector("title")
-        ?.textContent
-    );
-
-  const url =
-    new URL(reportUrl);
-
-  const urlYear =
-    url.searchParams
-      .get("startDate")
-      ?.match(/^(20\d{2})/);
-
-  const titleYear =
-    title.match(
-      /\b(20\d{2})\b/
-    );
-
-  const year =
-    Number(
-      urlYear?.[1] ??
-      titleYear?.[1] ??
-      new Date().getFullYear()
-    );
-
-  const shifts = [];
-  const dates =
-    new Set();
-
-  for (
-    const table of
-    documentNode.querySelectorAll(
-      "table.report.schedule"
-    )
-  ) {
-    const headers =
-      Array.from(
-        table.querySelectorAll(
-          "thead th"
-        )
-      );
-
-    if (
-      headers.length < 2
-    ) {
-      continue;
-    }
-
-    const jobTitle =
-      clean(
-        headers[0]
-          .textContent
-      );
-
-    const tableDates =
-      headers
-        .slice(1)
-        .map((header) =>
-          isoDate(
-            header.textContent,
-            year
-          )
-        );
-
-    tableDates.forEach(
-      (date) => {
-        if (date) {
-          dates.add(date);
-        }
-      }
-    );
-
-    for (
-      const row of
-      table.querySelectorAll(
-        "tbody tr"
-      )
-    ) {
-      const cells =
-        Array.from(
-          row.children
-        ).filter(
-          (node) =>
-            node.tagName === "TD"
-        );
-
-      if (
-        cells.length < 2
-      ) {
-        continue;
-      }
-
-      const employeeName =
-        clean(
-          cells[0]
-            .textContent
-        );
-
-      if (
-        !employeeName ||
-        employeeName ===
-          "Golf Shop" ||
-        employeeName ===
-          "Outside Operations" ||
-        employeeName.startsWith(
-          "Printed by"
-        )
-      ) {
-        continue;
-      }
-
-      for (
-        let index = 1;
-        index < cells.length &&
-        index <=
-          tableDates.length;
-        index += 1
-      ) {
-        const shiftDate =
-          tableDates[
-            index - 1
-          ];
-
-        if (!shiftDate) {
-          continue;
-        }
-
-        const blocks =
-          cells[index]
-            .querySelectorAll(
-              ".job-info"
-            );
-
-        for (
-          const block of
-          blocks
-        ) {
-          const allText =
-            clean(
-              block.textContent
-            );
-
-          if (!allText) {
-            continue;
-          }
-
-          const rangeText =
-            clean(
-              block.querySelector(
-                ".start-end"
-              )?.textContent
-            );
-
-          if (!rangeText) {
-            const lower =
-              allText
-                .toLowerCase();
-
-            const status =
-              lower.includes(
-                "unavailable"
-              )
-                ? "UNAVAILABLE"
-                : lower.includes(
-                    "time off"
-                  )
-                  ? "TIME_OFF"
-                  : "OFF";
-
-            shifts.push({
-              employeeName,
-              jobTitle,
-              shiftDate,
-              startTime: null,
-              endTime: null,
-              duty: null,
-              zone: null,
-              status,
-              notes: allText
-            });
-
-            continue;
-          }
-
-          const rangeMatch =
-            rangeText.match(
-              /(.+?)\s*-\s*(.+)/
-            );
-
-          const children =
-            Array.from(
-              block.children
-            )
-              .map((child) =>
-                clean(
-                  child.textContent
-                )
-              )
-              .filter(Boolean);
-
-          const details =
-            children.filter(
-              (value) =>
-                value !==
-                rangeText
-            );
-
-          shifts.push({
-            employeeName,
-            jobTitle,
-            shiftDate,
-
-            startTime:
-              rangeMatch
-                ? clean(
-                    rangeMatch[1]
-                  )
-                : null,
-
-            endTime:
-              rangeMatch
-                ? clean(
-                    rangeMatch[2]
-                  )
-                : null,
-
-            duty:
-              details[0] ??
-              null,
-
-            zone:
-              details[1] ??
-              null,
-
-            status:
-              "SCHEDULED",
-
-            notes:
-              details.length > 2
-                ? details
-                    .slice(2)
-                    .join(" â€¢ ")
-                : null
-          });
-        }
-      }
-    }
-  }
-
-  const sortedDates =
-    Array.from(dates)
-      .sort();
-
-  if (
-    !shifts.length ||
-    !sortedDates.length
-  ) {
-    throw new Error(
-      "No staffing rows were found in the SchedulePop report."
-    );
-  }
-
-  return {
-    shifts,
-
-    dateStart:
-      sortedDates[0],
-
-    dateEnd:
-      sortedDates[
-        sortedDates.length - 1
-      ]
-  };
-}
-
-function sendMessage(
-  message
-) {
-  return new Promise(
-    (
-      resolve,
-      reject
-    ) => {
-      chrome.runtime.sendMessage(
-        message,
-        (response) => {
-          if (
-            chrome.runtime
-              .lastError
-          ) {
-            reject(
-              new Error(
-                chrome.runtime
-                  .lastError
-                  .message
-              )
-            );
-
-            return;
-          }
-
-          resolve(response);
-        }
-      );
-    }
-  );
-}
-
-async function importSchedule(
-  reportUrl,
-  force = false
-) {
-  let url;
-
-  try {
-    url =
-      new URL(
-        reportUrl
-      );
-  } catch {
-    return {
-      ok: false,
-      error: "SchedulePop did not provide a valid schedule report URL."
-    };
-  }
-
-  if (
-    url.hostname !==
-      "api.schedulepop.com" ||
-    !url.pathname.includes(
-      "/printableSchedule"
-    ) ||
-    url.searchParams.get(
-      "printJob"
-    ) !== "schedule"
-  ) {
-    return {
-      ok: false,
-      error: "SchedulePop did not provide a printable schedule report."
-    };
-  }
-
-  const format =
-    (
-      url.searchParams.get(
-        "format"
-      ) || ""
-    ).toUpperCase();
-
-  if (
-    format !== "PDF" &&
-    format !== "HTML"
-  ) {
-    return {
-      ok: false,
-      error: "SchedulePop must produce the report as PDF or HTML."
-    };
-  }
-
-  lastReportUrl =
-    url.toString();
-
-  const reportKey = [
-    url.searchParams.get(
-      "scheduleId"
-    ),
-
-    url.searchParams.get(
-      "startDate"
-    ),
-
-    url.searchParams.get(
-      "endDate"
-    )
-  ].join("|");
-
-  if (
-    !force &&
-    processedReports.has(
-      reportKey
-    )
-  ) {
-    return {
-      ok: true,
-      skipped: true
-    };
-  }
-
-  processedReports.add(
-    reportKey
-  );
-
-  try {
-    showSchedulePopStatus(
-      "Sending published schedule to GolfOps Live..."
-    );
-
-    url.searchParams.set(
-      "format",
-      "HTML"
-    );
-
-    const fetched =
-      await sendMessage({
-        type:
-          "FETCH_SCHEDULEPOP_REPORT",
-
-        payload: {
-          url:
-            url.toString()
-        }
-      });
-
-    if (
-      !fetched?.ok ||
-      !fetched.html
-    ) {
-      throw new Error(
-        fetched?.error ||
-        "SchedulePop did not return the printable schedule."
-      );
-    }
-
-    const parsed =
-      parseSchedulePopHtml(
-        fetched.html,
-        url.toString()
-      );
-
-    const result =
-      await sendMessage({
-        type:
-          "SEND_SCHEDULEPOP",
-
-        payload: {
-          fileName:
-            `SchedulePop ${parsed.dateStart} to ${parsed.dateEnd}`,
-
-          ...parsed
-        }
-      });
-
-    if (!result?.ok) {
-      throw new Error(
-        result?.error ||
-        "SchedulePop import failed."
-      );
-    }
-
-    showSchedulePopStatus(
-      `GolfOps updated â€” ${result.rowsImported} staffing records imported for ${parsed.dateStart} through ${parsed.dateEnd}.`,
-      "success"
-    );
-
-    return {
-      ok: true,
-      rowsImported: result.rowsImported,
-      dateStart: parsed.dateStart,
-      dateEnd: parsed.dateEnd
-    };
-  } catch (error) {
-    processedReports.delete(
-      reportKey
-    );
-
-    showSchedulePopStatus(
-      error instanceof Error
-        ? error.message
-        : "Unable to import the SchedulePop schedule.",
-      "error"
-    );
-
-    return {
-      ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unable to import the SchedulePop schedule."
-    };
-  }
-}
-
-function handleScheduleReport(reportUrl) {
-  if (pendingScheduleSync) {
-    const pending = pendingScheduleSync;
-    pendingScheduleSync = null;
-    window.clearTimeout(pending.timer);
-    importSchedule(reportUrl, true).then(pending.resolve);
-    return;
-  }
-
-  importSchedule(reportUrl);
-}
-
-function waitForScheduleReport() {
-  return new Promise((resolve) => {
-    const timer = window.setTimeout(() => {
-      pendingScheduleSync = null;
-      resolve({
-        ok: false,
-        error: "SchedulePop did not create the schedule report. Keep Print Options open and try again."
-      });
-    }, 30000);
-
-    pendingScheduleSync = { resolve, timer };
+      resolve(response);
+    });
   });
 }
 
-function visibleSchedulePopPrintButton() {
-  return Array.from(document.querySelectorAll("button"))
-    .find((candidate) => {
-      if (candidate.id?.startsWith("golfops-")) return false;
-      if (clean(candidate.textContent).toLowerCase() !== "print") return false;
-      const style = window.getComputedStyle(candidate);
-      const bounds = candidate.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && bounds.width > 0 && bounds.height > 0;
-    }) || null;
-}
-
-function addSyncButton() {
-  if (
-    document.getElementById(
-      "golfops-schedulepop-sync"
-    )
-  ) {
-    return;
+function showSchedulePopStatus(message, type = "normal") {
+  let box = document.getElementById("golfops-schedulepop-status");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "golfops-schedulepop-status";
+    Object.assign(box.style, {
+      position: "fixed", right: "20px", bottom: "20px", zIndex: "2147483647",
+      padding: "14px 18px", borderRadius: "10px", fontFamily: "Arial, sans-serif",
+      fontSize: "14px", fontWeight: "600", color: "white",
+      boxShadow: "0 4px 16px rgba(0,0,0,0.25)", maxWidth: "440px"
+    });
+    document.documentElement.appendChild(box);
   }
-
-  const button =
-    document.createElement(
-      "button"
-    );
-
-  button.id =
-    "golfops-schedulepop-sync";
-
-  button.type =
-    "button";
-
-  button.textContent =
-    "Send to GolfOps";
-
-  Object.assign(
-    button.style,
-    {
-      position: "fixed",
-      left: "20px",
-      bottom: "20px",
-      zIndex:
-        "2147483646",
-      padding:
-        "11px 16px",
-      border: "0",
-      borderRadius:
-        "8px",
-      background:
-        "#2563eb",
-      color: "white",
-      fontFamily:
-        "Arial, sans-serif",
-      fontSize: "14px",
-      fontWeight: "700",
-      cursor: "pointer",
-      boxShadow:
-        "0 4px 14px rgba(0,0,0,0.22)"
-    }
-  );
-
-  runSchedulePopSync =
-    async () => {
-      if (button.disabled) return;
-
-      button.disabled = true;
-      button.style.opacity = "0.7";
-
-      let schedulePromise;
-      const nativePrintButton = visibleSchedulePopPrintButton();
-
-      if (nativePrintButton) {
-        showSchedulePopStatus(
-          "Creating the current SchedulePop report and sending schedule plus PTO to GolfOps Live..."
-        );
-        schedulePromise = waitForScheduleReport();
-        nativePrintButton.click();
-      } else if (lastReportUrl) {
-        schedulePromise = importSchedule(lastReportUrl, true);
-      } else {
-        showSchedulePopStatus(
-          "Open SchedulePop Print Options, confirm the date range and zones, then click Send to GolfOps.",
-          "error"
-        );
-        button.disabled = false;
-        button.style.opacity = "1";
-        return;
-      }
-
-      const [scheduleResult, ptoResult] = await Promise.all([
-        schedulePromise,
-        runPtoSync()
-      ]);
-
-      button.disabled = false;
-      button.style.opacity = "1";
-
-      if (!scheduleResult?.ok) {
-        showSchedulePopStatus(
-          scheduleResult?.error || "The SchedulePop schedule could not be sent.",
-          "error"
-        );
-        return;
-      }
-
-      if (!ptoResult?.ok) {
-        showSchedulePopStatus(
-          `The schedule was updated, but PTO failed: ${ptoResult?.error || "Unknown error."}`,
-          "error"
-        );
-        return;
-      }
-
-      showSchedulePopStatus(
-        `GolfOps updated â€” ${scheduleResult.rowsImported || 0} staffing records imported and approved PTO synchronized.`,
-        "success"
-      );
-    };
-
-  document.documentElement
-    .appendChild(button);
+  box.textContent = message;
+  box.style.background = type === "success" ? "#15803d" : type === "error" ? "#b91c1c" : "#334155";
 }
 
 function localDateString(date) {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0")
-  ].join("-");
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")].join("-");
+}
+
+function parseLocalDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function displayedScheduleWeek() {
+  const url = new URL(window.location.href);
+  const selected = parseLocalDate(url.searchParams.get("date")) ||
+    parseLocalDate(url.searchParams.get("start")) || new Date();
+  const start = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 12);
+  start.setDate(start.getDate() - start.getDay());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return { dateStart: localDateString(start), dateEnd: localDateString(end) };
 }
 
 function ptoDateRange() {
@@ -797,212 +65,171 @@ function ptoDateRange() {
   start.setMonth(start.getMonth() - 1);
   const end = new Date();
   end.setMonth(end.getMonth() + 18);
-  return {
-    dateStart: localDateString(start),
-    dateEnd: localDateString(end)
-  };
+  return { dateStart: localDateString(start), dateEnd: localDateString(end) };
+}
+
+function createPendingSync(pendingMap, timeout, timeoutMessage) {
+  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const promise = new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      pendingMap.delete(requestId);
+      resolve({ ok: false, error: timeoutMessage });
+    }, timeout);
+    pendingMap.set(requestId, { resolve, timer });
+  });
+  return { requestId, promise };
+}
+
+function runDirectScheduleSync() {
+  const pending = createPendingSync(
+    pendingScheduleSyncs, 60000,
+    "SchedulePop schedule collection timed out. Refresh the Schedule page and try again."
+  );
+  window.dispatchEvent(new CustomEvent(SCHEDULEPOP_SCHEDULE_COMMAND_EVENT, {
+    detail: { requestId: pending.requestId, ...displayedScheduleWeek() }
+  }));
+  return pending.promise;
 }
 
 function runPtoSync() {
-  const requestId =
-    `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-  showSchedulePopStatus(
-    "Collecting approved TEAM PTO from SchedulePop..."
+  const pending = createPendingSync(
+    pendingPtoSyncs, 120000,
+    "SchedulePop PTO collection timed out. Keep SchedulePop open and try again."
   );
-
-  const promise = new Promise((resolve) => {
-    const timer = window.setTimeout(() => {
-      pendingPtoSyncs.delete(requestId);
-      resolve({
-        ok: false,
-        error: "SchedulePop PTO collection timed out. Keep SchedulePop open and try again."
-      });
-    }, 120000);
-    pendingPtoSyncs.set(requestId, { resolve, timer });
-  });
-
-  window.dispatchEvent(
-    new CustomEvent(
-      SCHEDULEPOP_PTO_COMMAND_EVENT,
-      { detail: { requestId, ...ptoDateRange() } }
-    )
-  );
-
-  return promise;
+  window.dispatchEvent(new CustomEvent(SCHEDULEPOP_PTO_COMMAND_EVENT, {
+    detail: { requestId: pending.requestId, ...ptoDateRange() }
+  }));
+  return pending.promise;
 }
 
-window.addEventListener(
-  SCHEDULEPOP_PTO_DATA_EVENT,
-  async (event) => {
-    const detail = event.detail || {};
-    let result;
+function resolvePending(pendingMap, requestId, result) {
+  const pending = requestId ? pendingMap.get(requestId) : null;
+  if (!pending) return;
+  window.clearTimeout(pending.timer);
+  pendingMap.delete(requestId);
+  pending.resolve(result);
+}
 
+window.addEventListener(SCHEDULEPOP_SCHEDULE_DATA_EVENT, async (event) => {
+  const detail = event.detail || {};
+  let result;
+  try {
     if (detail.error) {
       result = { ok: false, error: detail.error };
     } else if (detail.collectInExtension) {
-      try {
-        const collected = await sendMessage({
-          type: "COLLECT_SCHEDULEPOP_PTO",
-          payload: {
-            requestId: detail.requestId,
-            authorization: detail.authorization,
-            locationId: detail.locationId,
-            dateStart: detail.dateStart,
-            dateEnd: detail.dateEnd
-          }
-        });
-
-        result = collected?.ok
-          ? await sendMessage({
-              type: "SEND_SCHEDULEPOP_PTO",
-              payload: collected.payload
-            })
-          : {
-              ok: false,
-              error: collected?.error || "Unable to collect TEAM PTO from SchedulePop."
-            };
-      } catch (error) {
-        result = {
-          ok: false,
-          error: error instanceof Error ? error.message : "Unable to collect TEAM PTO from SchedulePop."
-        };
-      }
+      const collected = await sendMessage({
+        type: "COLLECT_SCHEDULEPOP_SCHEDULE",
+        payload: {
+          requestId: detail.requestId, authorization: detail.authorization,
+          locationId: detail.locationId, dateStart: detail.dateStart, dateEnd: detail.dateEnd
+        }
+      });
+      result = collected?.ok
+        ? await sendMessage({ type: "SEND_SCHEDULEPOP", payload: collected.payload })
+        : { ok: false, error: collected?.error || "Unable to collect the SchedulePop schedule." };
     } else {
-      try {
-        result = await sendMessage({
-          type: "SEND_SCHEDULEPOP_PTO",
-          payload: detail
-        });
-      } catch (error) {
-        result = {
-          ok: false,
-          error: error instanceof Error ? error.message : "Unable to contact GolfOps Live."
-        };
-      }
+      result = { ok: false, error: "SchedulePop did not return schedule data." };
     }
-
-    const pending = detail.requestId
-      ? pendingPtoSyncs.get(detail.requestId)
-      : null;
-    if (pending) {
-      window.clearTimeout(pending.timer);
-      pendingPtoSyncs.delete(detail.requestId);
-      pending.resolve(result);
-    }
-
-    if (result?.ok) {
-      const calendar = result.calendar || {};
-      const calendarMessage = calendar.configured === false
-        ? " PTO was saved; Google Calendar setup is still required."
-        : ` Calendar: ${calendar.created || 0} added, ${calendar.updated || 0} updated, ${calendar.removed || 0} removed.`;
-      showSchedulePopStatus(
-        `TEAM PTO synchronized — ${result.requestsImported || 0} SchedulePop records processed.${calendarMessage}`,
-        "success"
-      );
-    } else if (detail.requestId) {
-      showSchedulePopStatus(
-        result?.error || "Unable to synchronize TEAM PTO.",
-        "error"
-      );
-    }
+  } catch (error) {
+    result = { ok: false, error: error instanceof Error ? error.message : "Unable to contact GolfOps Live." };
   }
-);
-
-window.addEventListener(
-  SCHEDULEPOP_EVENT,
-  (event) => {
-    if (
-      typeof event.detail ===
-      "string"
-    ) {
-      handleScheduleReport(event.detail);
-    }
-  }
-);
-
-const observer =
-  new PerformanceObserver(
-    (list) => {
-      for (
-        const entry of
-        list.getEntries()
-      ) {
-        handleScheduleReport(entry.name);
-      }
-    }
-  );
-
-observer.observe({
-  type: "resource",
-  buffered: true
+  resolvePending(pendingScheduleSyncs, detail.requestId, result);
 });
 
-if (
-  document.readyState ===
-  "loading"
-) {
-  document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-      addSyncButton();
-    },
-    {
-      once: true
+window.addEventListener(SCHEDULEPOP_PTO_DATA_EVENT, async (event) => {
+  const detail = event.detail || {};
+  let result;
+  try {
+    if (detail.error) {
+      result = { ok: false, error: detail.error };
+    } else if (detail.collectInExtension) {
+      const collected = await sendMessage({
+        type: "COLLECT_SCHEDULEPOP_PTO",
+        payload: {
+          requestId: detail.requestId, authorization: detail.authorization,
+          locationId: detail.locationId, dateStart: detail.dateStart, dateEnd: detail.dateEnd
+        }
+      });
+      result = collected?.ok
+        ? await sendMessage({ type: "SEND_SCHEDULEPOP_PTO", payload: collected.payload })
+        : { ok: false, error: collected?.error || "Unable to collect TEAM PTO from SchedulePop." };
+    } else {
+      result = await sendMessage({ type: "SEND_SCHEDULEPOP_PTO", payload: detail });
     }
-  );
+  } catch (error) {
+    result = { ok: false, error: error instanceof Error ? error.message : "Unable to contact GolfOps Live." };
+  }
+  resolvePending(pendingPtoSyncs, detail.requestId, result);
+});
+
+function addSyncButton() {
+  if (document.getElementById("golfops-schedulepop-sync")) return;
+  const button = document.createElement("button");
+  button.id = "golfops-schedulepop-sync";
+  button.type = "button";
+  button.textContent = "Send to GolfOps";
+  Object.assign(button.style, {
+    position: "fixed", left: "20px", bottom: "20px", zIndex: "2147483646",
+    padding: "11px 16px", border: "0", borderRadius: "8px", background: "#2563eb",
+    color: "white", fontFamily: "Arial, sans-serif", fontSize: "14px", fontWeight: "700",
+    cursor: "pointer", boxShadow: "0 4px 14px rgba(0,0,0,0.22)"
+  });
+
+  runSchedulePopSync = async () => {
+    if (button.disabled) return;
+    button.disabled = true;
+    button.style.opacity = "0.7";
+    showSchedulePopStatus("Sending the displayed SchedulePop week and approved PTO to GolfOps Live...");
+    const [scheduleResult, ptoResult] = await Promise.all([runDirectScheduleSync(), runPtoSync()]);
+    button.disabled = false;
+    button.style.opacity = "1";
+
+    if (!scheduleResult?.ok) {
+      showSchedulePopStatus(scheduleResult?.error || "The SchedulePop schedule could not be sent.", "error");
+      return;
+    }
+    if (!ptoResult?.ok) {
+      showSchedulePopStatus(
+        `The schedule was updated, but PTO failed: ${ptoResult?.error || "Unknown error."}`, "error"
+      );
+      return;
+    }
+    showSchedulePopStatus(
+      `GolfOps updated — ${scheduleResult.rowsImported || 0} staffing records imported and approved PTO synchronized.`,
+      "success"
+    );
+  };
+
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    runSchedulePopSync();
+  });
+  document.documentElement.appendChild(button);
+}
+
+window.addEventListener("pointerdown", (event) => {
+  const target = event.target instanceof Element
+    ? event.target.closest("#golfops-schedulepop-sync") : null;
+  if (!target || !runSchedulePopSync) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  runSchedulePopSync();
+}, true);
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", addSyncButton, { once: true });
 } else {
   addSyncButton();
 }
-/*
-  Receive SchedulePop report URLs
-  detected by the background worker.
-*/
 
-chrome.runtime.onMessage
-  .addListener(
-    (
-      message,
-      sender,
-      sendResponse
-    ) => {
-      if (
-        message?.type ===
-        "START_SCHEDULEPOP_PTO_SYNC"
-      ) {
-        runPtoSync()
-          .then(sendResponse)
-          .catch((error) => {
-            sendResponse({
-              ok: false,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Unable to synchronize TEAM PTO."
-            });
-          });
-
-        return true;
-      }
-
-      if (
-        message?.type !==
-        "SCHEDULEPOP_REPORT_DETECTED"
-      ) {
-        return false;
-      }
-
-      if (
-        typeof message.url ===
-        "string"
-      ) {
-        handleScheduleReport(message.url);
-      }
-
-      sendResponse({
-        ok: true
-      });
-
-      return false;
-    }
-  );
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type !== "START_SCHEDULEPOP_PTO_SYNC") return false;
+  runPtoSync().then(sendResponse).catch((error) => {
+    sendResponse({
+      ok: false,
+      error: error instanceof Error ? error.message : "Unable to synchronize TEAM PTO."
+    });
+  });
+  return true;
+});
