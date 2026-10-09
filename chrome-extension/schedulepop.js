@@ -15,6 +15,8 @@ let lastReportUrl = "";
 const pendingPtoSyncs =
   new Map();
 
+let pendingScheduleSync = null;
+
 function clean(value) {
   return String(value ?? "")
     .replace(/\s+/g, " ")
@@ -452,7 +454,10 @@ async function importSchedule(
         reportUrl
       );
   } catch {
-    return;
+    return {
+      ok: false,
+      error: "SchedulePop did not provide a valid schedule report URL."
+    };
   }
 
   if (
@@ -465,7 +470,10 @@ async function importSchedule(
       "printJob"
     ) !== "schedule"
   ) {
-    return;
+    return {
+      ok: false,
+      error: "SchedulePop did not provide a printable schedule report."
+    };
   }
 
   const format =
@@ -479,7 +487,10 @@ async function importSchedule(
     format !== "PDF" &&
     format !== "HTML"
   ) {
-    return;
+    return {
+      ok: false,
+      error: "SchedulePop must produce the report as PDF or HTML."
+    };
   }
 
   lastReportUrl =
@@ -505,7 +516,10 @@ async function importSchedule(
       reportKey
     )
   ) {
-    return;
+    return {
+      ok: true,
+      skipped: true
+    };
   }
 
   processedReports.add(
@@ -573,6 +587,13 @@ async function importSchedule(
       `GolfOps updated â€” ${result.rowsImported} staffing records imported for ${parsed.dateStart} through ${parsed.dateEnd}.`,
       "success"
     );
+
+    return {
+      ok: true,
+      rowsImported: result.rowsImported,
+      dateStart: parsed.dateStart,
+      dateEnd: parsed.dateEnd
+    };
   } catch (error) {
     processedReports.delete(
       reportKey
@@ -584,7 +605,52 @@ async function importSchedule(
         : "Unable to import the SchedulePop schedule.",
       "error"
     );
+
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to import the SchedulePop schedule."
+    };
   }
+}
+
+function handleScheduleReport(reportUrl) {
+  if (pendingScheduleSync) {
+    const pending = pendingScheduleSync;
+    pendingScheduleSync = null;
+    window.clearTimeout(pending.timer);
+    importSchedule(reportUrl, true).then(pending.resolve);
+    return;
+  }
+
+  importSchedule(reportUrl);
+}
+
+function waitForScheduleReport() {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      pendingScheduleSync = null;
+      resolve({
+        ok: false,
+        error: "SchedulePop did not create the schedule report. Keep Print Options open and try again."
+      });
+    }, 30000);
+
+    pendingScheduleSync = { resolve, timer };
+  });
+}
+
+function visibleSchedulePopPrintButton() {
+  return Array.from(document.querySelectorAll("button"))
+    .find((candidate) => {
+      if (candidate.id?.startsWith("golfops-")) return false;
+      if (clean(candidate.textContent).toLowerCase() !== "print") return false;
+      const style = window.getComputedStyle(candidate);
+      const bounds = candidate.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && bounds.width > 0 && bounds.height > 0;
+    }) || null;
 }
 
 function addSyncButton() {
@@ -615,7 +681,7 @@ function addSyncButton() {
     {
       position: "fixed",
       left: "20px",
-      bottom: "74px",
+      bottom: "20px",
       zIndex:
         "2147483646",
       padding:
@@ -638,19 +704,58 @@ function addSyncButton() {
 
   button.addEventListener(
     "click",
-    () => {
-      if (!lastReportUrl) {
+    async () => {
+      button.disabled = true;
+      button.style.opacity = "0.7";
+
+      let schedulePromise;
+      const nativePrintButton = visibleSchedulePopPrintButton();
+
+      if (nativePrintButton) {
         showSchedulePopStatus(
-          "Use SchedulePop Print and choose PDF or HTML once. GolfOps will then import that schedule automatically.",
+          "Creating the current SchedulePop report and sending schedule plus PTO to GolfOps Live..."
+        );
+        schedulePromise = waitForScheduleReport();
+        nativePrintButton.click();
+      } else if (lastReportUrl) {
+        schedulePromise = importSchedule(lastReportUrl, true);
+      } else {
+        showSchedulePopStatus(
+          "Open SchedulePop Print Options, confirm the date range and zones, then click Send to GolfOps.",
           "error"
         );
-
+        button.disabled = false;
+        button.style.opacity = "1";
         return;
       }
 
-      importSchedule(
-        lastReportUrl,
-        true
+      const [scheduleResult, ptoResult] = await Promise.all([
+        schedulePromise,
+        runPtoSync()
+      ]);
+
+      button.disabled = false;
+      button.style.opacity = "1";
+
+      if (!scheduleResult?.ok) {
+        showSchedulePopStatus(
+          scheduleResult?.error || "The SchedulePop schedule could not be sent.",
+          "error"
+        );
+        return;
+      }
+
+      if (!ptoResult?.ok) {
+        showSchedulePopStatus(
+          `The schedule was updated, but PTO failed: ${ptoResult?.error || "Unknown error."}`,
+          "error"
+        );
+        return;
+      }
+
+      showSchedulePopStatus(
+        `GolfOps updated â€” ${scheduleResult.rowsImported || 0} staffing records imported and approved PTO synchronized.`,
+        "success"
       );
     }
   );
@@ -706,46 +811,6 @@ function runPtoSync() {
   );
 
   return promise;
-}
-
-function addPtoSyncButton() {
-  if (document.getElementById("golfops-schedulepop-pto-sync")) return;
-
-  const button = document.createElement("button");
-  button.id = "golfops-schedulepop-pto-sync";
-  button.type = "button";
-  button.textContent = "Sync Approved PTO";
-
-  Object.assign(button.style, {
-    position: "fixed",
-    left: "20px",
-    bottom: "20px",
-    zIndex: "2147483646",
-    padding: "11px 16px",
-    border: "0",
-    borderRadius: "8px",
-    background: "#0f766e",
-    color: "white",
-    fontFamily: "Arial, sans-serif",
-    fontSize: "14px",
-    fontWeight: "700",
-    cursor: "pointer",
-    boxShadow: "0 4px 14px rgba(0,0,0,0.22)"
-  });
-
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    const result = await runPtoSync();
-    button.disabled = false;
-    if (!result?.ok) {
-      showSchedulePopStatus(
-        result?.error || "Unable to synchronize TEAM PTO.",
-        "error"
-      );
-    }
-  });
-
-  document.documentElement.appendChild(button);
 }
 
 window.addEventListener(
@@ -832,9 +897,7 @@ window.addEventListener(
       typeof event.detail ===
       "string"
     ) {
-      importSchedule(
-        event.detail
-      );
+      handleScheduleReport(event.detail);
     }
   }
 );
@@ -846,9 +909,7 @@ const observer =
         const entry of
         list.getEntries()
       ) {
-        importSchedule(
-          entry.name
-        );
+        handleScheduleReport(entry.name);
       }
     }
   );
@@ -866,7 +927,6 @@ if (
     "DOMContentLoaded",
     () => {
       addSyncButton();
-      addPtoSyncButton();
     },
     {
       once: true
@@ -874,7 +934,6 @@ if (
   );
 } else {
   addSyncButton();
-  addPtoSyncButton();
 }
 /*
   Receive SchedulePop report URLs
@@ -918,9 +977,7 @@ chrome.runtime.onMessage
         typeof message.url ===
         "string"
       ) {
-        importSchedule(
-          message.url
-        );
+        handleScheduleReport(message.url);
       }
 
       sendResponse({
