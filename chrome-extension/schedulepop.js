@@ -17,6 +17,25 @@ const pendingPtoSyncs =
 
 let pendingScheduleSync = null;
 
+let runSchedulePopSync = null;
+
+window.addEventListener(
+  "pointerdown",
+  (event) => {
+    const target =
+      event.target instanceof Element
+        ? event.target.closest("#golfops-schedulepop-sync")
+        : null;
+
+    if (!target || !runSchedulePopSync) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    runSchedulePopSync();
+  },
+  true
+);
+
 function clean(value) {
   return String(value ?? "")
     .replace(/\s+/g, " ")
@@ -702,9 +721,10 @@ function addSyncButton() {
     }
   );
 
-  button.addEventListener(
-    "click",
+  runSchedulePopSync =
     async () => {
+      if (button.disabled) return;
+
       button.disabled = true;
       button.style.opacity = "0.7";
 
@@ -757,8 +777,7 @@ function addSyncButton() {
         `GolfOps updated â€” ${scheduleResult.rowsImported || 0} staffing records imported and approved PTO synchronized.`,
         "success"
       );
-    }
-  );
+    };
 
   document.documentElement
     .appendChild(button);

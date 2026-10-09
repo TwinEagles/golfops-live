@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.5.4";
+  "1.5.5";
 
 const EXTENSION_RELEASE_DATE =
   "October 9, 2026";
@@ -54,9 +54,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.5.4",
+    version: "1.5.5",
     date: "October 9, 2026",
     current: true,
+    highlights: [
+      "Keeps SchedulePop Print Options available when Send to GolfOps is selected.",
+      "Captures the selected report before SchedulePop can dismiss the Print Options panel.",
+    ],
+  },
+  {
+    version: "1.5.4",
+    date: "October 9, 2026",
+    current: false,
     highlights: [
       "Uses one Send to GolfOps action to import the current SchedulePop report and synchronize approved PTO.",
       "Forces same-week schedule changes to reimport and includes every zone selected in SchedulePop Print Options.",
