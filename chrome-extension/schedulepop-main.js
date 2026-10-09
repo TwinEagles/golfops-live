@@ -151,39 +151,24 @@
     const requestId = detail?.requestId || null;
     try {
       if (!locationId) throw new Error("Open the SchedulePop Dashboard or Users page once, then try TEAM PTO again.");
+      if (!schedulePopAuthorization) {
+        throw new Error(
+          "SchedulePop authorization was not detected. Refresh the SchedulePop page, wait for the dashboard to load, and try again."
+        );
+      }
       const dateStart = String(detail?.dateStart || "");
       const dateEnd = String(detail?.dateEnd || "");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStart) || !/^\d{4}-\d{2}-\d{2}$/.test(dateEnd)) {
         throw new Error("The TEAM PTO date range is invalid.");
       }
 
-      const base = `https://api.schedulepop.com/api/rest/admin/locations/${locationId}`;
-      const usersResult = await fetchJson(
-        `${base}/users?fields=id,firstname,lastname,email,userStatusTypeName,userDuties,userZones`
-      );
-      const userList = asArray(usersResult).filter((user) => Number(user?.id) > 0);
-      if (!userList.length) throw new Error("SchedulePop did not return the employee directory.");
-
-      const failures = [];
-      const collected = await mapWithConcurrency(userList, 4, async (listedUser) => {
-        const userId = Number(listedUser.id);
-        try {
-          const [employeeResult, ptoResult] = await Promise.all([
-            fetchJson(`${base}/users/${userId}`),
-            fetchJson(`${base}/users/${userId}/availabilities?available=0&recurs=0&start=${encodeURIComponent(dateStart)}&end=${encodeURIComponent(dateEnd)}`),
-          ]);
-          return { employee: sanitizeEmployee(employeeResult), requests: asArray(ptoResult).map(sanitizePto).filter(Boolean) };
-        } catch (error) {
-          failures.push(`${listedUser.firstname || "Employee"} ${listedUser.lastname || userId}: ${error instanceof Error ? error.message : "Unable to retrieve PTO."}`);
-          return { employee: sanitizeEmployee(listedUser), requests: [] };
-        }
-      });
-
       emitPto({
-        requestId, sourceMode: "full", action: "upsert", locationId, dateStart, dateEnd,
-        employees: collected.map((item) => item.employee).filter(Boolean),
-        requests: collected.flatMap((item) => item.requests), complete: failures.length === 0,
-        sourceErrors: failures,
+        requestId,
+        collectInExtension: true,
+        authorization: schedulePopAuthorization,
+        locationId,
+        dateStart,
+        dateEnd,
       });
     } catch (error) {
       emitPto({ requestId, error: error instanceof Error ? error.message : "Unable to collect SchedulePop PTO." });

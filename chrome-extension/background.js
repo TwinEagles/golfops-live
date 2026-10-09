@@ -433,6 +433,151 @@ async function fetchSchedulePopReport(
   }
 }
 
+function schedulePopArray(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+}
+
+function sanitizeSchedulePopEmployee(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    id: Number(value.id),
+    firstname: value.firstname || "",
+    lastname: value.lastname || "",
+    email: value.email || "",
+    userStatusTypeName: value.userStatusTypeName || "",
+    userDuties: Array.isArray(value.userDuties)
+      ? value.userDuties.map((duty) => ({
+          id: duty?.id,
+          duty: duty?.duty,
+          name: duty?.name,
+          disabled: duty?.disabled,
+          activeDuty: duty?.activeDuty
+        }))
+      : [],
+    userZones: Array.isArray(value.userZones)
+      ? value.userZones.map((zone) => ({
+          id: zone?.id,
+          zone: zone?.zone,
+          zoneName: zone?.zoneName,
+          enabled: zone?.enabled
+        }))
+      : []
+  };
+}
+
+function sanitizeSchedulePopPto(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    id: Number(value.id),
+    user: Number(value.user),
+    firstname: value.firstname || "",
+    lastname: value.lastname || "",
+    start: value.start || "",
+    end: value.end || "",
+    allDay: value.allDay !== false,
+    approved: value.approved === true,
+    isDeleted: value.isDeleted === true,
+    status: value.status || "PTO",
+    managerNote: value.managerNote || null,
+    createDatetime: value.createDatetime || null,
+    updateDatetime: value.updateDatetime || null
+  };
+}
+
+async function schedulePopMapWithConcurrency(values, limit, mapper) {
+  const results = new Array(values.length);
+  let next = 0;
+  async function worker() {
+    while (next < values.length) {
+      const index = next++;
+      results[index] = await mapper(values[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, values.length) }, worker));
+  return results;
+}
+
+async function collectSchedulePopPto(payload) {
+  try {
+    const authorization = String(payload?.authorization || "").trim();
+    const locationId = Number(payload?.locationId);
+    const dateStart = String(payload?.dateStart || "");
+    const dateEnd = String(payload?.dateEnd || "");
+
+    if (!/^Bearer\s+\S+/i.test(authorization)) {
+      throw new Error("SchedulePop authorization was not detected. Refresh SchedulePop and try again.");
+    }
+    if (!Number.isInteger(locationId) || locationId <= 0) {
+      throw new Error("The SchedulePop location could not be identified.");
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStart) || !/^\d{4}-\d{2}-\d{2}$/.test(dateEnd)) {
+      throw new Error("The TEAM PTO date range is invalid.");
+    }
+
+    const headers = { Accept: "application/json", Authorization: authorization };
+    const fetchJson = async (url) => {
+      const response = await fetch(url, { method: "GET", cache: "no-store", headers });
+      if (!response.ok) throw new Error(`SchedulePop returned ${response.status}.`);
+      return response.json();
+    };
+    const base = `https://api.schedulepop.com/api/rest/admin/locations/${locationId}`;
+    const usersResult = await fetchJson(
+      `${base}/users?fields=id,firstname,lastname,email,userStatusTypeName,userDuties,userZones`
+    );
+    const userList = schedulePopArray(usersResult).filter((user) => Number(user?.id) > 0);
+    if (!userList.length) throw new Error("SchedulePop did not return the employee directory.");
+
+    const failures = [];
+    const collected = await schedulePopMapWithConcurrency(userList, 4, async (listedUser) => {
+      const userId = Number(listedUser.id);
+      try {
+        const [employeeResult, ptoResult] = await Promise.all([
+          fetchJson(`${base}/users/${userId}`),
+          fetchJson(
+            `${base}/users/${userId}/availabilities?available=0&recurs=0&start=${encodeURIComponent(dateStart)}&end=${encodeURIComponent(dateEnd)}`
+          )
+        ]);
+        return {
+          employee: sanitizeSchedulePopEmployee(employeeResult),
+          requests: schedulePopArray(ptoResult).map(sanitizeSchedulePopPto).filter(Boolean)
+        };
+      } catch (error) {
+        failures.push(
+          `${listedUser.firstname || "Employee"} ${listedUser.lastname || userId}: ${
+            error instanceof Error ? error.message : "Unable to retrieve PTO."
+          }`
+        );
+        return { employee: sanitizeSchedulePopEmployee(listedUser), requests: [] };
+      }
+    });
+
+    return {
+      ok: true,
+      payload: {
+        requestId: payload?.requestId || null,
+        sourceMode: "full",
+        action: "upsert",
+        locationId,
+        dateStart,
+        dateEnd,
+        employees: collected.map((item) => item.employee).filter(Boolean),
+        requests: collected.flatMap((item) => item.requests),
+        complete: failures.length === 0,
+        sourceErrors: failures
+      }
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unable to collect SchedulePop PTO."
+    };
+  }
+}
+
 function isTrustedGolfOpsSender(
   sender
 ) {
@@ -821,6 +966,27 @@ chrome.runtime.onMessage.addListener(
         operation =
           sendAuthenticatedRequest(
             "/api/schedulepop/pto/extension",
+            message.payload
+          );
+      }
+    } else if (
+      message?.type ===
+      "COLLECT_SCHEDULEPOP_PTO"
+    ) {
+      if (
+        !isTrustedSchedulePopSender(
+          sender
+        )
+      ) {
+        operation =
+          Promise.resolve({
+            ok: false,
+            error:
+              "SchedulePop PTO collection was rejected because it did not originate from SchedulePop."
+          });
+      } else {
+        operation =
+          collectSchedulePopPto(
             message.payload
           );
       }

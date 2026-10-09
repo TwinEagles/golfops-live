@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.5.1";
+  "1.5.2";
 
 const EXTENSION_RELEASE_DATE =
   "October 9, 2026";
@@ -54,9 +54,18 @@ const extensionApplications = [
 
 const releaseHistory = [
   {
-    version: "1.5.1",
+    version: "1.5.2",
     date: "October 9, 2026",
     current: true,
+    highlights: [
+      "Collects approved PTO through the extension background worker to avoid SchedulePop browser CORS restrictions.",
+      "Keeps SchedulePop authorization temporary and local to the extension during synchronization.",
+    ],
+  },
+  {
+    version: "1.5.1",
+    date: "October 9, 2026",
+    current: false,
     highlights: [
       "Reuses SchedulePop's active in-page authorization for approved PTO collection.",
       "Keeps the SchedulePop bearer credential inside the SchedulePop browser tab.",

@@ -756,6 +756,34 @@ window.addEventListener(
 
     if (detail.error) {
       result = { ok: false, error: detail.error };
+    } else if (detail.collectInExtension) {
+      try {
+        const collected = await sendMessage({
+          type: "COLLECT_SCHEDULEPOP_PTO",
+          payload: {
+            requestId: detail.requestId,
+            authorization: detail.authorization,
+            locationId: detail.locationId,
+            dateStart: detail.dateStart,
+            dateEnd: detail.dateEnd
+          }
+        });
+
+        result = collected?.ok
+          ? await sendMessage({
+              type: "SEND_SCHEDULEPOP_PTO",
+              payload: collected.payload
+            })
+          : {
+              ok: false,
+              error: collected?.error || "Unable to collect TEAM PTO from SchedulePop."
+            };
+      } catch (error) {
+        result = {
+          ok: false,
+          error: error instanceof Error ? error.message : "Unable to collect TEAM PTO from SchedulePop."
+        };
+      }
     } else {
       try {
         result = await sendMessage({
