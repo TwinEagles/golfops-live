@@ -118,6 +118,8 @@ async function golfGeniusExpandDirectory() {
 
 async function golfGeniusParseDirectory() {
   await golfGeniusExpandDirectory();
+  const pageText = golfGeniusClean(document.body?.innerText);
+  const explicitlyEmpty = /\bno events found\b/i.test(pageText);
   const anchors = Array.from(document.querySelectorAll("a[href]"));
   const viewAnchors = anchors.filter((anchor) => /^view$/i.test(golfGeniusClean(anchor.textContent)));
   const candidates = viewAnchors.length > 0
@@ -156,11 +158,11 @@ async function golfGeniusParseDirectory() {
     .find((url) => /\/directory_iframe(?:[/?#]|$)/i.test(url));
 
   return {
-    ok: byId.size > 0,
+    ok: byId.size > 0 || explicitlyEmpty,
     events: Array.from(byId.values()),
-    frameUrl: byId.size === 0 ? directoryFrame || null : null,
+    frameUrl: byId.size === 0 && !explicitlyEmpty ? directoryFrame || null : null,
     pageTitle: document.title,
-    error: byId.size > 0
+    error: byId.size > 0 || explicitlyEmpty
       ? null
       : directoryFrame
         ? "Golf Genius directory content is inside an embedded frame."

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type SyncState = "idle" | "working" | "success" | "error";
+type SyncState = "idle" | "working" | "success" | "warning" | "error";
 
 type SyncResult = {
   ok?: boolean;
@@ -68,7 +68,7 @@ export default function GolfGeniusSyncButton() {
       }
 
       const errors = result.directoryErrors?.length ?? 0;
-      setState(errors > 0 ? "error" : "success");
+      setState(errors > 0 ? "warning" : "success");
       setMessage(
         `Golf Genius sync complete: ${result.eventCount ?? 0} event${result.eventCount === 1 ? "" : "s"} and ${result.registrationCount ?? 0} registration${result.registrationCount === 1 ? "" : "s"}.${errors ? ` ${errors} directory warning${errors === 1 ? "" : "s"}.` : ""}`
       );
@@ -101,7 +101,7 @@ export default function GolfGeniusSyncButton() {
       clearTimers();
       requestId.current = null;
       setState("error");
-      setMessage("GolfOps Chrome extension version 1.6.1 is required. Replace or reload the extension and try again.");
+      setMessage("GolfOps Chrome extension version 1.6.2 is required. Replace or reload the extension and try again.");
     }, 2500);
 
     resultTimer.current = window.setTimeout(() => {
@@ -132,7 +132,7 @@ export default function GolfGeniusSyncButton() {
           role="status"
           className={[
             "fixed bottom-4 left-1/2 z-[100] w-[min(92vw,680px)] -translate-x-1/2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-xl",
-            state === "success" ? "bg-emerald-700" : state === "error" ? "bg-red-700" : "bg-slate-800",
+            state === "success" ? "bg-emerald-700" : state === "warning" ? "bg-amber-600" : state === "error" ? "bg-red-700" : "bg-slate-800",
           ].join(" ")}
         >
           <div className="flex items-start justify-between gap-4">
