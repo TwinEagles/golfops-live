@@ -101,7 +101,7 @@ export default function GolfGeniusSyncButton() {
       clearTimers();
       requestId.current = null;
       setState("error");
-      setMessage("GolfOps Chrome extension version 1.6.2 is required. Replace or reload the extension and try again.");
+      setMessage("GolfOps Chrome extension version 1.6.3 is required. Replace or reload the extension and try again.");
     }, 2500);
 
     resultTimer.current = window.setTimeout(() => {

@@ -1120,9 +1120,8 @@ function golfGeniusDateInRange(value) {
   const eventDate = new Date(`${value}T12:00:00`);
   const earliest = new Date();
   earliest.setHours(0, 0, 0, 0);
-  earliest.setDate(earliest.getDate() - 7);
   const latest = new Date(earliest);
-  latest.setDate(latest.getDate() + 187);
+  latest.setDate(latest.getDate() + 30);
   return eventDate >= earliest && eventDate <= latest;
 }
 
