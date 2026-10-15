@@ -36,6 +36,30 @@ function displayTime(value: string) {
   });
 }
 
+function displayClockTime(value: string | null) {
+  if (!value) return null;
+  const [hourText, minute = "00"] = value.split(":");
+  let hour = Number(hourText);
+  if (!Number.isFinite(hour)) return value;
+  const meridiem = hour >= 12 ? "PM" : "AM";
+  if (hour === 0) hour = 12;
+  else if (hour > 12) hour -= 12;
+  return `${hour}:${minute} ${meridiem}`;
+}
+
+type GolfGeniusDashboardEvent = {
+  id: string;
+  event_type: "CLINIC" | "FITTING";
+  event_name: string;
+  start_time: string | null;
+  location: string | null;
+  golfgenius_registrations: Array<{
+    id: string;
+    participant_name: string;
+    appointment_time: string | null;
+  }>;
+};
+
 function requestLabel(value: string) {
   if (value === "PRACTICE") return "Practice";
   if (value === "TAKEAWAY") return "Takeaway";
@@ -101,7 +125,7 @@ export default async function OperationsPage() {
   const today = easternDateString();
 
 
-  const { slotsResult, changesResult, importResult, requestsResult, lessonsResult, cartsResult, damageResult, cleaningResult, settingsResult, outsideItemsResult, outsideCompletionsResult, handoffsResult, scheduleStaffResult, scheduleImportResult, version } = await loadOperationsData(supabase, access.clubId, today);
+  const { slotsResult, changesResult, importResult, requestsResult, lessonsResult, golfGeniusResult, cartsResult, damageResult, cleaningResult, settingsResult, outsideItemsResult, outsideCompletionsResult, handoffsResult, scheduleStaffResult, scheduleImportResult, version } = await loadOperationsData(supabase, access.clubId, today);
 
   const slots = slotsResult.data ?? [];
   const occupiedPlayers = slots.filter((slot) => Boolean(slot.player_name));
@@ -119,6 +143,7 @@ export default async function OperationsPage() {
   const requests = requestsResult.data ?? [];
   const lessons = lessonsResult.data ?? [];
   const lessonCount = lessons.length;
+  const golfGeniusEvents = (golfGeniusResult.data ?? []) as GolfGeniusDashboardEvent[];
   const carts = cartsResult.data ?? [];
   const activeCarts = carts.filter(
     (cart) => (cart.status ?? "ACTIVE").trim().toUpperCase() === "ACTIVE"
@@ -166,7 +191,6 @@ export default async function OperationsPage() {
     ? Math.round((outsideCompleteCount / outsideItemCount) * 100)
     : 0;
   const scheduledStaff = (scheduleStaffResult.data ?? []).filter((row) => row.status === "SCHEDULED");
-  const scheduledToday = scheduledStaff.length;
   const unavailableStaff = (scheduleStaffResult.data ?? []).filter(
     (row) => row.status === "TIME_OFF" || row.status === "UNAVAILABLE"
   );
@@ -382,36 +406,44 @@ export default async function OperationsPage() {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
+          <section className="overflow-hidden rounded-xl border border-emerald-400/40 bg-[var(--golfops-card,var(--golfops-surface))] shadow-[var(--golfops-shadow)]">
             <header className="border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-5 py-4">
               <div className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-text-muted)]">
-                Coming Connections
+                Player Development
               </div>
-              <h2 className="mt-1 text-xl font-bold">Operational Integrations</h2>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-bold">Today&apos;s Clinics &amp; Fittings</h2>
+                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">{golfGeniusEvents.length}</span>
+              </div>
             </header>
-            <div className="divide-y divide-[var(--golfops-border)]">
-              <Link prefetch={false} href="/outside-operations" className="block px-5 py-4 transition hover:bg-[var(--golfops-surface-soft)]">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold">SchedulePop Staffing</span>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${scheduleImportedAt ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{scheduleImportedAt ? `${scheduledToday} Scheduled Today` : "Not Imported"}</span>
-                </div>
-                <p className="mt-2 text-sm text-[var(--golfops-text-muted)]">{scheduleImportedAt ? `Latest schedule imported ${displayTime(scheduleImportedAt)}.` : "Upload a SchedulePop PDF from Outside Operations."}</p>
-              </Link>
-              <div className="px-5 py-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold">E-Z-GO PACE</span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">Pending Access</span>
-                </div>
-                <p className="mt-2 text-sm text-[var(--golfops-text-muted)]">Cart locations, group pace, alerts, and projected return times.</p>
+            {golfGeniusEvents.length === 0 ? (
+              <div className="px-5 py-8 text-center text-sm text-[var(--golfops-text-muted)]">No clinics or fitting events scheduled today.</div>
+            ) : (
+              <div className="divide-y divide-[var(--golfops-border)]">
+                {golfGeniusEvents.map((event) => {
+                  const registrations = event.golfgenius_registrations ?? [];
+                  const visibleNames = registrations.slice(0, 8).map((registration) => registration.participant_name);
+                  return (
+                    <div key={event.id} className="px-5 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-semibold">{event.event_name}</div>
+                          <div className="mt-1 text-sm text-[var(--golfops-text-muted)]">
+                            {[event.event_type === "FITTING" ? "Fitting Event" : "Clinic", displayClockTime(event.start_time), event.location].filter(Boolean).join(" • ")}
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">{registrations.length} registered</span>
+                      </div>
+                      {visibleNames.length > 0 && (
+                        <p className="mt-2 text-sm leading-5 text-[var(--golfops-text-muted)]">
+                          {visibleNames.join(", ")}{registrations.length > visibleNames.length ? ` +${registrations.length - visibleNames.length} more` : ""}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="px-5 py-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold">ForeTees Monitor</span>
-                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600">Next Phase</span>
-                </div>
-                <p className="mt-2 text-sm text-[var(--golfops-text-muted)]">Automatic tee sheet monitoring and immediate change communication.</p>
-              </div>
-            </div>
+            )}
           </section>
         </div>
 

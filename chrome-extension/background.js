@@ -1125,7 +1125,9 @@ function golfGeniusDateInRange(value) {
   return eventDate >= earliest && eventDate <= latest;
 }
 
-async function collectGolfGeniusPrograms(trigger = "MANUAL") {
+let golfGeniusSyncPromise = null;
+
+async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
   const session = await getStoredSession();
   if (!session.refresh_token) {
     return { ok: false, error: "GolfOps Live extension is not signed in. Open Extension Options and sign in." };
@@ -1212,6 +1214,14 @@ async function collectGolfGeniusPrograms(trigger = "MANUAL") {
   return result;
 }
 
+function collectGolfGeniusPrograms(trigger = "MANUAL") {
+  if (golfGeniusSyncPromise) return golfGeniusSyncPromise;
+  golfGeniusSyncPromise = collectGolfGeniusProgramsOnce(trigger).finally(() => {
+    golfGeniusSyncPromise = null;
+  });
+  return golfGeniusSyncPromise;
+}
+
 function scheduleNextGolfGeniusSync(delayMinutes = null) {
   const when = new Date();
   if (typeof delayMinutes === "number") {
@@ -1223,13 +1233,8 @@ function scheduleNextGolfGeniusSync(delayMinutes = null) {
   chrome.alarms.create(GOLFGENIUS_ALARM, { when: when.getTime() });
 }
 
-chrome.runtime.onInstalled.addListener(() => scheduleNextGolfGeniusSync(5));
-chrome.runtime.onStartup.addListener(async () => {
-  const stored = await golfGeniusStorageGet(["golfgenius_last_attempt_at"]);
-  const lastAttempt = Date.parse(stored.golfgenius_last_attempt_at || "");
-  const stale = !Number.isFinite(lastAttempt) || Date.now() - lastAttempt > 20 * 60 * 60 * 1000;
-  scheduleNextGolfGeniusSync(stale ? 3 : null);
-});
+chrome.runtime.onInstalled.addListener(() => scheduleNextGolfGeniusSync());
+chrome.runtime.onStartup.addListener(() => scheduleNextGolfGeniusSync());
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== GOLFGENIUS_ALARM) return;
   collectGolfGeniusPrograms("DAILY").catch(() => undefined).finally(() => scheduleNextGolfGeniusSync());

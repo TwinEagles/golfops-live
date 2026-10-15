@@ -200,6 +200,7 @@ export async function loadOperationsData(supabase: Awaited<ReturnType<typeof cre
     importResult,
     requestsResult,
     lessonsResult,
+    golfGeniusResult,
     cartsResult,
     damageResult,
     cleaningResult,
@@ -250,6 +251,27 @@ export async function loadOperationsData(supabase: Awaited<ReturnType<typeof cre
           .eq("club_id", clubId)
           .eq("lesson_date", date)
           .eq("source", "FORETEES")
+      : Promise.resolve(emptyResult),
+    canProShop
+      ? supabase
+          .from("golfgenius_events")
+          .select(`
+            id,
+            event_type,
+            event_name,
+            start_time,
+            location,
+            golfgenius_registrations (
+              id,
+              participant_name,
+              appointment_time
+            )
+          `)
+          .eq("club_id", clubId)
+          .eq("event_date", date)
+          .eq("active", true)
+          .order("start_time", { ascending: true, nullsFirst: false })
+          .order("event_name", { ascending: true })
       : Promise.resolve(emptyResult),
     canGolfCarts
       ? supabase
@@ -319,13 +341,13 @@ export async function loadOperationsData(supabase: Awaited<ReturnType<typeof cre
       : Promise.resolve(emptyResult),
   ]);
 
-  const results = [slotsResult, changesResult, importResult, requestsResult, lessonsResult, cartsResult, damageResult, cleaningResult, settingsResult, outsideItemsResult, outsideCompletionsResult, handoffsResult, scheduleStaffResult, scheduleImportResult];
+  const results = [slotsResult, changesResult, importResult, requestsResult, lessonsResult, golfGeniusResult, cartsResult, damageResult, cleaningResult, settingsResult, outsideItemsResult, outsideCompletionsResult, handoffsResult, scheduleStaffResult, scheduleImportResult];
   const ok = results.every(result => !result.error);
   const settings = settingsResult.data?.settings as Record<string, unknown> | undefined;
   const days = typeof settings?.cartDetailingDays === "number" ? settings.cartDetailingDays : 30;
   const timeState = (cleaningResult.data ?? []).map(row => ({ cart: row.cart_id, due: new Date(row.cleaned_at).getTime() + days * 86400000 <= Date.now() }));
   const version = ok ? dataVersion({ date, results: results.map(result => result.data), timeState }) : null;
-  return { slotsResult, changesResult, importResult, requestsResult, lessonsResult, cartsResult, damageResult, cleaningResult, settingsResult, outsideItemsResult, outsideCompletionsResult, handoffsResult, scheduleStaffResult, scheduleImportResult, version };
+  return { slotsResult, changesResult, importResult, requestsResult, lessonsResult, golfGeniusResult, cartsResult, damageResult, cleaningResult, settingsResult, outsideItemsResult, outsideCompletionsResult, handoffsResult, scheduleStaffResult, scheduleImportResult, version };
 }
 
 export async function loadChangesData(supabase: Awaited<ReturnType<typeof createClient>>, clubId: string, selectedDate: string, view: string, selectedType: string, showCleared: boolean, retentionDays: number, settings: unknown) {
