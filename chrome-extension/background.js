@@ -1142,7 +1142,11 @@ async function collectGolfGeniusPrograms(trigger = "MANUAL") {
     for (const directory of GOLFGENIUS_DIRECTORIES) {
       try {
         await golfGeniusNavigate(tabId, directory.url);
-        const parsedDirectory = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_DIRECTORY");
+        let parsedDirectory = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_DIRECTORY");
+        if (!parsedDirectory?.ok && parsedDirectory?.frameUrl) {
+          await golfGeniusNavigate(tabId, parsedDirectory.frameUrl);
+          parsedDirectory = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_DIRECTORY");
+        }
         if (!parsedDirectory?.ok) throw new Error(parsedDirectory?.error || "The directory could not be read.");
 
         const directoryEvents = Array.isArray(parsedDirectory.events)

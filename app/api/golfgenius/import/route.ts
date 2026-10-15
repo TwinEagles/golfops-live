@@ -309,6 +309,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: status !== "ERROR",
       status,
+      error: status === "ERROR"
+        ? directoryErrors.map((item) => `${item.type}: ${item.error}`).join(" ") || "Golf Genius directories could not be read."
+        : undefined,
       eventCount: events.length,
       registrationCount: registrationRows.length,
       directoryErrors,

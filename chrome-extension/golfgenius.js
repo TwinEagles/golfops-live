@@ -151,11 +151,20 @@ async function golfGeniusParseDirectory() {
     });
   }
 
+  const directoryFrame = Array.from(document.querySelectorAll("iframe[src]"))
+    .map((frame) => golfGeniusAbsoluteUrl(frame.getAttribute("src")))
+    .find((url) => /\/directory_iframe(?:[/?#]|$)/i.test(url));
+
   return {
     ok: byId.size > 0,
     events: Array.from(byId.values()),
+    frameUrl: byId.size === 0 ? directoryFrame || null : null,
     pageTitle: document.title,
-    error: byId.size > 0 ? null : "No Golf Genius event cards were found on the directory page."
+    error: byId.size > 0
+      ? null
+      : directoryFrame
+        ? "Golf Genius directory content is inside an embedded frame."
+        : "No Golf Genius event cards were found on the directory page."
   };
 }
 
