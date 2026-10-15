@@ -1023,6 +1023,215 @@ async function pullForeTeesTeeSheet(
   };
 }
 
+const GOLFGENIUS_DIRECTORIES = [
+  {
+    ggid: "qsnypb",
+    type: "CLINIC",
+    url: "https://www.golfgenius.com/ggid/qsnypb"
+  },
+  {
+    ggid: "cghk44",
+    type: "FITTING",
+    url: "https://www.golfgenius.com/ggid/cghk44"
+  }
+];
+
+const GOLFGENIUS_ALARM =
+  "golfgenius-daily-sync";
+
+function golfGeniusStorageGet(keys) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(keys, (result) => resolve(result || {}));
+  });
+}
+
+function golfGeniusStorageSet(values) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set(values, resolve);
+  });
+}
+
+function golfGeniusCreateTab(url) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.create({ url, active: false }, (tab) => {
+      if (chrome.runtime.lastError || !Number.isInteger(tab?.id)) {
+        reject(new Error(chrome.runtime.lastError?.message || "Unable to open Golf Genius in the background."));
+        return;
+      }
+      resolve(tab.id);
+    });
+  });
+}
+
+function golfGeniusCloseTab(tabId) {
+  return new Promise((resolve) => {
+    chrome.tabs.remove(tabId, () => {
+      void chrome.runtime.lastError;
+      resolve();
+    });
+  });
+}
+
+function golfGeniusNavigate(tabId, url) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error("Golf Genius took too long to load."));
+    }, 30000);
+
+    function listener(updatedTabId, changeInfo) {
+      if (updatedTabId !== tabId || changeInfo.status !== "complete") return;
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(listener);
+      setTimeout(resolve, 1200);
+    }
+
+    chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.update(tabId, { url, active: false }, () => {
+      if (!chrome.runtime.lastError) return;
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error(chrome.runtime.lastError.message));
+    });
+  });
+}
+
+async function golfGeniusAskTab(tabId, type) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const result = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(tabId, { type }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ ok: false, unavailable: true, error: chrome.runtime.lastError.message });
+          return;
+        }
+        resolve(response || { ok: false, error: "Golf Genius returned no page data." });
+      });
+    });
+    if (!result.unavailable) return result;
+    lastError = result.error;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return { ok: false, error: lastError || "The Golf Genius page reader did not load." };
+}
+
+function golfGeniusDateInRange(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
+  const eventDate = new Date(`${value}T12:00:00`);
+  const earliest = new Date();
+  earliest.setHours(0, 0, 0, 0);
+  earliest.setDate(earliest.getDate() - 7);
+  const latest = new Date(earliest);
+  latest.setDate(latest.getDate() + 187);
+  return eventDate >= earliest && eventDate <= latest;
+}
+
+async function collectGolfGeniusPrograms(trigger = "MANUAL") {
+  const session = await getStoredSession();
+  if (!session.refresh_token) {
+    return { ok: false, error: "GolfOps Live extension is not signed in. Open Extension Options and sign in." };
+  }
+
+  let tabId = null;
+  const events = [];
+  const directories = [];
+
+  try {
+    tabId = await golfGeniusCreateTab("about:blank");
+
+    for (const directory of GOLFGENIUS_DIRECTORIES) {
+      try {
+        await golfGeniusNavigate(tabId, directory.url);
+        const parsedDirectory = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_DIRECTORY");
+        if (!parsedDirectory?.ok) throw new Error(parsedDirectory?.error || "The directory could not be read.");
+
+        const directoryEvents = Array.isArray(parsedDirectory.events)
+          ? parsedDirectory.events.filter((event) => golfGeniusDateInRange(event?.date)).slice(0, 60)
+          : [];
+
+        for (const listedEvent of directoryEvents) {
+          const event = {
+            ...listedEvent,
+            directoryGgid: directory.ggid,
+            type: directory.type,
+            participants: []
+          };
+
+          try {
+            await golfGeniusNavigate(tabId, listedEvent.sourceUrl);
+            const eventDetails = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_EVENT");
+            if (eventDetails?.ok) {
+              event.startTime = eventDetails.startTime || null;
+              event.endTime = eventDetails.endTime || null;
+              event.location = eventDetails.location || event.location || null;
+              event.sourceText = eventDetails.sourceText || event.sourceText || null;
+
+              if (eventDetails.participantUrl) {
+                await golfGeniusNavigate(tabId, eventDetails.participantUrl);
+                const roster = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_PARTICIPANTS");
+                if (roster?.ok && Array.isArray(roster.participants)) {
+                  event.participants = roster.participants;
+                }
+              }
+            }
+          } catch (error) {
+            event.detailError = error instanceof Error ? error.message : "Event details could not be read.";
+          }
+
+          events.push(event);
+        }
+
+        directories.push({ ggid: directory.ggid, type: directory.type, complete: true, error: null });
+      } catch (error) {
+        directories.push({
+          ggid: directory.ggid,
+          type: directory.type,
+          complete: false,
+          error: error instanceof Error ? error.message : "The Golf Genius directory could not be read."
+        });
+      }
+    }
+  } finally {
+    if (Number.isInteger(tabId)) await golfGeniusCloseTab(tabId);
+  }
+
+  const result = await sendAuthenticatedRequest("/api/golfgenius/import", {
+    trigger,
+    events,
+    directories
+  });
+
+  await golfGeniusStorageSet({
+    golfgenius_last_attempt_at: new Date().toISOString(),
+    golfgenius_last_result: result
+  });
+
+  return result;
+}
+
+function scheduleNextGolfGeniusSync(delayMinutes = null) {
+  const when = new Date();
+  if (typeof delayMinutes === "number") {
+    when.setTime(Date.now() + delayMinutes * 60000);
+  } else {
+    when.setHours(5, 15, 0, 0);
+    if (when.getTime() <= Date.now()) when.setDate(when.getDate() + 1);
+  }
+  chrome.alarms.create(GOLFGENIUS_ALARM, { when: when.getTime() });
+}
+
+chrome.runtime.onInstalled.addListener(() => scheduleNextGolfGeniusSync(5));
+chrome.runtime.onStartup.addListener(async () => {
+  const stored = await golfGeniusStorageGet(["golfgenius_last_attempt_at"]);
+  const lastAttempt = Date.parse(stored.golfgenius_last_attempt_at || "");
+  const stale = !Number.isFinite(lastAttempt) || Date.now() - lastAttempt > 20 * 60 * 60 * 1000;
+  scheduleNextGolfGeniusSync(stale ? 3 : null);
+});
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== GOLFGENIUS_ALARM) return;
+  collectGolfGeniusPrograms("DAILY").catch(() => undefined).finally(() => scheduleNextGolfGeniusSync());
+});
+
 chrome.runtime.onMessage.addListener(
   (
     message,
@@ -1059,6 +1268,25 @@ chrome.runtime.onMessage.addListener(
           pullForeTeesTeeSheet(
             message.sheetDate
           );
+      }
+    } else if (
+      message?.type ===
+      "PULL_GOLFGENIUS_PROGRAMS"
+    ) {
+      if (
+        !isTrustedGolfOpsSender(
+          sender
+        )
+      ) {
+        operation =
+          Promise.resolve({
+            ok: false,
+            error:
+              "The Golf Genius sync request was rejected."
+          });
+      } else {
+        operation =
+          collectGolfGeniusPrograms("MANUAL");
       }
     } else if (
       message?.type ===

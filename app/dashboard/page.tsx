@@ -11,6 +11,7 @@ import AppNav from "@/components/AppNav";
 import TeeSheetDateSelector from "@/components/TeeSheetDateSelector";
 import TeeSheetLiveRefresh from "@/components/TeeSheetLiveRefresh";
 import ForeTeesRefreshButton from "@/components/ForeTeesRefreshButton";
+import GolfGeniusSyncButton from "@/components/GolfGeniusSyncButton";
 import { easternDateString } from "@/lib/golfops-date";
 
 function formatStartingHole(
@@ -246,6 +247,25 @@ type ForeTeesLesson = {
   lesson_type: string | null;
 };
 
+type GolfGeniusRegistration = {
+  id: string;
+  participant_name: string;
+  appointment_time: string | null;
+  registration_status: string;
+};
+
+type GolfGeniusEvent = {
+  id: string;
+  event_type: "CLINIC" | "FITTING";
+  event_name: string;
+  event_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  registration_status: string | null;
+  golfgenius_registrations: GolfGeniusRegistration[];
+};
+
 type GroupedTeeTime = {
   teeTime: string;
   course: string;
@@ -388,7 +408,7 @@ const today =
   /*
     Load selected day's tee sheet.
   */
-  const [teeSheetResult, lessonsResult] = await Promise.all([
+  const [teeSheetResult, lessonsResult, golfGeniusResult, golfGeniusSyncResult] = await Promise.all([
     supabase
       .from("tee_sheet_slots")
       .select(`
@@ -429,6 +449,38 @@ const today =
       .eq("lesson_date", selectedDate)
       .eq("source", "FORETEES")
       .order("lesson_time", { ascending: true }),
+
+    supabase
+      .from("golfgenius_events")
+      .select(`
+        id,
+        event_type,
+        event_name,
+        event_date,
+        start_time,
+        end_time,
+        location,
+        registration_status,
+        golfgenius_registrations (
+          id,
+          participant_name,
+          appointment_time,
+          registration_status
+        )
+      `)
+      .eq("club_id", profile.club_id)
+      .eq("event_date", selectedDate)
+      .eq("active", true)
+      .order("start_time", { ascending: true, nullsFirst: false })
+      .order("event_name", { ascending: true }),
+
+    supabase
+      .from("golfgenius_sync_runs")
+      .select("status, imported_at")
+      .eq("club_id", profile.club_id)
+      .order("imported_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const { data, error } = teeSheetResult;
@@ -444,6 +496,13 @@ const today =
   }
 
   const lessons = (lessonsResult.data ?? []) as ForeTeesLesson[];
+
+  if (golfGeniusResult.error) {
+    console.error("Golf Genius program load error:", golfGeniusResult.error);
+  }
+
+  const golfGeniusEvents = (golfGeniusResult.data ?? []) as GolfGeniusEvent[];
+  const latestGolfGeniusSync = golfGeniusSyncResult.data ?? null;
 
   /*
     Load live PACE cart status only while
@@ -810,6 +869,98 @@ const today =
             ) : (
               <p className="text-sm text-[var(--golfops-text-muted)]">
                 No ForeTees lessons scheduled for this date.
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* GOLF GENIUS CLINICS AND FITTING EVENTS */}
+        <section className="mb-4 overflow-hidden rounded-lg border border-emerald-400/40 bg-[var(--golfops-surface)]">
+          <div className="flex flex-col gap-3 px-4 py-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-base text-emerald-500">
+                  ◉
+                </span>
+                <div>
+                  <h2 className="font-bold text-[var(--golfops-text)]">
+                    {selectedDate === today
+                      ? "Today’s Clinics & Fittings"
+                      : selectedDate === tomorrow
+                        ? "Tomorrow’s Clinics & Fittings"
+                        : "Clinics & Fittings"}
+                  </h2>
+                  <p className="text-xs text-[var(--golfops-text-dim)]">
+                    {golfGeniusEvents.length} scheduled
+                    {latestGolfGeniusSync?.imported_at
+                      ? ` • last checked ${new Date(latestGolfGeniusSync.imported_at).toLocaleString("en-US", {
+                          timeZone: "America/New_York",
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}`
+                      : ""}
+                  </p>
+                </div>
+              </div>
+
+              <GolfGeniusSyncButton />
+            </div>
+
+            {golfGeniusEvents.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {golfGeniusEvents.map((event) => {
+                  const registrations = event.golfgenius_registrations ?? [];
+                  return (
+                    <article
+                      key={event.id}
+                      className="rounded-lg border border-emerald-400/25 bg-emerald-500/5 px-3 py-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            {event.start_time && (
+                              <span className="shrink-0 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                {formatTime(event.start_time)}
+                              </span>
+                            )}
+                            <h3 className="truncate text-sm font-bold text-[var(--golfops-text)]">
+                              {event.event_name}
+                            </h3>
+                          </div>
+                          <div className="mt-1 text-[11px] text-[var(--golfops-text-muted)]">
+                            {[event.event_type === "FITTING" ? "Fitting Event" : "Clinic", event.location]
+                              .filter(Boolean)
+                              .join(" • ")}
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                          {registrations.length} registered
+                        </span>
+                      </div>
+
+                      {registrations.length > 0 && (
+                        <div className="mt-2 border-t border-emerald-400/20 pt-2 text-xs leading-5 text-[var(--golfops-text-secondary)]">
+                          {registrations.map((registration) => (
+                            <span key={registration.id} className="mr-3 inline-block">
+                              {registration.appointment_time && (
+                                <strong className="mr-1 text-emerald-700 dark:text-emerald-300">
+                                  {formatTime(registration.appointment_time)}
+                                </strong>
+                              )}
+                              {registration.participant_name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--golfops-text-muted)]">
+                No Golf Genius clinics or fitting events scheduled for this date.
               </p>
             )}
           </div>

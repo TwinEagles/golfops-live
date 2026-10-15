@@ -89,6 +89,57 @@ window.addEventListener(
       event.source !== window ||
       event.origin !== window.location.origin ||
       event.data?.source !== PAGE_SOURCE ||
+      event.data?.type !== "PULL_GOLFGENIUS_PROGRAMS" ||
+      typeof event.data?.requestId !== "string"
+    ) {
+      return;
+    }
+
+    const requestId = event.data.requestId;
+
+    window.postMessage(
+      {
+        source: EXTENSION_SOURCE,
+        type: "GOLFGENIUS_SYNC_ACK",
+        requestId
+      },
+      window.location.origin
+    );
+
+    chrome.runtime.sendMessage(
+      { type: "PULL_GOLFGENIUS_PROGRAMS" },
+      (response) => {
+        const result = chrome.runtime.lastError
+          ? {
+              ok: false,
+              error: chrome.runtime.lastError.message || "Unable to contact the GolfOps extension."
+            }
+          : response || {
+              ok: false,
+              error: "The GolfOps extension did not return a Golf Genius result."
+            };
+
+        window.postMessage(
+          {
+            source: EXTENSION_SOURCE,
+            type: "GOLFGENIUS_SYNC_RESULT",
+            requestId,
+            result
+          },
+          window.location.origin
+        );
+      }
+    );
+  }
+);
+
+window.addEventListener(
+  "message",
+  (event) => {
+    if (
+      event.source !== window ||
+      event.origin !== window.location.origin ||
+      event.data?.source !== PAGE_SOURCE ||
       event.data?.type !== "PULL_SCHEDULEPOP_PTO" ||
       typeof event.data?.requestId !== "string"
     ) {
