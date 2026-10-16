@@ -10,10 +10,10 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.5.6";
+  "1.6.4";
 
 const EXTENSION_RELEASE_DATE =
-  "October 9, 2026";
+  "October 15, 2026";
 
 const extensionApplications = [
   {
@@ -50,13 +50,36 @@ const extensionApplications = [
       "Live cart pace synchronization",
     ],
   },
+  {
+    name: "Golf Genius",
+    description:
+      "Imports upcoming clinics, fitting events, and registration lists.",
+    workflows: [
+      "Clinics and fittings",
+    ],
+  },
 ];
+
+const extensionWorkflowCount = extensionApplications.reduce(
+  (count, application) => count + application.workflows.length,
+  0
+);
 
 const releaseHistory = [
   {
+    version: "1.6.4",
+    date: "October 15, 2026",
+    current: true,
+    highlights: [
+      "Imports Golf Genius clinics, fitting events, and participant registrations scheduled within the next 30 days.",
+      "Displays today's Clinics & Fittings on the Tee Sheet and Operations dashboard.",
+      "Runs the automatic Golf Genius check only at 5:15 AM and prevents overlapping manual and scheduled syncs.",
+    ],
+  },
+  {
     version: "1.5.6",
     date: "October 9, 2026",
-    current: true,
+    current: false,
     highlights: [
       "Sends the displayed SchedulePop week directly from SchedulePop's authenticated schedule data.",
       "No longer requires Print Options, a printable report, zone selection, or a PDF.",
@@ -400,7 +423,7 @@ export default function IntegrationsManager() {
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
-                Import staff-requested ForeTees tee sheets and lessons, synchronize ForeTees Admin bag slots, send SchedulePop staffing, and connect live PACE cart status to GolfOps Live.
+                Import ForeTees tee sheets and lessons, synchronize bag slots, staffing and PTO, connect live PACE status, and import Golf Genius clinics and fittings.
               </p>
             </div>
           </div>
@@ -419,16 +442,16 @@ export default function IntegrationsManager() {
                 </h3>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  One extension connects four applications and five GolfOps workflows.
+                  One extension connects {extensionApplications.length} applications and {extensionWorkflowCount} GolfOps workflows.
                 </p>
               </div>
 
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                4 applications · 5 workflows
+                {extensionApplications.length} applications · {extensionWorkflowCount} workflows
               </span>
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {extensionApplications.map((application) => (
                 <article
                   key={application.name}
@@ -522,7 +545,12 @@ export default function IntegrationsManager() {
                   and use the extension
                   with ForeTees,
                   ForeTees Admin, and
-                  SchedulePop. To use the
+                  SchedulePop. Golf Genius
+                  clinics and fittings check
+                  automatically at 5:15 AM
+                  when Chrome is running, or
+                  when Sync Golf Genius is
+                  selected. To use the
                   GolfOps Update from ForeTees
                   button, keep the matching
                   normal live ForeTees tee sheet
