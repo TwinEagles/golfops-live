@@ -12,7 +12,9 @@ import TeeSheetDateSelector from "@/components/TeeSheetDateSelector";
 import TeeSheetLiveRefresh from "@/components/TeeSheetLiveRefresh";
 import ForeTeesRefreshButton from "@/components/ForeTeesRefreshButton";
 import GolfGeniusSyncButton from "@/components/GolfGeniusSyncButton";
+import PlayerArrivalCard from "@/components/PlayerArrivalCard";
 import { easternDateString } from "@/lib/golfops-date";
+import { teeSheetArrivalIdentityKey } from "@/lib/tee-sheet-arrival";
 
 function formatStartingHole(
   startingPosition: string | null,
@@ -408,7 +410,7 @@ const today =
   /*
     Load selected day's tee sheet.
   */
-  const [teeSheetResult, lessonsResult, golfGeniusResult, golfGeniusSyncResult] = await Promise.all([
+  const [teeSheetResult, arrivalsResult, lessonsResult, golfGeniusResult, golfGeniusSyncResult] = await Promise.all([
     supabase
       .from("tee_sheet_slots")
       .select(`
@@ -435,6 +437,12 @@ const today =
       .order("starting_hole", { ascending: true })
       .order("starting_position", { ascending: true })
       .order("slot_position", { ascending: true }),
+
+    supabase
+      .from("tee_sheet_player_arrivals")
+      .select("identity_key")
+      .eq("club_id", String(profile.club_id))
+      .eq("sheet_date", selectedDate),
 
     supabase
       .from("foretees_lessons")
@@ -490,6 +498,19 @@ const today =
   }
 
   const slots = (data ?? []) as TeeSheetSlot[];
+
+  if (arrivalsResult.error) {
+    console.error("Player arrivals load error:", arrivalsResult.error);
+  }
+
+  const arrivedIdentityKeys = new Set(
+    (arrivalsResult.data ?? []).map((arrival) => arrival.identity_key)
+  );
+
+  const playerHasArrived = (slot: TeeSheetSlot) => {
+    const identityKey = teeSheetArrivalIdentityKey(slot);
+    return Boolean(identityKey && arrivedIdentityKeys.has(identityKey));
+  };
 
   if (lessonsResult.error) {
     console.error("Lessons load error:", lessonsResult.error);
@@ -738,6 +759,10 @@ const today =
           .trim()
           .toUpperCase()
       )
+  ).length;
+
+  const arrivedPlayers = slots.filter(
+    (slot) => slot.player_name && playerHasArrived(slot)
   ).length;
 
   return (
@@ -1123,6 +1148,14 @@ const today =
                   </span>
                 </div>
 
+                <div className="flex items-center gap-2">
+                  <span className="h-5 w-5 rounded border border-slate-400/60 bg-slate-200" />
+
+                  <span>
+                    Player arrived (tap player tile)
+                  </span>
+                </div>
+
                 {showPlayedTodayStar && (
                   <div className="flex items-center gap-2">
                     <span className="text-base">
@@ -1191,6 +1224,14 @@ const today =
 
             <span className="ml-1 text-[var(--golfops-text-dim)]">
               in
+            </span>
+
+            <span className="ml-4 font-bold text-slate-600 dark:text-slate-300">
+              {arrivedPlayers}
+            </span>
+
+            <span className="ml-1 text-[var(--golfops-text-dim)]">
+              arrived
             </span>
           </div>
         </div>
@@ -1349,10 +1390,13 @@ const today =
                       }
 
                       return (
-                        <div
+                        <PlayerArrivalCard
                           key={position}
+                          slotId={player.id}
+                          playerName={player.player_name}
+                          initialArrived={playerHasArrived(player)}
                           className={[
-                            "relative min-h-[108px] border-b border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-4 py-3 md:row-start-1 md:min-h-0 md:border-b-0 md:border-r md:px-3 md:py-2",
+                            "relative min-h-[108px] border-b border-[var(--golfops-border)] px-4 py-3 md:row-start-1 md:min-h-0 md:border-b-0 md:border-r md:px-3 md:py-2",
                             [
                               "md:col-start-2",
                               "md:col-start-3",
@@ -1379,7 +1423,7 @@ const today =
                           </div>
 
                           {/* CHECK BOX */}
-                          <div className="absolute right-2 top-2">
+                          <div className="pointer-events-auto absolute right-2 top-2">
                             <BagStatusButton
                               slotId={
                                 player.id
@@ -1407,7 +1451,7 @@ const today =
                           </div>
 
                           {/* CART NUMBER */}
-                          <div className="mt-3">
+                          <div className="pointer-events-auto mt-3 w-fit">
                             <CartNumberInput
                               slotId={
                                 player.id
@@ -1417,7 +1461,7 @@ const today =
                               }
                             />
                           </div>
-                        </div>
+                        </PlayerArrivalCard>
                       );
                     }
                   )}
