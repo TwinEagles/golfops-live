@@ -45,7 +45,9 @@ export default function TvClock({
         suppressHydrationWarning
         className={[
           "font-bold tabular-nums tracking-tight text-[var(--golfops-text)]",
-          isStarter ? "text-5xl leading-none" : "text-4xl",
+          isStarter
+            ? "text-6xl leading-none xl:text-7xl 2xl:text-8xl"
+            : "text-4xl",
         ].join(" ")}
       >
         {time}
@@ -55,7 +57,9 @@ export default function TvClock({
         suppressHydrationWarning
         className={[
           "font-medium text-[var(--golfops-text-muted)]",
-          isStarter ? "mt-2 text-base" : "mt-1 text-sm",
+          isStarter
+            ? "mt-3 text-base 2xl:text-lg"
+            : "mt-1 text-sm",
         ].join(" ")}
       >
         {date}
