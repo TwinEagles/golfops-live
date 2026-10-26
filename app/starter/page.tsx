@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import AppNav from "@/components/AppNav";
 import PerryWeatherWidget from "@/components/PerryWeatherWidget";
 import StarterTeeSheetScroller from "@/components/StarterTeeSheetScroller";
+import TvClock from "@/components/TvClock";
 import { easternDateString } from "@/lib/golfops-date";
 import { getGolfOpsAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
@@ -359,13 +359,8 @@ export default async function StarterPage() {
     importResult.data?.created_at ?? null;
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
-      <AppNav
-        active="starter"
-        selectedDate={today}
-      />
-
-      <main className="grid h-[calc(100vh-65px)] min-h-0 gap-4 p-4 lg:grid-cols-[minmax(0,3fr)_minmax(420px,2fr)]">
+    <div className="h-dvh overflow-hidden bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
+      <main className="grid h-full min-h-0 gap-4 p-4 lg:grid-cols-[minmax(0,3fr)_minmax(420px,2fr)]">
         <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-surface)] shadow-sm">
           <header className="shrink-0 border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-5 py-4">
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -501,9 +496,19 @@ export default async function StarterPage() {
           </StarterTeeSheetScroller>
         </section>
 
-        <div className="min-h-0">
-          <PerryWeatherWidget variant="starter" />
-        </div>
+        <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4">
+          <section className="rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-6 py-5 shadow-sm">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--golfops-accent)]">
+              Current Time · Eastern
+            </p>
+
+            <TvClock variant="starter" />
+          </section>
+
+          <div className="min-h-0">
+            <PerryWeatherWidget variant="starter" />
+          </div>
+        </aside>
       </main>
     </div>
   );

@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-export default function TvClock() {
+type TvClockProps = {
+  variant?: "default" | "starter";
+};
+
+export default function TvClock({
+  variant = "default",
+}: TvClockProps) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -16,21 +22,43 @@ export default function TvClock() {
     };
   }, []);
 
-  return (
-    <div className="text-right">
-      <div className="text-4xl font-bold tabular-nums tracking-tight text-[var(--golfops-text)]">
-        {now.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })}
-      </div>
+  const isStarter = variant === "starter";
 
-      <div className="mt-1 text-sm font-medium text-[var(--golfops-text-muted)]">
-        {now.toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        })}
+  const time = now.toLocaleTimeString("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+    second: isStarter ? "2-digit" : undefined,
+  });
+
+  const date = now.toLocaleDateString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  return (
+    <div className={isStarter ? "text-left" : "text-right"}>
+      <time
+        dateTime={now.toISOString()}
+        suppressHydrationWarning
+        className={[
+          "font-bold tabular-nums tracking-tight text-[var(--golfops-text)]",
+          isStarter ? "text-5xl leading-none" : "text-4xl",
+        ].join(" ")}
+      >
+        {time}
+      </time>
+
+      <div
+        suppressHydrationWarning
+        className={[
+          "font-medium text-[var(--golfops-text-muted)]",
+          isStarter ? "mt-2 text-base" : "mt-1 text-sm",
+        ].join(" ")}
+      >
+        {date}
       </div>
     </div>
   );

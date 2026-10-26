@@ -44,13 +44,13 @@ export default function PerryWeatherWidget({
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-surface)] shadow-sm">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--golfops-border)] px-5 py-4">
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--golfops-border)] px-4 py-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--golfops-accent)]">
             Perry Weather
           </p>
 
-          <h2 className="text-xl font-bold text-[var(--golfops-text)]">
+          <h2 className="text-lg font-bold text-[var(--golfops-text)]">
             Today&apos;s Weather
           </h2>
         </div>
