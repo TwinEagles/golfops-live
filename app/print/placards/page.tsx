@@ -75,13 +75,6 @@ function normalize(value: string | null | undefined) {
     .toLowerCase();
 }
 
-function formatDate(value: string) {
-  const [year, month, day] =
-    value.split("-").map(Number);
-
-  return `${month}/${day}/${year}`;
-}
-
 function formatTime(value: string) {
   if (!value) {
     return "";
@@ -1090,24 +1083,21 @@ export default async function PrintPlacardsPage({
                   <div className="inner-border">
                     <header className="sign-header">
                       <div className="club-course">
-                        The TwinEagles Club
+                        <div>The TwinEagles Club</div>
 
                         {placard.course ? (
-                          <>
-                            {" - "}
-                            <span
-                              className={[
-                                "course-name",
-                                placard.course.trim().toLowerCase() === "eagle"
-                                  ? "course-eagle"
-                                  : placard.course.trim().toLowerCase() === "talon"
-                                    ? "course-talon"
-                                    : "",
-                              ].filter(Boolean).join(" ")}
-                            >
-                              {placard.course}
-                            </span>
-                          </>
+                          <div
+                            className={[
+                              "course-name",
+                              placard.course.trim().toLowerCase() === "eagle"
+                                ? "course-eagle"
+                                : placard.course.trim().toLowerCase() === "talon"
+                                  ? "course-talon"
+                                  : "",
+                            ].filter(Boolean).join(" ")}
+                          >
+                            {placard.course}
+                          </div>
                         ) : null}
                       </div>
 
@@ -1146,31 +1136,20 @@ export default async function PrintPlacardsPage({
 
                     <footer className="sign-footer">
                       <div className="hole-block">
-                        Hole:{" "}
+                        <span>Hole:</span>
                         <strong>
                           {placard.startingPosition ||
                             "—"}
                         </strong>
                       </div>
 
-                      <div className="date-time-block">
-                        <div>
-                          Date:{" "}
-                          <strong>
-                            {formatDate(
-                              date
-                            )}
-                          </strong>
-                        </div>
-
-                        <div>
-                          Time:{" "}
-                          <strong>
-                            {formatTime(
-                              placard.teeTime
-                            )}
-                          </strong>
-                        </div>
+                      <div className="time-block">
+                        <span>Time:</span>
+                        <strong>
+                          {formatTime(
+                            placard.teeTime
+                          )}
+                        </strong>
                       </div>
                     </footer>
                   </div>
@@ -1315,7 +1294,12 @@ export default async function PrintPlacardsPage({
         }
 
         .course-name {
+          display: block;
+          margin-top: 4px;
+          font-size: 31px;
           font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
         }
 
         .course-eagle {
@@ -1376,22 +1360,33 @@ export default async function PrintPlacardsPage({
           z-index: 3;
           left: 58px;
           right: 58px;
-          bottom: 54px;
+          bottom: 38px;
           display: flex;
           justify-content: space-between;
-          align-items: flex-end;
-          font-size: 27px;
+          align-items: center;
+          gap: 16px;
+          font-size: 34px;
           font-weight: 700;
         }
 
         .hole-block {
-          text-align: left;
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+          white-space: nowrap;
         }
 
-        .date-time-block {
-          min-width: 270px;
-          text-align: right;
-          line-height: 1.2;
+        .time-block {
+          display: flex;
+          align-items: baseline;
+          justify-content: flex-end;
+          gap: 8px;
+          white-space: nowrap;
+        }
+
+        .hole-block strong,
+        .time-block strong {
+          font-size: 38px;
         }
 
         .clean-design .player-name {

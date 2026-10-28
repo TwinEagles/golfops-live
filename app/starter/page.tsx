@@ -419,10 +419,10 @@ export default async function StarterPage() {
                       teeTime.course,
                       teeTime.startingPosition ?? teeTime.startingHole,
                     ].join("|")}
-                    className="grid min-h-[126px] overflow-hidden rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] lg:grid-cols-[112px_repeat(4,minmax(0,1fr))]"
+                    className="grid min-h-[150px] overflow-hidden rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] lg:grid-cols-[112px_repeat(4,minmax(0,1fr))]"
                   >
                     <div className="flex items-center justify-between gap-3 border-b border-[var(--golfops-border)] bg-[var(--golfops-surface-soft)] px-4 py-3 lg:flex-col lg:justify-center lg:border-b-0 lg:border-r lg:px-2 lg:text-center">
-                      <div className="text-lg font-black">
+                      <div className="text-xl font-black 2xl:text-2xl">
                         {formatTime(teeTime.teeTime)}
                       </div>
 
@@ -471,7 +471,7 @@ export default async function StarterPage() {
                             />
                           </div>
 
-                          <div className="mt-3 line-clamp-2 text-base font-bold leading-tight">
+                          <div className="mt-3 line-clamp-2 text-lg font-bold leading-tight 2xl:text-2xl">
                             {player.player_name}
                           </div>
 

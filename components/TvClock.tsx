@@ -46,7 +46,7 @@ export default function TvClock({
         className={[
           "font-bold tabular-nums tracking-tight text-[var(--golfops-text)]",
           isStarter
-            ? "text-6xl leading-none xl:text-7xl 2xl:text-8xl"
+            ? "whitespace-nowrap text-7xl leading-none xl:text-8xl 2xl:text-[7rem]"
             : "text-4xl",
         ].join(" ")}
       >
