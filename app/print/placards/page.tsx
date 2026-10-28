@@ -1296,7 +1296,7 @@ export default async function PrintPlacardsPage({
         .course-name {
           display: block;
           margin-top: 4px;
-          font-size: 40px;
+          font-size: 50px;
           font-weight: 800;
           letter-spacing: 0.08em;
           line-height: 1;
