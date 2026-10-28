@@ -1296,9 +1296,10 @@ export default async function PrintPlacardsPage({
         .course-name {
           display: block;
           margin-top: 4px;
-          font-size: 31px;
+          font-size: 40px;
           font-weight: 800;
           letter-spacing: 0.08em;
+          line-height: 1;
           text-transform: uppercase;
         }
 
@@ -1384,9 +1385,12 @@ export default async function PrintPlacardsPage({
           white-space: nowrap;
         }
 
-        .hole-block strong,
+        .hole-block strong {
+          font-size: 42px;
+        }
+
         .time-block strong {
-          font-size: 38px;
+          font-size: 46px;
         }
 
         .clean-design .player-name {
