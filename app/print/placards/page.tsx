@@ -64,7 +64,7 @@ type Placard = {
   course: string;
   rawStartingPosition: string;
   startingPosition: string;
-  cartNumber: string | null;
+  cartNumbers: string[];
   slotGroup: "A" | "B";
   players: TeeSheetSlot[];
 };
@@ -231,27 +231,22 @@ function buildPlacards(
       continue;
     }
 
+    // Cart signs follow the tee sheet's fixed pairs (slots 1+2 and 3+4).
+    // Cart assignments can be stale or differ after a same-day player change.
     const position =
       rawPosition(
         slot.starting_position,
         slot.starting_hole
       );
 
-    const fallbackCart =
-      slot.slot_position <= 2
-        ? "PAIR-A"
-        : "PAIR-B";
-
-    const cartKey =
-      slot.cart_number?.trim()
-        ? `CART-${slot.cart_number.trim()}`
-        : fallbackCart;
+    const pair =
+      slotGroup(slot.slot_position);
 
     const key = [
       slot.tee_time,
       slot.course ?? "",
       position,
-      cartKey,
+      pair,
     ].join("|");
 
     if (!groups.has(key)) {
@@ -294,8 +289,14 @@ function buildPlacards(
             first.starting_hole
           ),
 
-        cartNumber:
-          first.cart_number,
+        cartNumbers:
+          [...new Set(
+            players
+              .map((player) =>
+                player.cart_number?.trim()
+              )
+              .filter((value): value is string => Boolean(value))
+          )],
 
         slotGroup:
           slotGroup(
@@ -516,14 +517,13 @@ function findPlacardsForChange(
 
     if (
       oldCartNumber &&
-      placard.cartNumber
+      placard.cartNumbers.length > 0
     ) {
       if (
-        normalize(
-          placard.cartNumber
-        ) ===
-        normalize(
-          oldCartNumber
+        placard.cartNumbers.some(
+          (cartNumber) =>
+            normalize(cartNumber) ===
+            normalize(oldCartNumber)
         )
       ) {
         matches.add(
