@@ -644,6 +644,162 @@ function rowContainsNoteMarker(row) {
   });
 }
 
+function isForeTeesAnnouncementsPage() {
+  try {
+    return (
+      new URL(window.location.href).pathname.toLowerCase() ===
+      "/v5/servlet/proshop_jump"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function foreTeesFlyerImageUrl(image, currentDocument) {
+  const source =
+    image.currentSrc ||
+    image.getAttribute("src") ||
+    image.getAttribute("data-src") ||
+    image.getAttribute("data-original");
+
+  if (!source) return null;
+
+  try {
+    const url = new URL(source, currentDocument.location.href);
+    if (
+      url.protocol !== "https:" ||
+      url.hostname.toLowerCase() !== "web.foretees.com" ||
+      !/^\/v5\/AEimages\/twineaglesclub\/.+\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
+    ) {
+      return null;
+    }
+
+    url.search = "";
+    url.hash = "";
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+function collectForeTeesUpcomingFlyers() {
+  const byUrl = new Map();
+
+  for (const currentDocument of getForeTeesDocuments()) {
+    if (!currentDocument.body) continue;
+
+    const textElements = Array.from(
+      currentDocument.body.querySelectorAll(
+        "h1,h2,h3,h4,h5,h6,p,b,strong,i,em,span,div,td,th"
+      )
+    );
+    const heading = textElements.find((element) =>
+      /^upcoming\s+events\s*:?$/i.test(
+        (element.textContent || "").replace(/\s+/g, " ").trim()
+      )
+    );
+
+    if (!heading) continue;
+
+    let ancestor = heading;
+    let bestFlyers = [];
+
+    for (let depth = 0; depth < 9 && ancestor; depth += 1) {
+      const candidates = [];
+
+      for (const image of ancestor.querySelectorAll("img")) {
+        const url = foreTeesFlyerImageUrl(image, currentDocument);
+        if (!url) continue;
+
+        let title =
+          image.getAttribute("alt") ||
+          image.getAttribute("title") ||
+          image.closest("a")?.getAttribute("title") ||
+          "";
+
+        if (!title) {
+          try {
+            title = decodeURIComponent(url.split("/").pop() || "");
+          } catch {
+            title = url.split("/").pop() || "";
+          }
+        }
+
+        title = title
+          .replace(/\.[^.]+$/, "")
+          .replace(/[_-]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 240);
+
+        candidates.push({ url, title: title || "Upcoming event" });
+      }
+
+      const uniqueCandidates = Array.from(
+        new Map(candidates.map((flyer) => [flyer.url, flyer])).values()
+      );
+
+      if (uniqueCandidates.length > bestFlyers.length) {
+        bestFlyers = uniqueCandidates;
+      }
+
+      ancestor = ancestor.parentElement;
+    }
+
+    for (const flyer of bestFlyers) {
+      byUrl.set(flyer.url, flyer);
+    }
+  }
+
+  return Array.from(byUrl.values()).slice(0, 40);
+}
+
+let foreTeesFlyerSyncInFlight = false;
+
+async function syncForeTeesUpcomingFlyersOncePerDay() {
+  if (
+    window.top !== window ||
+    !isForeTeesAnnouncementsPage() ||
+    foreTeesFlyerSyncInFlight
+  ) {
+    return;
+  }
+
+  const localDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+  }).format(new Date());
+  const syncKey = "golfopsForeTeesFlyersLastSyncDate";
+  const stored = await new Promise((resolve) =>
+    chrome.storage.local.get(syncKey, resolve)
+  );
+
+  if (stored?.[syncKey] === localDate) return;
+
+  const flyers = collectForeTeesUpcomingFlyers();
+  if (!flyers.length) return;
+
+  foreTeesFlyerSyncInFlight = true;
+  chrome.runtime.sendMessage(
+    { type: "SYNC_FORETEES_UPCOMING_FLYERS", flyers },
+    (response) => {
+      foreTeesFlyerSyncInFlight = false;
+
+      if (chrome.runtime.lastError || !response?.ok) {
+        console.warn(
+          "GolfOps could not sync ForeTees Upcoming Events flyers:",
+          response?.error || chrome.runtime.lastError?.message
+        );
+        return;
+      }
+
+      chrome.storage.local.set({ [syncKey]: localDate });
+      console.info(
+        `GolfOps synced ${response.syncedCount || flyers.length} ForeTees event flyers.`
+      );
+    }
+  );
+}
+
 function buildForeTeesNoteUrl(
   row,
   teeTime,
@@ -1647,4 +1803,15 @@ window.setTimeout(
   1500
 );
 
-/* No automatic ForeTees monitoring or polling is started. */
+/*
+  Read the ForeTees Upcoming Events carousel once per local day after its
+  home page has rendered. These timers only run on the Proshop home page.
+*/
+window.setTimeout(
+  syncForeTeesUpcomingFlyersOncePerDay,
+  4500
+);
+window.setTimeout(
+  syncForeTeesUpcomingFlyersOncePerDay,
+  15000
+);

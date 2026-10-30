@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 import PerryWeatherWidget from "@/components/PerryWeatherWidget";
+import StarterFlyerCarousel, {
+  type StarterFlyer,
+} from "@/components/StarterFlyerCarousel";
 import StarterTeeSheetScroller from "@/components/StarterTeeSheetScroller";
 import TvClock from "@/components/TvClock";
 import { easternDateString } from "@/lib/golfops-date";
@@ -240,9 +243,13 @@ export default async function StarterPage() {
   const windowEnd =
     currentMinutes + 60;
 
+  const flyerSeenAfter =
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
   const [
     slotsResult,
     importResult,
+    flyersResult,
   ] =
     await Promise.all([
       supabase
@@ -276,6 +283,13 @@ export default async function StarterPage() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+
+      supabase
+        .from("starter_flyers")
+        .select("id, title, source_url")
+        .eq("club_id", access.clubId)
+        .gt("last_seen_at", flyerSeenAfter)
+        .order("last_seen_at", { ascending: false }),
     ]);
 
   if (slotsResult.error) {
@@ -357,6 +371,9 @@ export default async function StarterPage() {
 
   const lastImport =
     importResult.data?.created_at ?? null;
+
+  const flyers =
+    (flyersResult.data ?? []) as StarterFlyer[];
 
   return (
     <div className="h-dvh overflow-hidden bg-[var(--golfops-bg)] text-[var(--golfops-text)]">
@@ -496,7 +513,7 @@ export default async function StarterPage() {
           </StarterTeeSheetScroller>
         </section>
 
-        <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4">
+        <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_240px] gap-4">
           <section className="rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-6 py-5 shadow-sm">
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--golfops-accent)]">
               Current Time · Eastern
@@ -504,6 +521,8 @@ export default async function StarterPage() {
 
             <TvClock variant="starter" />
           </section>
+
+          <StarterFlyerCarousel flyers={flyers} />
 
           <div className="min-h-0">
             <PerryWeatherWidget variant="starter" />

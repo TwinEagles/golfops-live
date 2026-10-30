@@ -741,6 +741,20 @@ function isTrustedSchedulePopSender(sender) {
   }
 }
 
+function isTrustedForeTeesAnnouncementsSender(sender) {
+  const sourceUrl = sender?.url || sender?.tab?.url || "";
+  try {
+    const url = new URL(sourceUrl);
+    return (
+      url.protocol === "https:" &&
+      url.hostname.toLowerCase() === "web.foretees.com" &&
+      url.pathname.toLowerCase() === "/v5/servlet/proshop_jump"
+    );
+  } catch {
+    return false;
+  }
+}
+
 function findSchedulePopTabs() {
   return new Promise((resolve) => {
     chrome.tabs.query({ url: ["https://app.schedulepop.com/*"] }, (tabs) => {
@@ -1248,7 +1262,19 @@ chrome.runtime.onMessage.addListener(
   ) => {
     let operation = null;
 
-    if (
+    if (message?.type === "SYNC_FORETEES_UPCOMING_FLYERS") {
+      if (!isTrustedForeTeesAnnouncementsSender(sender)) {
+        operation = Promise.resolve({
+          ok: false,
+          error: "Flyer sync was rejected because it did not come from the ForeTees home page."
+        });
+      } else {
+        operation = sendAuthenticatedRequest(
+          "/api/starter/flyers/sync",
+          { flyers: message.flyers }
+        );
+      }
+    } else if (
       message?.type ===
       "SEND_TEE_SHEET"
     ) {

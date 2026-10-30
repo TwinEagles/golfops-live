@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "GolfOps Live",
-  "version": "1.6.4",
-  "description": "Connects ForeTees, Golf Genius clinics and fittings, SchedulePop staffing and PTO, bag-slot updates, and PACE cart status to GolfOps Live.",
+  "version": "1.6.5",
+  "description": "Connects ForeTees tee sheets and event flyers, Golf Genius clinics and fittings, SchedulePop staffing and PTO, bag-slot updates, and PACE cart status to GolfOps Live.",
   "permissions": [
     "storage",
     "alarms",
