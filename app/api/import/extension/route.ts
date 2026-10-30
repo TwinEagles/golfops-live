@@ -901,6 +901,43 @@ export async function POST(request: Request) {
     }
 
     /*
+      REJECT INCOMPLETE REFRESHES
+
+      ForeTees can occasionally be left on a course-filtered or partially
+      rendered tee sheet. A non-empty partial page used to pass the parser's
+      basic checks and replace the complete GolfOps sheet. Compare occupied
+      player counts before creating an import record or change rows.
+    */
+    const existingOccupiedPlayerCount =
+      (existingForeTeesSlots ?? []).filter((slot) => Boolean(slot.player_name?.trim())).length;
+    const incomingOccupiedPlayerCount = parsed.occupiedPlayers;
+    const minimumExpectedPlayers = Math.ceil(existingOccupiedPlayerCount * 0.7);
+
+    if (
+      existingOccupiedPlayerCount >= 20 &&
+      incomingOccupiedPlayerCount < minimumExpectedPlayers &&
+      existingOccupiedPlayerCount - incomingOccupiedPlayerCount >= 15
+    ) {
+      console.warn("Blocked incomplete ForeTees tee-sheet refresh.", {
+        sheetDate: parsed.sheetDate,
+        existingOccupiedPlayerCount,
+        incomingOccupiedPlayerCount,
+        sourceUrl,
+      });
+
+      return Response.json(
+        {
+          ok: false,
+          error: `GolfOps blocked this refresh because ForeTees returned only ${incomingOccupiedPlayerCount} players, compared with ${existingOccupiedPlayerCount} currently loaded. Confirm the tee sheet is set to the correct date and Course: All, then refresh ForeTees and try again. The current GolfOps tee sheet was left unchanged.`,
+          sheetDate: parsed.sheetDate,
+          existingPlayers: existingOccupiedPlayerCount,
+          incomingPlayers: incomingOccupiedPlayerCount,
+        },
+        { status: 409 }
+      );
+    }
+
+    /*
       LOAD MANUAL OVERRIDES
 
       A MANUAL row represents an explicit
@@ -2134,6 +2171,55 @@ export async function POST(request: Request) {
             })
           )
         );
+    }
+
+    /*
+      BLOCK MASS ROSTER CHURN
+
+      A full-day refresh should not suddenly report dozens of removals and
+      additions. That is usually a partial/incorrect ForeTees report or a
+      source mismatch. Leave the current roster and change log untouched so
+      staff can correct the ForeTees date/course selection and retry.
+    */
+    const rosterChurnCount = detectedChanges.filter((change) =>
+      change.change_type === "ADDED" ||
+      change.change_type === "REMOVED" ||
+      change.change_type === "REPLACED"
+    ).length;
+    const massChurnThreshold = Math.max(
+      40,
+      Math.ceil(existingOccupiedPlayerCount * 0.5)
+    );
+
+    if (
+      !isNewDay &&
+      existingOccupiedPlayerCount >= 40 &&
+      rosterChurnCount >= massChurnThreshold
+    ) {
+      console.warn("Blocked suspicious ForeTees roster churn.", {
+        sheetDate: parsed.sheetDate,
+        existingOccupiedPlayerCount,
+        incomingOccupiedPlayerCount,
+        rosterChurnCount,
+        importId: importRecord.id,
+      });
+
+      await supabase
+        .from("tee_sheet_imports")
+        .delete()
+        .eq("id", importRecord.id);
+
+      return Response.json(
+        {
+          ok: false,
+          error: `GolfOps blocked this refresh because it would create ${rosterChurnCount} roster changes for a sheet with ${existingOccupiedPlayerCount} players. The current tee sheet and change log were left unchanged. Confirm ForeTees is set to the correct date and Course: All, then retry.`,
+          sheetDate: parsed.sheetDate,
+          existingPlayers: existingOccupiedPlayerCount,
+          incomingPlayers: incomingOccupiedPlayerCount,
+          changesDetected: rosterChurnCount,
+        },
+        { status: 409 }
+      );
     }
 
     /*

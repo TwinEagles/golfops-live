@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { createClient } from "@/lib/supabase/server";
+import { removeNetZeroImportChanges } from "@/lib/change-reconciliation";
 
 // Sort row sets and object keys so database row order never triggers a refresh.
 function canonical(value: unknown): unknown {
@@ -352,14 +353,16 @@ export async function loadOperationsData(supabase: Awaited<ReturnType<typeof cre
 
 export async function loadChangesData(supabase: Awaited<ReturnType<typeof createClient>>, clubId: string, selectedDate: string, view: string, selectedType: string, showCleared: boolean, retentionDays: number, settings: unknown) {
   const retentionCutoff = new Date(Date.now() - retentionDays * 86400000).toISOString();
-  let query =
+  const selectChanges = () =>
     supabase
       .from(
         "tee_sheet_changes"
       )
       .select(`
         id,
+        import_id,
         change_type,
+        member_id,
         player_name,
         bag_number,
         cart_number,
@@ -393,102 +396,36 @@ export async function loadChangesData(supabase: Awaited<ReturnType<typeof create
         }
       );
 
-  if (
-    !showCleared
-  ) {
-    query =
-      query.eq(
-        "status",
-        "OPEN"
-      );
-  } else {
-    /*
-      Always include OPEN changes.
+  const baseQuery = selectChanges()
+    .eq("club_id", clubId)
+    .eq("sheet_date", selectedDate);
 
-      Include CLEARED changes only when
-      they were cleared inside the saved
-      retention period. This makes the
-      retention setting operational now
-      without deleting historical data.
-    */
+  const [openResult, visibleResult] = await Promise.all([
+    selectChanges()
+      .eq("club_id", clubId)
+      .eq("sheet_date", selectedDate)
+      .eq("status", "OPEN"),
+    showCleared
+      ? baseQuery.or(
+          `status.eq.OPEN,and(status.eq.CLEARED,cleared_at.gte.${retentionCutoff})`
+        )
+      : selectChanges()
+          .eq("club_id", clubId)
+          .eq("sheet_date", selectedDate)
+          .eq("status", "OPEN"),
+  ]);
 
-    query =
-      query.or(
-        `status.eq.OPEN,and(status.eq.CLEARED,cleared_at.gte.${retentionCutoff})`
-      );
-  }
+  const error = openResult.error ?? visibleResult.error;
+  const effectiveOpenRows = removeNetZeroImportChanges(openResult.data ?? []);
+  let data = showCleared
+    ? visibleResult.data ?? []
+    : removeNetZeroImportChanges(visibleResult.data ?? []);
 
-  if (
-    selectedType !==
-      "ALL" &&
-    [
-      "ADDED",
-      "REMOVED",
-      "TIME_CHANGED",
-      "HOLE_CHANGED",
-      "REPLACED",
-      "CART_ASSIGNED",
-    ].includes(
-      selectedType
-    )
-  ) {
-    query =
-      query.eq(
-        "change_type",
-        selectedType
-      );
-  }
+  if (selectedType !== "ALL") data = data.filter((row) => row.change_type === selectedType);
+  if (view === "changes") data = data.filter((row) => row.change_type !== "CART_ASSIGNED");
+  else if (view === "activity") data = data.filter((row) => row.change_type === "CART_ASSIGNED");
 
-  if (view === "changes") {
-    query =
-      query.neq(
-        "change_type",
-        "CART_ASSIGNED"
-      );
-  } else if (
-    view === "activity"
-  ) {
-    query =
-      query.eq(
-        "change_type",
-        "CART_ASSIGNED"
-      );
-  }
-
-  const {
-    data,
-    error,
-  } =
-    await query;
-
-  const {
-    count: openCountResult,
-    error: countError,
-  } =
-    await supabase
-      .from(
-        "tee_sheet_changes"
-      )
-      .select(
-        "id",
-        {
-          count: "exact",
-          head: true,
-        }
-      )
-      .eq(
-        "club_id",
-        clubId
-      )
-      .eq(
-        "sheet_date",
-        selectedDate
-      )
-      .eq(
-        "status",
-        "OPEN"
-      );
-
-  const version = error || countError ? null : dataVersion({ selectedDate, today: new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()), data, openCountResult, settings });
+  const openCountResult = effectiveOpenRows.length;
+  const version = error ? null : dataVersion({ selectedDate, today: new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()), data, openCountResult, settings });
   return { data, error, openCountResult, version };
 }

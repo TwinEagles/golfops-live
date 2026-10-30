@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getGolfOpsAccess } from "@/lib/permissions";
 import { getPtoCalendarAccess } from "@/lib/pto-calendar-access";
 import { easternDateString } from "@/lib/golfops-date";
+import { removeNetZeroImportChanges } from "@/lib/change-reconciliation";
 
 type LinkProps = ComponentProps<
   typeof NextLink
@@ -175,13 +176,10 @@ export default async function AppNav({
     }
 
     if (badgeDate) {
-      const { count } =
+      const { data: openChanges } =
         await supabase
           .from("tee_sheet_changes")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
+          .select("id, import_id, change_type, member_id, player_name, bag_number, old_value, new_value")
           .eq(
             "club_id",
             access.clubId
@@ -195,8 +193,7 @@ export default async function AppNav({
             "OPEN"
           );
 
-      changeCount =
-        count ?? 0;
+      changeCount = removeNetZeroImportChanges(openChanges ?? []).length;
     }
   }
 
