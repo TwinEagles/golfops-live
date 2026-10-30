@@ -119,6 +119,37 @@ function showStatus(
   }
 }
 
+function showFlyerStatus(message, type = "normal") {
+  let box = document.getElementById("golfops-foretees-flyer-status");
+
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "golfops-foretees-flyer-status";
+    Object.assign(box.style, {
+      position: "fixed",
+      right: "20px",
+      bottom: "82px",
+      zIndex: "999999",
+      padding: "14px 18px",
+      borderRadius: "10px",
+      fontFamily: "Arial, sans-serif",
+      fontSize: "14px",
+      fontWeight: "600",
+      color: "white",
+      boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+      maxWidth: "420px",
+    });
+    document.body.appendChild(box);
+  }
+
+  box.textContent = message;
+  box.style.background = type === "success"
+    ? "#15803d"
+    : type === "error"
+      ? "#b91c1c"
+      : "#334155";
+}
+
 /*
   Convert several possible ForeTees
   date formats to M/D/YYYY.
@@ -646,9 +677,10 @@ function rowContainsNoteMarker(row) {
 
 function isForeTeesAnnouncementsPage() {
   try {
+    const url = new URL(window.location.href);
     return (
-      new URL(window.location.href).pathname.toLowerCase() ===
-      "/v5/servlet/proshop_jump"
+      url.pathname.toLowerCase() === "/v5/servlet/proshop_jump" &&
+      (url.searchParams.get("jump") || "").toLowerCase() !== "select"
     );
   } catch {
     return false;
@@ -769,7 +801,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
   const localDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
   }).format(new Date());
-  const syncKey = "golfopsForeTeesFlyersLastSyncDate";
+  const syncKey = "golfopsForeTeesFlyersLastSyncDateV2";
   const stored = await new Promise((resolve) =>
     chrome.storage.local.get(syncKey, resolve)
   );
@@ -778,7 +810,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
     const previousCount = Number(
       stored.golfopsForeTeesFlyersLastSyncCount || 0
     );
-    showStatus(
+    showFlyerStatus(
       `ForeTees flyer sync already completed today. ${previousCount} flyer${previousCount === 1 ? "" : "s"} synced.`,
       "success"
     );
@@ -789,7 +821,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
   const flyers = collectForeTeesUpcomingFlyers();
   if (!flyers.length) {
     if (foreTeesFlyerSyncAttempts >= 2) {
-      showStatus(
+      showFlyerStatus(
         "No flyer images were detected in ForeTees Upcoming Events.",
         "normal"
       );
@@ -798,7 +830,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
   }
 
   foreTeesFlyerSyncInFlight = true;
-  showStatus(`Syncing ${flyers.length} ForeTees flyer${flyers.length === 1 ? "" : "s"} to GolfOps...`);
+  showFlyerStatus(`Syncing ${flyers.length} ForeTees flyer${flyers.length === 1 ? "" : "s"} to GolfOps...`);
   chrome.runtime.sendMessage(
     { type: "SYNC_FORETEES_UPCOMING_FLYERS", flyers },
     (response) => {
@@ -809,7 +841,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
           "GolfOps could not sync ForeTees Upcoming Events flyers:",
           response?.error || chrome.runtime.lastError?.message
         );
-        showStatus(
+        showFlyerStatus(
           `ForeTees flyer sync failed: ${response?.error || chrome.runtime.lastError?.message || "Unknown error."}`,
           "error"
         );
@@ -820,7 +852,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
         [syncKey]: localDate,
         golfopsForeTeesFlyersLastSyncCount: response.syncedCount || flyers.length,
       });
-      showStatus(
+      showFlyerStatus(
         `ForeTees flyer sync complete. ${response.syncedCount || flyers.length} flyer${(response.syncedCount || flyers.length) === 1 ? "" : "s"} synced.`,
         "success"
       );

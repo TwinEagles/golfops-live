@@ -748,7 +748,8 @@ function isTrustedForeTeesAnnouncementsSender(sender) {
     return (
       url.protocol === "https:" &&
       url.hostname.toLowerCase() === "web.foretees.com" &&
-      url.pathname.toLowerCase() === "/v5/servlet/proshop_jump"
+      url.pathname.toLowerCase() === "/v5/servlet/proshop_jump" &&
+      (url.searchParams.get("jump") || "").toLowerCase() !== "select"
     );
   } catch {
     return false;
