@@ -513,7 +513,7 @@ export default async function StarterPage() {
           </StarterTeeSheetScroller>
         </section>
 
-        <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_240px] gap-4">
+        <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_190px] gap-4">
           <section className="rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-6 py-5 shadow-sm">
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--golfops-accent)]">
               Current Time · Eastern

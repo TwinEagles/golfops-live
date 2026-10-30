@@ -687,21 +687,14 @@ function isForeTeesAnnouncementsPage() {
   }
 }
 
-function foreTeesFlyerImageUrl(image, currentDocument) {
-  const source =
-    image.currentSrc ||
-    image.getAttribute("src") ||
-    image.getAttribute("data-src") ||
-    image.getAttribute("data-original");
-
+function foreTeesFlyerImageUrl(source, currentDocument) {
   if (!source) return null;
-
   try {
     const url = new URL(source, currentDocument.location.href);
     if (
       url.protocol !== "https:" ||
       url.hostname.toLowerCase() !== "web.foretees.com" ||
-      !/^\/v5\/AEimages\/twineaglesclub\/.+\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
+      !/^\/v5\/AEimages\/twineaglesclub\/FY26_Flyers\/.+\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
     ) {
       return null;
     }
@@ -720,66 +713,52 @@ function collectForeTeesUpcomingFlyers() {
   for (const currentDocument of getForeTeesDocuments()) {
     if (!currentDocument.body) continue;
 
-    const textElements = Array.from(
-      currentDocument.body.querySelectorAll(
-        "h1,h2,h3,h4,h5,h6,p,b,strong,i,em,span,div,td,th"
-      )
-    );
-    const heading = textElements.find((element) =>
-      /^upcoming\s+events\s*:?$/i.test(
-        (element.textContent || "").replace(/\s+/g, " ").trim()
-      )
+    const elements = currentDocument.body.querySelectorAll(
+      "img, a[href], [style*='background-image']"
     );
 
-    if (!heading) continue;
+    for (const element of elements) {
+      const sources = [
+        element.currentSrc,
+        element.getAttribute("src"),
+        element.getAttribute("srcset")?.split(",")[0]?.trim().split(/\s+/)[0],
+        element.getAttribute("data-src"),
+        element.getAttribute("data-original"),
+        element.getAttribute("href"),
+      ];
+      const backgroundImage =
+        currentDocument.defaultView?.getComputedStyle(element).backgroundImage ||
+        element.getAttribute("style") ||
+        "";
+      for (const match of backgroundImage.matchAll(/url\(["']?([^"')]+)["']?\)/gi)) {
+        sources.push(match[1]);
+      }
 
-    let ancestor = heading;
-    let bestFlyers = [];
+      const url = sources
+        .map((source) => foreTeesFlyerImageUrl(source, currentDocument))
+        .find(Boolean);
+      if (!url || byUrl.has(url)) continue;
 
-    for (let depth = 0; depth < 9 && ancestor; depth += 1) {
-      const candidates = [];
-
-      for (const image of ancestor.querySelectorAll("img")) {
-        const url = foreTeesFlyerImageUrl(image, currentDocument);
-        if (!url) continue;
-
-        let title =
-          image.getAttribute("alt") ||
-          image.getAttribute("title") ||
-          image.closest("a")?.getAttribute("title") ||
-          "";
-
-        if (!title) {
-          try {
-            title = decodeURIComponent(url.split("/").pop() || "");
-          } catch {
-            title = url.split("/").pop() || "";
-          }
+      let title =
+        element.getAttribute("alt") ||
+        element.getAttribute("title") ||
+        element.closest("a")?.getAttribute("title") ||
+        "";
+      if (!title) {
+        try {
+          title = decodeURIComponent(url.split("/").pop() || "");
+        } catch {
+          title = url.split("/").pop() || "";
         }
-
-        title = title
-          .replace(/\.[^.]+$/, "")
-          .replace(/[_-]+/g, " ")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 240);
-
-        candidates.push({ url, title: title || "Upcoming event" });
       }
 
-      const uniqueCandidates = Array.from(
-        new Map(candidates.map((flyer) => [flyer.url, flyer])).values()
-      );
-
-      if (uniqueCandidates.length > bestFlyers.length) {
-        bestFlyers = uniqueCandidates;
-      }
-
-      ancestor = ancestor.parentElement;
-    }
-
-    for (const flyer of bestFlyers) {
-      byUrl.set(flyer.url, flyer);
+      title = title
+        .replace(/\.[^.]+$/, "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 240);
+      byUrl.set(url, { url, title: title || "Upcoming event" });
     }
   }
 
@@ -822,7 +801,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
   if (!flyers.length) {
     if (foreTeesFlyerSyncAttempts >= 2) {
       showFlyerStatus(
-        "No flyer images were detected in ForeTees Upcoming Events.",
+        "No FY26_Flyers images were detected on the ForeTees home page.",
         "normal"
       );
     }
