@@ -45,6 +45,7 @@ type TeeSheetSlot = {
 
 type ChangeRecord = {
   id: number;
+  import_id: string | null;
   change_type:
     | "ADDED"
     | "REMOVED"
@@ -52,6 +53,7 @@ type ChangeRecord = {
     | "HOLE_CHANGED"
     | "REPLACED";
   player_name: string | null;
+  member_id: string | number | null;
   bag_number: string | null;
   tee_time: string | null;
   status: string;
@@ -979,10 +981,7 @@ export default async function PrintPlacardsPage({
 
     const rawChanges =
       (changeData ??
-        []) as ChangeRecord[] & Array<{
-          import_id: string | null;
-          member_id: string | number | null;
-        }>;
+        []) as ChangeRecord[];
 
     // Match the Changes screen's open-change list: opposite ADDED/REMOVED
     // rows for the same player and tee-sheet location cancel out. Without
