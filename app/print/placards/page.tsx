@@ -13,6 +13,7 @@ type PrintPageProps = {
     from?: string;
     to?: string;
     design?: string;
+    course?: string;
   }>;
 };
 
@@ -483,101 +484,54 @@ function findPlacardsForChange(
         )
       : null;
 
-  for (const placard of placards) {
-    if (
-      oldTime &&
-      placard.teeTime !==
-        oldTime
-    ) {
-      continue;
-    }
-
-    if (
-      oldCourse &&
-      normalize(
-        placard.course
-      ) !==
-        normalize(
-          oldCourse
-        )
-    ) {
-      continue;
-    }
-
-    if (
-      oldRawPosition &&
-      placard.rawStartingPosition !==
-        oldRawPosition
-    ) {
-      continue;
-    }
-
-    /*
-      If there was already a cart
-      assignment, it is our strongest
-      way to identify the affected sign.
-    */
-
-    if (
-      oldCartNumber &&
-      placard.cartNumbers.length > 0
-    ) {
-      if (
-        placard.cartNumbers.some(
-          (cartNumber) =>
-            normalize(cartNumber) ===
-            normalize(oldCartNumber)
-        )
-      ) {
-        matches.add(
-          placard.key
-        );
-      }
-
-      continue;
-    }
-
-    /*
-      Otherwise use the golfer's old
-      slot pair:
-      Slots 1+2 = first sign
-      Slots 3+4 = second sign.
-    */
-
-    if (
-      oldSlotGroup &&
-      placard.slotGroup ===
-        oldSlotGroup
-    ) {
-      matches.add(
-        placard.key
-      );
-    }
-  }
-
-  if (matches.size > 0) {
-    return matches;
-  }
+  const candidates = placards.filter((placard) => {
+    if (oldTime && placard.teeTime !== oldTime) return false;
+    if (oldCourse && normalize(placard.course) !== normalize(oldCourse)) return false;
+    if (oldRawPosition && placard.rawStartingPosition !== oldRawPosition) return false;
+    return true;
+  });
 
   /*
-    Last-resort fallback for older change
-    records that did not store enough
-    position information.
-
-    Restrict it to the same tee time.
+    Prefer a known cart assignment, then the original pair of slots.
+    This identifies one physical sign even when several groups share a tee time.
   */
-
-  if (change.tee_time) {
-    for (const placard of placards) {
-      if (
-        placard.teeTime ===
-        change.tee_time
-      ) {
-        matches.add(
-          placard.key
-        );
-      }
+  if (oldCartNumber) {
+    const cartMatches = candidates.filter((placard) =>
+      placard.cartNumbers.some(
+        (cartNumber) => normalize(cartNumber) === normalize(oldCartNumber)
+      )
+    );
+    if (cartMatches.length > 0) {
+      return new Set(cartMatches.map((placard) => placard.key));
     }
+  }
+
+  if (oldSlotGroup && oldTime && oldCourse && oldRawPosition) {
+    const pairMatches = candidates.filter(
+      (placard) => placard.slotGroup === oldSlotGroup
+    );
+    if (pairMatches.length > 0) {
+      return new Set(pairMatches.map((placard) => placard.key));
+    }
+  }
+
+  // With a full time/course/starting-position location, at most the two
+  // cart signs in that tee-time group can be relevant. If the record lacks
+  // enough detail to narrow it further, never expand to every sign at a time.
+  if (
+    oldTime &&
+    oldCourse &&
+    oldRawPosition &&
+    candidates.length <= 2
+  ) {
+    return new Set(candidates.map((placard) => placard.key));
+  }
+
+  // Older records with incomplete locations are safe only when there is one
+  // possible current sign. Ambiguous rows are skipped instead of printing
+  // the entire field at that tee time.
+  if (candidates.length === 1) {
+    return new Set([candidates[0].key]);
   }
 
   return matches;
@@ -720,6 +674,13 @@ export default async function PrintPlacardsPage({
       ? "changes"
       : "all";
 
+  const courseFilter =
+    params.course?.toLowerCase() === "eagle"
+      ? "Eagle"
+      : params.course?.toLowerCase() === "talon"
+        ? "Talon"
+        : null;
+
   /*
     CLUB OPERATIONAL SETTINGS
 
@@ -794,66 +755,6 @@ export default async function PrintPlacardsPage({
       : params.design === "bold"
         ? "bold"
         : defaultDesign;
-
-  /*
-    EVENT NAME
-  */
-
-  const {
-    data: importData,
-  } =
-    await supabase
-      .from(
-        "tee_sheet_imports"
-      )
-      .select(
-        "parsed_snapshot"
-      )
-      .eq(
-        "club_id",
-        profile.club_id
-      )
-      .eq(
-        "sheet_date",
-        date
-      )
-      .order(
-        "created_at",
-        {
-          ascending: false,
-        }
-      )
-      .limit(1)
-      .maybeSingle();
-
-  let eventName:
-    string | null = null;
-
-  const snapshot =
-    importData?.parsed_snapshot;
-
-  if (
-    snapshot &&
-    typeof snapshot ===
-      "object" &&
-    "eventName" in snapshot
-  ) {
-    const value =
-      (
-        snapshot as {
-          eventName?: unknown;
-        }
-      ).eventName;
-
-    if (
-      typeof value ===
-        "string" &&
-      value.trim()
-    ) {
-      eventName =
-        value.trim();
-    }
-  }
 
   /*
     CURRENT TEE SHEET
@@ -933,6 +834,14 @@ export default async function PrintPlacardsPage({
     buildPlacards(
       slots
     );
+
+  if (courseFilter) {
+    placards = placards.filter(
+      (placard) =>
+        normalize(placard.course) ===
+        normalize(courseFilter)
+    );
+  }
 
   /*
     PRINT CHANGES ONLY
@@ -1062,6 +971,13 @@ export default async function PrintPlacardsPage({
       <PrintPlacardsToolbar
         date={date}
         mode={mode}
+        course={
+          courseFilter === "Eagle"
+            ? "eagle"
+            : courseFilter === "Talon"
+              ? "talon"
+              : "all"
+        }
         placardCount={
           placards.length
         }
@@ -1122,11 +1038,6 @@ export default async function PrintPlacardsPage({
                         ) : null}
                       </div>
 
-                      {eventName && (
-                        <div className="event-name">
-                          {eventName}
-                        </div>
-                      )}
                     </header>
 
                     <div className="watermark">
@@ -1241,7 +1152,8 @@ export default async function PrintPlacardsPage({
         }
 
         .time-control,
-        .design-control {
+        .design-control,
+        .course-control {
           display: inline-flex;
           align-items: center;
           gap: 7px;
@@ -1251,7 +1163,8 @@ export default async function PrintPlacardsPage({
         }
 
         .time-control input,
-        .design-control select {
+        .design-control select,
+        .course-control select {
           height: 36px;
           border: 1px solid #d1d5db;
           border-radius: 5px;
@@ -1262,6 +1175,10 @@ export default async function PrintPlacardsPage({
 
         .design-control select {
           min-width: 180px;
+        }
+
+        .course-control select {
+          min-width: 132px;
         }
 
         .sign-count {

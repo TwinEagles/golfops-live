@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 type PrintPlacardsToolbarProps = {
   date: string;
   mode: string;
+  course: "all" | "eagle" | "talon";
   placardCount: number;
   cutStack: boolean;
   holeOrder: "asc" | "desc";
@@ -14,6 +15,7 @@ type PrintPlacardsToolbarProps = {
 export default function PrintPlacardsToolbar({
   date,
   mode,
+  course,
   placardCount,
   cutStack,
   holeOrder,
@@ -108,6 +110,26 @@ export default function PrintPlacardsToolbar({
             ? "1→18"
             : "18→1"}
         </button>
+
+        <label className="course-control">
+          <span>Course</span>
+
+          <select
+            value={course}
+            onChange={(event) =>
+              updateParam(
+                "course",
+                event.target.value === "all"
+                  ? null
+                  : event.target.value
+              )
+            }
+          >
+            <option value="all">All Courses</option>
+            <option value="eagle">Eagle</option>
+            <option value="talon">Talon</option>
+          </select>
+        </label>
 
         <label className="time-control">
           <span>From</span>
