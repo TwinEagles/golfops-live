@@ -44,35 +44,32 @@ export default function PerryWeatherWidget({
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--golfops-border)] bg-[var(--golfops-surface)] shadow-sm">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--golfops-border)] px-4 py-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--golfops-accent)]">
-            Perry Weather
-          </p>
-
-          <h2 className="text-lg font-bold text-[var(--golfops-text)]">
-            Today&apos;s Weather
-          </h2>
-        </div>
+      <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-[var(--golfops-border)] px-3">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--golfops-accent)]">
+          Perry Weather · Today
+        </p>
 
         <a
           href={PERRY_WEATHER_URL}
           target="_blank"
           rel="noreferrer"
-          className="shrink-0 rounded-lg border border-[var(--golfops-border)] px-3 py-2 text-xs font-semibold text-[var(--golfops-text-muted)] transition hover:bg-[var(--golfops-surface-soft)]"
+          className="shrink-0 rounded-md border border-[var(--golfops-border)] px-2.5 py-1.5 text-xs font-semibold text-[var(--golfops-text-muted)] transition hover:bg-[var(--golfops-surface-soft)]"
         >
           Open Full Weather
         </a>
       </div>
 
-      <div className="relative min-h-0 w-full flex-1 bg-white">
+      <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
         <iframe
           src={PERRY_WEATHER_URL}
-          title="TwinEagles Perry Weather"
+          title="TwinEagles Perry Weather summary"
           loading="eager"
           allow="geolocation"
           referrerPolicy="strict-origin-when-cross-origin"
-          className="absolute inset-0 h-full w-full border-0"
+          scrolling="no"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 h-[250px] w-[1200px] origin-top-left scale-[0.46] border-0 bg-white"
         />
       </div>
     </section>
