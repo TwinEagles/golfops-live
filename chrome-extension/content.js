@@ -720,6 +720,28 @@ function foreTeesFlyerImageUrl(source, currentDocument) {
 function collectForeTeesUpcomingFlyers() {
   const byUrl = new Map();
 
+  function addFlyer(source, title, currentDocument) {
+    const url = foreTeesFlyerImageUrl(source, currentDocument);
+    if (!url || byUrl.has(url)) return;
+
+    let cleanTitle = title || "";
+    if (!cleanTitle) {
+      try {
+        cleanTitle = decodeURIComponent(url.split("/").pop() || "");
+      } catch {
+        cleanTitle = url.split("/").pop() || "";
+      }
+    }
+
+    cleanTitle = cleanTitle
+      .replace(/\.[^.]+$/, "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 240);
+    byUrl.set(url, { url, title: cleanTitle || "Upcoming event" });
+  }
+
   for (const currentDocument of getForeTeesDocuments()) {
     if (!currentDocument.body) continue;
 
@@ -762,26 +784,27 @@ function collectForeTeesUpcomingFlyers() {
         continue;
       }
 
-      let title =
+      const title =
         element.getAttribute("alt") ||
         element.getAttribute("title") ||
         element.closest("a")?.getAttribute("title") ||
         "";
-      if (!title) {
-        try {
-          title = decodeURIComponent(url.split("/").pop() || "");
-        } catch {
-          title = url.split("/").pop() || "";
-        }
-      }
+      addFlyer(url, title, currentDocument);
+    }
 
-      title = title
-        .replace(/\.[^.]+$/, "")
-        .replace(/[_-]+/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 240);
-      byUrl.set(url, { url, title: title || "Upcoming event" });
+    // ForeTees can paint flyer posters as CSS backgrounds rather than <img>s.
+    // Those assets still appear in the document's resource timing entries.
+    const resources = currentDocument.defaultView?.performance
+      ?.getEntriesByType("resource") || [];
+    for (const resource of resources) {
+      const url = foreTeesFlyerImageUrl(resource.name, currentDocument);
+      if (!url || byUrl.has(url)) continue;
+
+      const isFlyerFolder = /\/FY26_Flyers\//i.test(new URL(url).pathname);
+      if (!isFlyerFolder && resource.decodedBodySize > 0 && resource.decodedBodySize < 12000) {
+        continue;
+      }
+      addFlyer(url, "", currentDocument);
     }
   }
 
@@ -803,7 +826,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
   const localDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
   }).format(new Date());
-  const syncKey = "golfopsForeTeesFlyersLastSyncDateV3";
+  const syncKey = "golfopsForeTeesFlyersLastSyncDateV4";
   const stored = await new Promise((resolve) =>
     chrome.storage.local.get(syncKey, resolve)
   );
@@ -824,7 +847,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
   if (!flyers.length) {
     if (foreTeesFlyerSyncAttempts >= 2) {
       showFlyerStatus(
-        "No FY26_Flyers images were detected on the ForeTees home page.",
+        "No ForeTees flyer images were detected on the home page.",
         "normal"
       );
     }
