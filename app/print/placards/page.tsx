@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasGolfOpsPermission } from "@/lib/permissions";
+import { removeNetZeroImportChanges } from "@/lib/change-reconciliation";
 import PrintPlacardsToolbar from "@/components/PrintPlacardsToolbar";
 
 type PrintPageProps = {
@@ -946,7 +947,9 @@ export default async function PrintPlacardsPage({
         )
         .select(`
           id,
+          import_id,
           change_type,
+          member_id,
           player_name,
           bag_number,
           tee_time,
@@ -974,9 +977,28 @@ export default async function PrintPlacardsPage({
       );
     }
 
-    const changes =
+    const rawChanges =
       (changeData ??
-        []) as ChangeRecord[];
+        []) as ChangeRecord[] & Array<{
+          import_id: string | null;
+          member_id: string | number | null;
+        }>;
+
+    // Match the Changes screen's open-change list: opposite ADDED/REMOVED
+    // rows for the same player and tee-sheet location cancel out. Without
+    // this, stale duplicate rows can make Changes Only include the full field.
+    const visibleChangeIds = new Set(
+      removeNetZeroImportChanges(
+        rawChanges.map((change) => ({
+          ...change,
+          id: String(change.id),
+        }))
+      ).map((change) => change.id)
+    );
+
+    const changes = rawChanges.filter((change) =>
+      visibleChangeIds.has(String(change.id))
+    );
 
     placards =
       filterPlacardsForChanges(
