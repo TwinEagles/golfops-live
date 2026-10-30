@@ -69,7 +69,7 @@ export default function PerryWeatherWidget({
           scrolling="no"
           tabIndex={-1}
           aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-0 h-[250px] w-[1200px] origin-top-left scale-[0.46] border-0 bg-white"
+          className="pointer-events-none absolute left-0 top-0 h-[520px] w-[1200px] origin-top-left scale-[0.46] border-0 bg-white"
         />
       </div>
     </section>
