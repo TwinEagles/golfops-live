@@ -54,9 +54,6 @@ export default function StarterFlyerCarousel({
             alt={flyer.title}
             className="h-full w-full object-contain"
           />
-          <div className="absolute inset-x-2 bottom-2 truncate rounded bg-slate-950/75 px-3 py-1.5 text-center text-sm font-bold text-white">
-            {flyer.title}
-          </div>
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center bg-[var(--golfops-surface-soft)] px-5 text-center">
