@@ -745,11 +745,17 @@ function isTrustedForeTeesAnnouncementsSender(sender) {
   const sourceUrl = sender?.url || sender?.tab?.url || "";
   try {
     const url = new URL(sourceUrl);
+    const path = url.pathname.toLowerCase();
     return (
       url.protocol === "https:" &&
       url.hostname.toLowerCase() === "web.foretees.com" &&
-      url.pathname.toLowerCase() === "/v5/servlet/proshop_jump" &&
-      (url.searchParams.get("jump") || "").toLowerCase() !== "select"
+      (
+        path === "/v5/assets/legacy/proshop_welns2.htm" ||
+        (
+          path === "/v5/servlet/proshop_jump" &&
+          (url.searchParams.get("jump") || "").toLowerCase() !== "select"
+        )
+      )
     );
   } catch {
     return false;

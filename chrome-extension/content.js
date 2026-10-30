@@ -678,8 +678,9 @@ function rowContainsNoteMarker(row) {
 function isForeTeesAnnouncementsPage() {
   try {
     const url = new URL(window.location.href);
-    return (
-      url.pathname.toLowerCase() === "/v5/servlet/proshop_jump" &&
+    const path = url.pathname.toLowerCase();
+    return path === "/v5/assets/legacy/proshop_welns2.htm" || (
+      path === "/v5/servlet/proshop_jump" &&
       (url.searchParams.get("jump") || "").toLowerCase() !== "select"
     );
   } catch {
@@ -690,7 +691,16 @@ function isForeTeesAnnouncementsPage() {
 function foreTeesFlyerImageUrl(source, currentDocument) {
   if (!source) return null;
   try {
-    const url = new URL(source, currentDocument.location.href);
+    const sourcePath = String(source).split(/[?#]/, 1)[0];
+    const clubImagePath = sourcePath.match(
+      /(?:^|\/)AEimages\/twineaglesclub\/(.+)$/i
+    );
+    const url = clubImagePath
+      ? new URL(
+          `/v5/AEimages/twineaglesclub/${clubImagePath[1]}`,
+          "https://web.foretees.com"
+        )
+      : new URL(source, currentDocument.location.href);
     if (
       url.protocol !== "https:" ||
       url.hostname.toLowerCase() !== "web.foretees.com" ||
