@@ -61,7 +61,7 @@ export default function StarterFlyerCarousel({
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center bg-[var(--golfops-surface-soft)] px-5 text-center">
           <p className="text-sm font-semibold text-[var(--golfops-text-muted)]">
-            Flyers will appear after ForeTees syncs its Upcoming Events page.
+            No flyers have synced yet. Open the ForeTees home page in Chrome to import its event flyers.
           </p>
         </div>
       )}

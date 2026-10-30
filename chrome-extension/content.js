@@ -694,7 +694,7 @@ function foreTeesFlyerImageUrl(source, currentDocument) {
     if (
       url.protocol !== "https:" ||
       url.hostname.toLowerCase() !== "web.foretees.com" ||
-      !/^\/v5\/AEimages\/twineaglesclub\/FY26_Flyers\/.+\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
+      !/^\/v5\/AEimages\/twineaglesclub\/.+\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
     ) {
       return null;
     }
@@ -739,6 +739,19 @@ function collectForeTeesUpcomingFlyers() {
         .find(Boolean);
       if (!url || byUrl.has(url)) continue;
 
+      const isFlyerFolder =
+        /\/FY26_Flyers\//i.test(new URL(url).pathname);
+      const image =
+        element instanceof currentDocument.defaultView.HTMLImageElement
+          ? element
+          : element.querySelector("img");
+      if (
+        !isFlyerFolder &&
+        (!image || image.naturalWidth < 250 || image.naturalHeight < 150)
+      ) {
+        continue;
+      }
+
       let title =
         element.getAttribute("alt") ||
         element.getAttribute("title") ||
@@ -780,7 +793,7 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
   const localDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
   }).format(new Date());
-  const syncKey = "golfopsForeTeesFlyersLastSyncDateV2";
+  const syncKey = "golfopsForeTeesFlyersLastSyncDateV3";
   const stored = await new Promise((resolve) =>
     chrome.storage.local.get(syncKey, resolve)
   );
