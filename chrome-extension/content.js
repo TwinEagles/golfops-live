@@ -755,6 +755,7 @@ function collectForeTeesUpcomingFlyers() {
 }
 
 let foreTeesFlyerSyncInFlight = false;
+let foreTeesFlyerSyncAttempts = 0;
 
 async function syncForeTeesUpcomingFlyersOncePerDay() {
   if (
@@ -773,12 +774,31 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
     chrome.storage.local.get(syncKey, resolve)
   );
 
-  if (stored?.[syncKey] === localDate) return;
+  if (stored?.[syncKey] === localDate) {
+    const previousCount = Number(
+      stored.golfopsForeTeesFlyersLastSyncCount || 0
+    );
+    showStatus(
+      `ForeTees flyer sync already completed today. ${previousCount} flyer${previousCount === 1 ? "" : "s"} synced.`,
+      "success"
+    );
+    return;
+  }
 
+  foreTeesFlyerSyncAttempts += 1;
   const flyers = collectForeTeesUpcomingFlyers();
-  if (!flyers.length) return;
+  if (!flyers.length) {
+    if (foreTeesFlyerSyncAttempts >= 2) {
+      showStatus(
+        "No flyer images were detected in ForeTees Upcoming Events.",
+        "normal"
+      );
+    }
+    return;
+  }
 
   foreTeesFlyerSyncInFlight = true;
+  showStatus(`Syncing ${flyers.length} ForeTees flyer${flyers.length === 1 ? "" : "s"} to GolfOps...`);
   chrome.runtime.sendMessage(
     { type: "SYNC_FORETEES_UPCOMING_FLYERS", flyers },
     (response) => {
@@ -789,10 +809,21 @@ async function syncForeTeesUpcomingFlyersOncePerDay() {
           "GolfOps could not sync ForeTees Upcoming Events flyers:",
           response?.error || chrome.runtime.lastError?.message
         );
+        showStatus(
+          `ForeTees flyer sync failed: ${response?.error || chrome.runtime.lastError?.message || "Unknown error."}`,
+          "error"
+        );
         return;
       }
 
-      chrome.storage.local.set({ [syncKey]: localDate });
+      chrome.storage.local.set({
+        [syncKey]: localDate,
+        golfopsForeTeesFlyersLastSyncCount: response.syncedCount || flyers.length,
+      });
+      showStatus(
+        `ForeTees flyer sync complete. ${response.syncedCount || flyers.length} flyer${(response.syncedCount || flyers.length) === 1 ? "" : "s"} synced.`,
+        "success"
+      );
       console.info(
         `GolfOps synced ${response.syncedCount || flyers.length} ForeTees event flyers.`
       );
