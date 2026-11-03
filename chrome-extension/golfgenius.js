@@ -171,9 +171,20 @@ async function golfGeniusParseDirectory() {
 }
 
 function golfGeniusParticipantUrl() {
-  const link = Array.from(document.querySelectorAll("a[href]"))
-    .find((anchor) => /participants?|player roster|registered players|attendees?/i.test(golfGeniusClean(anchor.textContent)));
-  return link ? golfGeniusAbsoluteUrl(link.getAttribute("href")) : null;
+  const links = Array.from(document.querySelectorAll("a[href]"));
+  const link = links.find((anchor) => {
+    const text = golfGeniusClean(anchor.textContent);
+    const href = golfGeniusAbsoluteUrl(anchor.getAttribute("href"));
+    return /participants?|players?|player roster|registered players|attendees?/i.test(text) ||
+      /\/rounds\/\d+\/players(?:[/?#]|$)/i.test(href);
+  });
+  if (link) return golfGeniusAbsoluteUrl(link.getAttribute("href"));
+
+  // Some event detail pages link to the round but omit a labeled Players link.
+  const roundId = window.location.pathname.match(/\/rounds\/(\d+)(?:\/|$)/i)?.[1];
+  return roundId
+    ? `${window.location.origin}/rounds/${roundId}/players`
+    : null;
 }
 
 function golfGeniusParseEvent() {
@@ -197,8 +208,8 @@ function golfGeniusLikelyParticipantName(value) {
   if (!text || text.length > 200) return false;
   if (/^(back to directory|member tools|privacy policy|sign out|terms of service|the twineagles club)$/i.test(text)) return false;
   if (/\b(directory|member tools|privacy policy|sign out|terms of service)\b/i.test(text)) return false;
-  if (/^(handle|name|player|golfer|division|filter players|player roster|print|actions?|entry|email|ghin|h\.i\.)$/i.test(text)) return false;
-  if (/\d{4}|@|registration|weather|information|policies|procedures/i.test(text)) return false;
+  if (/^(handle|name|players?|participants?|golfer|division|filter players|player roster|print|actions?|entry|email|ghin|h\.i\.)$/i.test(text)) return false;
+  if (/\d{4}|@|registration|registered|registrant|weather|information|policies|procedures/i.test(text)) return false;
   return /[a-z]/i.test(text) && (text.includes(",") || text.split(/\s+/).length >= 2);
 }
 
@@ -215,9 +226,10 @@ function golfGeniusParseParticipants() {
     const cells = Array.from(row.querySelectorAll("td, [role='cell']"))
       .map((cell) => golfGeniusClean(cell.textContent))
       .filter(golfGeniusLikelyParticipantName);
-    const name = links[0] || cells[0];
-    if (!name) continue;
-    participants.push({ name, appointmentTime: golfGeniusTime(rowText), status: "CONFIRMED" });
+    const names = Array.from(new Set([...links, ...cells]));
+    for (const name of names) {
+      participants.push({ name, appointmentTime: golfGeniusTime(rowText), status: "CONFIRMED" });
+    }
   }
 
   if (participants.length === 0) {
