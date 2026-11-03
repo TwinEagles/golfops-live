@@ -241,7 +241,21 @@ function golfGeniusParseParticipants() {
   const participants = [];
   const textRoster = golfGeniusParticipantsFromConfirmedText();
   participants.push(...textRoster.participants);
-  const rows = textRoster.participants.length > 0
+
+  // The current Golf Genius roster page exposes each confirmed golfer's name
+  // as the associated checkbox label, while unrelated page settings use
+  // ordinary labels. The comma-separated Last, First format distinguishes
+  // player labels from those settings and does not depend on table markup.
+  for (const checkbox of document.querySelectorAll("input[type='checkbox']")) {
+    const rawLabel = golfGeniusClean(
+      checkbox.labels?.[0]?.innerText || checkbox.labels?.[0]?.textContent
+    );
+    const name = rawLabel.replace(/\s*\d{1,2}(?:\.\d+)?\s*$/, "").trim();
+    if (!/^[A-Z][A-Za-z'’.-]+,\s*[A-Z][A-Za-z'’.-]+(?:\s+[A-Z][A-Za-z'’.-]+){0,3}$/i.test(name)) continue;
+    participants.push({ name, appointmentTime: null, status: "CONFIRMED" });
+  }
+
+  const rows = participants.length > 0
     ? []
     : Array.from(document.querySelectorAll("tbody tr, table tr, [role='row']"));
   for (const row of rows) {
