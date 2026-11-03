@@ -234,35 +234,35 @@ function golfGeniusParseParticipants() {
 
   if (participants.length === 0) {
     const heading = Array.from(document.querySelectorAll("body *"))
-      .find((element) => element.children.length === 0 && /^confirmed players(?:\s*\(\d+\))?$/i.test(golfGeniusClean(element.textContent)));
+      .find((element) => {
+        const text = golfGeniusClean(element.innerText || element.textContent);
+        return text.length <= 120 && /^confirmed players\s*\(\d+\)(?:\s+check all)?$/i.test(text);
+      });
+    const expectedCount = Number(heading?.innerText?.match(/\((\d+)\)/)?.[1] || 0);
     let confirmedRoot = heading || null;
-    for (let depth = 0; confirmedRoot && depth < 6; depth += 1) {
-      if (confirmedRoot.querySelectorAll("input[type='checkbox']").length > 0) break;
+    for (let depth = 0; confirmedRoot && depth < 10; depth += 1) {
+      const checkboxCount = confirmedRoot.querySelectorAll("input[type='checkbox']").length;
+      if (expectedCount > 0 ? checkboxCount >= expectedCount : checkboxCount > 0) break;
       confirmedRoot = confirmedRoot.parentElement;
     }
 
     if (confirmedRoot) {
       const checkboxes = Array.from(confirmedRoot.querySelectorAll("input[type='checkbox']"));
       for (const checkbox of checkboxes) {
-        let container = checkbox.labels?.[0] || checkbox.closest("li, tr, [role='row']") || checkbox.parentElement;
-        let rawText = golfGeniusClean(container?.innerText || container?.textContent);
+        let rawText = golfGeniusClean(checkbox.labels?.[0]?.innerText || checkbox.labels?.[0]?.textContent);
 
         // Golf Genius renders confirmed players as checkbox rows with the
-        // handicap index after the name (for example, "Heeney, Thomas 29.7").
-        // When there is no explicit label, climb to the smallest one-checkbox
-        // wrapper so a whole column is never treated as one golfer.
-        if (!golfGeniusLikelyParticipantName(rawText)) {
-          let ancestor = checkbox.parentElement;
-          while (ancestor && ancestor !== confirmedRoot) {
-            const checkboxCount = ancestor.querySelectorAll("input[type='checkbox']").length;
-            const candidateText = golfGeniusClean(ancestor.innerText || ancestor.textContent);
-            if (checkboxCount === 1 && golfGeniusLikelyParticipantName(candidateText)) {
-              container = ancestor;
-              rawText = candidateText;
-              break;
-            }
-            ancestor = ancestor.parentElement;
+        // handicap index after the name. Find the smallest row containing only
+        // this checkbox so adjacent golfers never become one imported name.
+        let ancestor = checkbox.parentElement;
+        while (!rawText && ancestor && ancestor !== confirmedRoot) {
+          const checkboxCount = ancestor.querySelectorAll("input[type='checkbox']").length;
+          const candidateText = golfGeniusClean(ancestor.innerText || ancestor.textContent);
+          if (checkboxCount === 1 && candidateText) {
+            rawText = candidateText;
+            break;
           }
+          ancestor = ancestor.parentElement;
         }
 
         const name = rawText.replace(/\s*\d{1,2}(?:\.\d+)?\s*$/, "").trim();

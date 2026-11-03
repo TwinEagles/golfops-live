@@ -1146,6 +1146,16 @@ function golfGeniusDateInRange(value) {
   return eventDate >= earliest && eventDate <= latest;
 }
 
+function golfGeniusRoundPlayersUrl(value) {
+  try {
+    const url = new URL(value);
+    const roundId = url.pathname.match(/\/rounds\/(\d+)(?:\/players)?(?:\/|$)/i)?.[1];
+    return roundId ? `${url.origin}/rounds/${roundId}/players` : null;
+  } catch {
+    return null;
+  }
+}
+
 let golfGeniusSyncPromise = null;
 
 async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
@@ -1192,8 +1202,10 @@ async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
               event.location = eventDetails.location || event.location || null;
               event.sourceText = eventDetails.sourceText || event.sourceText || null;
 
-              if (eventDetails.participantUrl) {
-                await golfGeniusNavigate(tabId, eventDetails.participantUrl);
+              const participantUrl = eventDetails.participantUrl ||
+                golfGeniusRoundPlayersUrl(listedEvent.sourceUrl);
+              if (participantUrl) {
+                await golfGeniusNavigate(tabId, participantUrl);
                 const roster = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_PARTICIPANTS");
                 if (roster?.ok && Array.isArray(roster.participants)) {
                   event.participants = roster.participants;
