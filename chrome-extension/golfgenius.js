@@ -172,19 +172,38 @@ async function golfGeniusParseDirectory() {
 
 function golfGeniusParticipantUrl() {
   const links = Array.from(document.querySelectorAll("a[href]"));
-  const link = links.find((anchor) => {
-    const text = golfGeniusClean(anchor.textContent);
-    const href = golfGeniusAbsoluteUrl(anchor.getAttribute("href"));
-    return /participants?|players?|player roster|registered players|attendees?/i.test(text) ||
-      /\/rounds\/\d+\/players(?:[/?#]|$)/i.test(href);
-  });
+  const link = links.find((anchor) =>
+    /\/rounds\/\d+\/players(?:[/?#]|$)/i.test(golfGeniusAbsoluteUrl(anchor.getAttribute("href")))
+  );
   if (link) return golfGeniusAbsoluteUrl(link.getAttribute("href"));
 
-  // Some event detail pages link to the round but omit a labeled Players link.
+  // Round pages may link to the round itself instead of its player roster.
   const roundId = window.location.pathname.match(/\/rounds\/(\d+)(?:\/|$)/i)?.[1];
   return roundId
     ? `${window.location.origin}/rounds/${roundId}/players`
     : null;
+}
+
+function golfGeniusManagerUrl() {
+  const links = Array.from(document.querySelectorAll("a[href]"));
+  const managerLink = links.find((anchor) =>
+    /return to manager site/i.test(golfGeniusClean(anchor.textContent)) &&
+    /\/leagues\/\d+(?:[/?#]|$)/i.test(golfGeniusAbsoluteUrl(anchor.getAttribute("href")))
+  );
+  return managerLink ? golfGeniusAbsoluteUrl(managerLink.getAttribute("href")) : null;
+}
+
+function golfGeniusFindRosterUrl() {
+  const links = Array.from(document.querySelectorAll("a[href]"));
+  const rosterLink = links.find((anchor) => {
+    const text = golfGeniusClean(anchor.textContent);
+    const href = golfGeniusAbsoluteUrl(anchor.getAttribute("href"));
+    return /round player roster/i.test(text) &&
+      /\/rounds\/\d+\/players(?:[/?#]|$)/i.test(href);
+  }) || links.find((anchor) =>
+    /\/rounds\/\d+\/players(?:[/?#]|$)/i.test(golfGeniusAbsoluteUrl(anchor.getAttribute("href")))
+  );
+  return rosterLink ? golfGeniusAbsoluteUrl(rosterLink.getAttribute("href")) : null;
 }
 
 function golfGeniusParseEvent() {
@@ -199,6 +218,7 @@ function golfGeniusParseEvent() {
     ...golfGeniusTimes(text),
     location: golfGeniusLocation(text),
     participantUrl: golfGeniusParticipantUrl(),
+    managerUrl: golfGeniusManagerUrl(),
     sourceText: golfGeniusClean(text).slice(0, 4000)
   };
 }
@@ -363,6 +383,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message?.type === "GOLFGENIUS_PARSE_EVENT") {
     sendResponse(golfGeniusParseEvent());
+    return false;
+  }
+  if (message?.type === "GOLFGENIUS_FIND_ROSTER_URL") {
+    sendResponse({ ok: true, url: golfGeniusFindRosterUrl(), pageUrl: window.location.href });
     return false;
   }
   if (message?.type === "GOLFGENIUS_PARSE_PARTICIPANTS") {

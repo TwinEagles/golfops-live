@@ -1214,8 +1214,19 @@ async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
               event.location = eventDetails.location || event.location || null;
               event.sourceText = eventDetails.sourceText || event.sourceText || null;
 
-              const participantUrl = eventDetails.participantUrl ||
+              let participantUrl = eventDetails.participantUrl ||
                 golfGeniusRoundPlayersUrl(listedEvent.sourceUrl);
+              if (!participantUrl && eventDetails.managerUrl) {
+                await golfGeniusNavigate(tabId, eventDetails.managerUrl);
+                const managerRoster = await golfGeniusAskTab(tabId, "GOLFGENIUS_FIND_ROSTER_URL");
+                participantUrl = managerRoster?.url || null;
+                console.info("[GolfOps Live] Golf Genius manager roster link", {
+                  event: listedEvent.name,
+                  managerUrl: eventDetails.managerUrl,
+                  managerPageUrl: managerRoster?.pageUrl || null,
+                  rosterUrl: participantUrl
+                });
+              }
               if (participantUrl) {
                 await golfGeniusNavigate(tabId, participantUrl);
                 const roster = await golfGeniusWaitForParticipants(tabId);
@@ -1236,7 +1247,8 @@ async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
               } else {
                 console.warn("[GolfOps Live] Golf Genius event has no roster URL", {
                   event: listedEvent.name,
-                  sourceUrl: listedEvent.sourceUrl
+                  sourceUrl: listedEvent.sourceUrl,
+                  managerUrl: eventDetails.managerUrl || null
                 });
               }
             }
