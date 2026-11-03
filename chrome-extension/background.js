@@ -1136,6 +1136,18 @@ async function golfGeniusAskTab(tabId, type) {
   return { ok: false, error: lastError || "The Golf Genius page reader did not load." };
 }
 
+async function golfGeniusWaitForParticipants(tabId) {
+  let latest = { ok: false, participants: [] };
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    latest = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_PARTICIPANTS");
+    if (latest?.ready || (latest?.expectedCount === 0 && latest?.participants?.length > 0)) {
+      return latest;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return latest;
+}
+
 function golfGeniusDateInRange(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
   const eventDate = new Date(`${value}T12:00:00`);
@@ -1206,7 +1218,7 @@ async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
                 golfGeniusRoundPlayersUrl(listedEvent.sourceUrl);
               if (participantUrl) {
                 await golfGeniusNavigate(tabId, participantUrl);
-                const roster = await golfGeniusAskTab(tabId, "GOLFGENIUS_PARSE_PARTICIPANTS");
+                const roster = await golfGeniusWaitForParticipants(tabId);
                 if (roster?.ok && Array.isArray(roster.participants)) {
                   event.participants = roster.participants;
                 }

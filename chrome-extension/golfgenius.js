@@ -213,9 +213,37 @@ function golfGeniusLikelyParticipantName(value) {
   return /[a-z]/i.test(text) && (text.includes(",") || text.split(/\s+/).length >= 2);
 }
 
+function golfGeniusParticipantsFromConfirmedText() {
+  const bodyText = String(document.body?.innerText || "");
+  const headingMatch = bodyText.match(/confirmed\s+players\s*\((\d+)\)/i);
+  if (!headingMatch) return { participants: [], expectedCount: 0 };
+
+  const expectedCount = Number(headingMatch[1]) || 0;
+  const headingIndex = headingMatch.index || 0;
+  let sectionText = bodyText.slice(headingIndex + headingMatch[0].length);
+  const nextSection = sectionText.search(/\n\s*(?:unconfirmed\s+players|wait\s*list|waitlisted\s+players|declined\s+players|alternates)\b/i);
+  if (nextSection >= 0) sectionText = sectionText.slice(0, nextSection);
+
+  const participants = [];
+  // Golf Genius' roster is rendered as checkbox rows, and its text layout can
+  // vary between clubs. Handicap values provide a stable delimiter after each
+  // displayed name, even when the roster is not represented by a table.
+  const nameAndHandicap = /([A-Z][A-Za-z'’.\-]+,\s*[A-Z][A-Za-z'’.\-]+(?:\s+[A-Z][A-Za-z'’.\-]+){0,3})\s+(\d{1,2}\.\d{1,2})\b/g;
+  for (const match of sectionText.matchAll(nameAndHandicap)) {
+    const name = golfGeniusClean(match[1]);
+    if (!golfGeniusLikelyParticipantName(name)) continue;
+    participants.push({ name, appointmentTime: null, status: "CONFIRMED" });
+  }
+  return { participants, expectedCount };
+}
+
 function golfGeniusParseParticipants() {
   const participants = [];
-  const rows = Array.from(document.querySelectorAll("tbody tr, table tr, [role='row']"));
+  const textRoster = golfGeniusParticipantsFromConfirmedText();
+  participants.push(...textRoster.participants);
+  const rows = textRoster.participants.length > 0
+    ? []
+    : Array.from(document.querySelectorAll("tbody tr, table tr, [role='row']"));
   for (const row of rows) {
     if (row.closest("nav, header, footer, aside, [role='navigation']")) continue;
     const rowText = golfGeniusClean(row.innerText);
@@ -296,7 +324,14 @@ function golfGeniusParseParticipants() {
     if (!unique.has(key)) unique.set(key, participant);
   }
 
-  return { ok: true, participants: Array.from(unique.values()) };
+  const result = Array.from(unique.values());
+  const expectedCount = textRoster.expectedCount;
+  return {
+    ok: expectedCount === 0 || result.length >= expectedCount,
+    ready: expectedCount === 0 ? result.length > 0 : result.length >= expectedCount,
+    expectedCount,
+    participants: result
+  };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
