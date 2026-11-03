@@ -208,7 +208,7 @@ function golfGeniusLikelyParticipantName(value) {
   if (!text || text.length > 200) return false;
   if (/^(back to directory|member tools|privacy policy|sign out|terms of service|the twineagles club)$/i.test(text)) return false;
   if (/\b(directory|member tools|privacy policy|sign out|terms of service)\b/i.test(text)) return false;
-  if (/^(handle|name|players?|participants?|golfer|division|filter players|player roster|print|actions?|entry|email|ghin|h\.i\.)$/i.test(text)) return false;
+  if (/^(handle|name|players?|participants?|golfer|division|filter players|player roster|print|actions?|entry|email|ghin|h\.i\.|check all)$/i.test(text)) return false;
   if (/\d{4}|@|registration|registered|registrant|weather|information|policies|procedures/i.test(text)) return false;
   return /[a-z]/i.test(text) && (text.includes(",") || text.split(/\s+/).length >= 2);
 }
@@ -229,6 +229,46 @@ function golfGeniusParseParticipants() {
     const names = Array.from(new Set([...links, ...cells]));
     for (const name of names) {
       participants.push({ name, appointmentTime: golfGeniusTime(rowText), status: "CONFIRMED" });
+    }
+  }
+
+  if (participants.length === 0) {
+    const heading = Array.from(document.querySelectorAll("body *"))
+      .find((element) => element.children.length === 0 && /^confirmed players(?:\s*\(\d+\))?$/i.test(golfGeniusClean(element.textContent)));
+    let confirmedRoot = heading || null;
+    for (let depth = 0; confirmedRoot && depth < 6; depth += 1) {
+      if (confirmedRoot.querySelectorAll("input[type='checkbox']").length > 0) break;
+      confirmedRoot = confirmedRoot.parentElement;
+    }
+
+    if (confirmedRoot) {
+      const checkboxes = Array.from(confirmedRoot.querySelectorAll("input[type='checkbox']"));
+      for (const checkbox of checkboxes) {
+        let container = checkbox.labels?.[0] || checkbox.closest("li, tr, [role='row']") || checkbox.parentElement;
+        let rawText = golfGeniusClean(container?.innerText || container?.textContent);
+
+        // Golf Genius renders confirmed players as checkbox rows with the
+        // handicap index after the name (for example, "Heeney, Thomas 29.7").
+        // When there is no explicit label, climb to the smallest one-checkbox
+        // wrapper so a whole column is never treated as one golfer.
+        if (!golfGeniusLikelyParticipantName(rawText)) {
+          let ancestor = checkbox.parentElement;
+          while (ancestor && ancestor !== confirmedRoot) {
+            const checkboxCount = ancestor.querySelectorAll("input[type='checkbox']").length;
+            const candidateText = golfGeniusClean(ancestor.innerText || ancestor.textContent);
+            if (checkboxCount === 1 && golfGeniusLikelyParticipantName(candidateText)) {
+              container = ancestor;
+              rawText = candidateText;
+              break;
+            }
+            ancestor = ancestor.parentElement;
+          }
+        }
+
+        const name = rawText.replace(/\s*\d{1,2}(?:\.\d+)?\s*$/, "").trim();
+        if (!golfGeniusLikelyParticipantName(name)) continue;
+        participants.push({ name, appointmentTime: null, status: "CONFIRMED" });
+      }
     }
   }
 
