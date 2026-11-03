@@ -264,13 +264,15 @@ function golfGeniusParseParticipants() {
     const heading = Array.from(document.querySelectorAll("body *"))
       .find((element) => {
         const text = golfGeniusClean(element.innerText || element.textContent);
-        return text.length <= 120 && /^confirmed players\s*\(\d+\)(?:\s+check all)?$/i.test(text);
+        return text.length <= 120 && /^confirmed players(?:\s*\(\d+\))?(?:\s+check all)?(?:\s|$)/i.test(text);
       });
     const expectedCount = Number(heading?.innerText?.match(/\((\d+)\)/)?.[1] || 0);
     let confirmedRoot = heading || null;
     for (let depth = 0; confirmedRoot && depth < 10; depth += 1) {
       const checkboxCount = confirmedRoot.querySelectorAll("input[type='checkbox']").length;
-      if (expectedCount > 0 ? checkboxCount >= expectedCount : checkboxCount > 0) break;
+      // Without a displayed count, skip the heading's single "select all"
+      // checkbox and climb to the container holding the actual roster rows.
+      if (expectedCount > 0 ? checkboxCount >= expectedCount : checkboxCount > 1) break;
       confirmedRoot = confirmedRoot.parentElement;
     }
 
