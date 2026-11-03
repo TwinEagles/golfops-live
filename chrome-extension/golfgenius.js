@@ -346,7 +346,10 @@ function golfGeniusParseParticipants() {
     ok: expectedCount === 0 || result.length >= expectedCount,
     ready: expectedCount === 0 ? result.length > 0 : result.length >= expectedCount,
     expectedCount,
-    participants: result
+    participants: result,
+    pageUrl: window.location.href,
+    pageTitle: document.title,
+    checkboxCount: document.querySelectorAll("input[type='checkbox']").length
   };
 }
 

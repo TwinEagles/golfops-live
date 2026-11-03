@@ -1219,9 +1219,25 @@ async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
               if (participantUrl) {
                 await golfGeniusNavigate(tabId, participantUrl);
                 const roster = await golfGeniusWaitForParticipants(tabId);
+                console.info("[GolfOps Live] Golf Genius roster diagnostic", {
+                  event: listedEvent.name,
+                  requestedUrl: participantUrl,
+                  pageUrl: roster?.pageUrl || null,
+                  pageTitle: roster?.pageTitle || null,
+                  checkboxCount: roster?.checkboxCount ?? null,
+                  expectedCount: roster?.expectedCount ?? null,
+                  participantCount: Array.isArray(roster?.participants) ? roster.participants.length : 0,
+                  ok: roster?.ok ?? false,
+                  error: roster?.error || null
+                });
                 if (roster?.ok && Array.isArray(roster.participants)) {
                   event.participants = roster.participants;
                 }
+              } else {
+                console.warn("[GolfOps Live] Golf Genius event has no roster URL", {
+                  event: listedEvent.name,
+                  sourceUrl: listedEvent.sourceUrl
+                });
               }
             }
           } catch (error) {
