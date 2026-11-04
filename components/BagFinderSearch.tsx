@@ -47,30 +47,43 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
           throw new Error(result?.error || "Unable to search members.");
         }
 
-        const foundMembers = (result.members ?? []) as MemberResult[];
-        setMembers(foundMembers);
+        let foundMembers = (result.members ?? []) as MemberResult[];
+        let matchedForVoice: MemberResult[] = [];
         if (kiosk && announceExactVoiceMatch.current) {
-          announceExactVoiceMatch.current = false;
           const normalizeWords = (value: string) => value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim().split(/\s+/).filter(Boolean);
           const spokenParts = normalizeWords(q);
           const spokenFirst = spokenParts[0] ?? "";
           const spokenLast = spokenParts.at(-1) ?? "";
           const nicknames: Record<string, string[]> = {
-            ken: ["kenneth"], kenny: ["kenneth"], bill: ["william"], bob: ["robert"],
-            mike: ["michael"], jim: ["james"], joe: ["joseph"], tom: ["thomas"],
-            dick: ["richard"], rich: ["richard"], ted: ["theodore", "edward"],
-            ed: ["edward"], chuck: ["charles"], dan: ["daniel"], dave: ["david"],
-            steve: ["steven", "stephen"], matt: ["matthew"], chris: ["christopher"],
-            pat: ["patrick"], tony: ["anthony"], al: ["alan", "albert"],
+            ken: ["kenneth"], kenny: ["kenneth"], bill: ["william"], bob: ["robert"], mike: ["michael"],
+            jim: ["james"], joe: ["joseph"], tom: ["thomas"], dick: ["richard"], rich: ["richard"],
+            ted: ["theodore", "edward"], ed: ["edward"], chuck: ["charles"], dan: ["daniel"], dave: ["david"],
+            steve: ["steven", "stephen"], matt: ["matthew"], chris: ["christopher"], pat: ["patrick"],
+            tony: ["anthony"], al: ["alan", "albert"],
           };
           const firstMatches = (spoken: string, actual: string) =>
             actual === spoken || actual.startsWith(spoken) || (nicknames[spoken] ?? []).includes(actual);
-          const exactMatches = spokenParts.length >= 2 ? foundMembers.filter((member) => {
+          const findCandidates = (list: MemberResult[]) => spokenParts.length >= 2 ? list.filter((member) => {
             const actual = normalizeWords(member.full_name ?? "");
             return actual.length >= 2 && firstMatches(spokenFirst, actual[0]) && actual.at(-1) === spokenLast;
           }) : [];
-          if (exactMatches.length === 1) window.setTimeout(() => callOutBag(exactMatches[0]), 250);
+          matchedForVoice = findCandidates(foundMembers);
+          // Searching "Ken Smith" as one phrase misses "Kenneth Smith" in SQL.
+          // Search the surname, then rank/filter by spoken first-name prefix or nickname.
+          if (matchedForVoice.length === 0 && spokenParts.length >= 2) {
+            const fallbackResponse = await fetch(`/api/members/search?q=${encodeURIComponent(spokenLast)}`, { signal: controller.signal });
+            if (fallbackResponse.ok) {
+              const fallback = await fallbackResponse.json();
+              const surnameCandidates = (fallback.members ?? []) as MemberResult[];
+              matchedForVoice = findCandidates(surnameCandidates);
+              if (matchedForVoice.length > 0) foundMembers = matchedForVoice;
+              else if (foundMembers.length === 0) foundMembers = surnameCandidates;
+            }
+          }
+          announceExactVoiceMatch.current = false;
         }
+        setMembers(foundMembers);
+        if (matchedForVoice.length === 1) window.setTimeout(() => callOutBag(matchedForVoice[0]), 250);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           return;
@@ -182,7 +195,7 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
             <button
               type="button"
               onClick={clearSearch}
-              className={`absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${kiosk ? "h-16 w-16 text-4xl" : "h-11 w-11 text-2xl"}`}
+              className={`absolute ${kiosk ? "right-44" : "right-2"} top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${kiosk ? "h-16 w-16 text-4xl" : "h-11 w-11 text-2xl"}`}
               aria-label="Clear search"
               title="Clear search"
             >
