@@ -95,6 +95,7 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
     recognition.onresult = (event: any) => {
       const spoken = String(event.results?.[0]?.[0]?.transcript ?? "")
         .replace(/^(find|search for|look up)\s+/i, "")
+        .replace(/[.,!?;:]+$/g, "")
         .trim();
       if (spoken) {
         setSearch(spoken);
