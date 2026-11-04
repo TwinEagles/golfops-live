@@ -34,7 +34,12 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/home");
+    const requestedPath = new URLSearchParams(window.location.search).get("next");
+    const destination = requestedPath === "/bagfinder/kiosk"
+      ? requestedPath
+      : "/home";
+
+    router.push(destination);
     router.refresh();
   }
 

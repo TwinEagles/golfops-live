@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { hasGolfOpsPermission } from "@/lib/permissions";
 import BagFinderSearch from "@/components/BagFinderSearch";
 import AppNav from "@/components/AppNav";
 
@@ -12,6 +13,10 @@ export default async function BagFinderPage() {
 
   if (!user) {
     redirect("/");
+  }
+
+  if (!(await hasGolfOpsPermission("bag_finder"))) {
+    redirect("/settings/account");
   }
 
   const { data: profile } = await supabase

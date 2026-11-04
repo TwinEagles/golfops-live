@@ -9,7 +9,7 @@ type MemberResult = {
   bag_number: string | null;
 };
 
-export default function BagFinderSearch() {
+export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) {
   const [search, setSearch] = useState("");
   const [members, setMembers] = useState<MemberResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -73,7 +73,7 @@ export default function BagFinderSearch() {
 
   return (
     <>
-      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+      <div className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${kiosk ? "p-5 sm:p-7" : "p-3 sm:p-5"}`}>
         <div className="relative">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -83,7 +83,7 @@ export default function BagFinderSearch() {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+            className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400 ${kiosk ? "left-6 h-8 w-8" : "left-4 h-5 w-5"}`}
             aria-hidden="true"
           >
             <circle cx="11" cy="11" r="8" />
@@ -92,21 +92,21 @@ export default function BagFinderSearch() {
 
           <input
             ref={searchInputRef}
-            autoFocus
+            autoFocus={!kiosk}
             type="search"
             inputMode="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Name, bag #, or member #"
+            placeholder={kiosk ? "Touch here to search" : "Name, bag #, or member #"}
             aria-label="Search members"
-            className="w-full rounded-lg border border-slate-300 py-3.5 pl-12 pr-12 text-base outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 sm:py-4 sm:text-lg"
+            className={`w-full border border-slate-300 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 ${kiosk ? "min-h-24 rounded-xl py-5 pl-16 pr-20 text-2xl sm:text-3xl" : "rounded-lg py-3.5 pl-12 pr-12 text-base sm:py-4 sm:text-lg"}`}
           />
 
           {search && (
             <button
               type="button"
               onClick={clearSearch}
-              className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className={`absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${kiosk ? "h-16 w-16 text-4xl" : "h-11 w-11 text-2xl"}`}
               aria-label="Clear search"
               title="Clear search"
             >
@@ -117,8 +117,8 @@ export default function BagFinderSearch() {
       </div>
 
       {!search && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white px-5 py-10 text-center sm:mt-6 sm:px-6 sm:py-14">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+        <div className={`mt-5 rounded-2xl border border-slate-200 bg-white text-center ${kiosk ? "px-6 py-10 sm:mt-7 sm:px-10 sm:py-16" : "px-5 py-10 sm:mt-6 sm:px-6 sm:py-14"}`}>
+          <div className={`mx-auto flex items-center justify-center rounded-full bg-indigo-50 text-indigo-600 ${kiosk ? "h-20 w-20" : "h-14 w-14"}`}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -127,7 +127,7 @@ export default function BagFinderSearch() {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="h-7 w-7"
+              className={kiosk ? "h-10 w-10" : "h-7 w-7"}
               aria-hidden="true"
             >
               <path d="M6 2h9l5 5v15H6z" />
@@ -137,22 +137,22 @@ export default function BagFinderSearch() {
             </svg>
           </div>
 
-          <h3 className="mt-4 text-lg font-bold text-slate-900">
+          <h3 className={`mt-5 font-bold text-slate-900 ${kiosk ? "text-2xl sm:text-3xl" : "text-lg"}`}>
             Find a Member Bag
           </h3>
 
-          <p className="mt-2 text-sm text-slate-500">
-            Start typing a name, bag number, or member number.
+          <p className={`mt-3 text-slate-500 ${kiosk ? "text-lg sm:text-xl" : "text-sm"}`}>
+            {kiosk ? "Tap the search box and enter a name, bag number, or member number." : "Start typing a name, bag number, or member number."}
           </p>
         </div>
       )}
 
       {search && searching && (
         <div
-          className="mt-4 rounded-xl border border-slate-200 bg-white px-6 py-8 text-center sm:mt-6 sm:py-10"
+          className={`mt-5 rounded-2xl border border-slate-200 bg-white text-center ${kiosk ? "px-6 py-12 sm:py-16" : "px-6 py-8 sm:mt-6 sm:py-10"}`}
           role="status"
         >
-          <div className="text-sm font-medium text-slate-500">
+          <div className={`font-medium text-slate-500 ${kiosk ? "text-xl" : "text-sm"}`}>
             Searching...
           </div>
         </div>
@@ -160,7 +160,7 @@ export default function BagFinderSearch() {
 
       {error && (
         <div
-          className="mt-4 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 sm:mt-6"
+          className={`mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-700 ${kiosk ? "text-xl" : "text-sm"}`}
           role="alert"
         >
           {error}
@@ -168,25 +168,25 @@ export default function BagFinderSearch() {
       )}
 
       {search && !searching && !error && members.length === 0 && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white px-5 py-10 text-center sm:mt-6 sm:px-6 sm:py-14">
-          <h3 className="text-lg font-bold text-slate-900">
+        <div className={`mt-5 rounded-2xl border border-slate-200 bg-white px-6 text-center ${kiosk ? "py-14 sm:py-16" : "py-10 sm:mt-6 sm:py-14"}`}>
+          <h3 className={`font-bold text-slate-900 ${kiosk ? "text-2xl sm:text-3xl" : "text-lg"}`}>
             No members found
           </h3>
 
-          <p className="mt-2 break-words text-sm text-slate-500">
+          <p className={`mt-3 break-words text-slate-500 ${kiosk ? "text-lg sm:text-xl" : "text-sm"}`}>
             No member matched “{search}”.
           </p>
         </div>
       )}
 
       {!searching && members.length > 0 && (
-        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:mt-6">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:px-5">
-            <span className="text-sm font-semibold text-slate-700">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className={`flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 ${kiosk ? "px-6 py-5 sm:px-8" : "px-4 py-3 sm:px-5"}`}>
+            <span className={`font-semibold text-slate-700 ${kiosk ? "text-lg sm:text-xl" : "text-sm"}`}>
               Search Results
             </span>
 
-            <span className="shrink-0 text-xs text-slate-400">
+            <span className={`shrink-0 text-slate-400 ${kiosk ? "text-base sm:text-lg" : "text-xs"}`}>
               {members.length} {members.length === 1 ? "member" : "members"}
             </span>
           </div>
@@ -195,14 +195,14 @@ export default function BagFinderSearch() {
             {members.map((member) => (
               <article
                 key={member.id}
-                className="px-4 py-4 transition hover:bg-slate-50 sm:grid sm:grid-cols-[minmax(0,1fr)_150px_190px] sm:items-center sm:gap-5 sm:px-6 sm:py-5"
+                className={`transition hover:bg-slate-50 ${kiosk ? "px-6 py-6 sm:grid sm:grid-cols-[minmax(0,1fr)_190px_250px] sm:items-center sm:gap-6 sm:px-8 sm:py-7" : "px-4 py-4 sm:grid sm:grid-cols-[minmax(0,1fr)_150px_190px] sm:items-center sm:gap-5 sm:px-6 sm:py-5"}`}
               >
                 <div className="min-w-0">
-                  <div className="break-words text-lg font-bold text-slate-950 sm:text-xl">
+                  <div className={`break-words font-bold text-slate-950 ${kiosk ? "text-2xl sm:text-3xl" : "text-lg sm:text-xl"}`}>
                     {member.full_name ?? "Unnamed Member"}
                   </div>
 
-                  <div className="mt-1 text-sm text-slate-400">
+                  <div className={`mt-2 text-slate-500 ${kiosk ? "text-lg" : "text-sm text-slate-400"}`}>
                     {member.member_number
                       ? `Member #${member.member_number}`
                       : "No member number"}
@@ -210,26 +210,26 @@ export default function BagFinderSearch() {
                 </div>
 
                 <div className="hidden sm:block">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  <div className={`font-semibold uppercase tracking-wide text-slate-400 ${kiosk ? "text-sm" : "text-[10px]"}`}>
                     Member #
                   </div>
 
-                  <div className="mt-1 text-lg font-semibold text-slate-700">
+                  <div className={`mt-1 font-semibold text-slate-700 ${kiosk ? "text-2xl" : "text-lg"}`}>
                     {member.member_number ?? "—"}
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-100 pt-4 sm:mt-0 sm:block sm:border-0 sm:pt-0 sm:text-right">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className={`mt-4 flex items-center justify-between gap-4 border-t border-slate-100 pt-4 sm:mt-0 sm:block sm:border-0 sm:pt-0 sm:text-right ${kiosk ? "sm:min-w-[250px]" : ""}`}>
+                  <div className={`font-semibold uppercase tracking-wide text-slate-400 ${kiosk ? "text-sm" : "text-[10px]"}`}>
                     Bag Number
                   </div>
 
                   {member.bag_number ? (
-                    <div className="inline-flex min-w-[96px] items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-2xl font-black text-white sm:mt-1 sm:min-w-[105px] sm:px-5 sm:py-2">
+                    <div className={`inline-flex items-center justify-center rounded-xl bg-indigo-600 font-black text-white sm:mt-1 ${kiosk ? "min-h-20 min-w-[180px] px-6 py-4 text-4xl sm:text-5xl" : "min-w-[96px] rounded-lg px-4 py-2.5 text-2xl sm:min-w-[105px] sm:px-5 sm:py-2"}`}>
                       {member.bag_number}
                     </div>
                   ) : (
-                    <div className="text-base font-semibold text-slate-400 sm:mt-1 sm:text-lg">
+                    <div className={`font-semibold text-slate-400 sm:mt-1 ${kiosk ? "text-xl sm:text-2xl" : "text-base sm:text-lg"}`}>
                       No Bag
                     </div>
                   )}
