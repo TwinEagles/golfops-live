@@ -830,6 +830,39 @@ export default async function PrintPlacardsPage({
     (slotData ??
       []) as TeeSheetSlot[];
 
+  // Pull list data for lessons, clinics, and fittings on this date.
+  const [lessonsResult, eventsResult, membersResult] = await Promise.all([
+    supabase.from("foretees_lessons")
+      .select("lesson_time, instructor_name, member_name, lesson_type")
+      .eq("club_id", profile.club_id).eq("lesson_date", date).eq("source", "FORETEES"),
+    supabase.from("golfgenius_events")
+      .select("id, event_type, event_name, start_time, location, golfgenius_registrations(participant_name, appointment_time)")
+      .eq("club_id", profile.club_id).eq("event_date", date).eq("active", true)
+      .order("start_time", { ascending: true, nullsFirst: false }),
+    supabase.from("members").select("full_name, first_name, last_name, bag_number")
+      .eq("club_id", profile.club_id),
+  ]);
+  const members = membersResult.data ?? [];
+  const bagFor = (name: string | null) => {
+    const key = normalize(name).replace(/[^a-z0-9]/g, "");
+    const match = members.find((m: any) => {
+      const full = normalize(m.full_name || `${m.first_name ?? ""} ${m.last_name ?? ""}`).replace(/[^a-z0-9]/g, "");
+      return key && full === key;
+    });
+    return match?.bag_number ?? "";
+  };
+  const pullItems = [
+    ...(lessonsResult.data ?? []).map((x: any) => ({
+      time: x.lesson_time ?? "", category: "Lesson", name: x.member_name ?? "", detail: x.lesson_type ?? "", bag: bagFor(x.member_name),
+    })),
+    ...(eventsResult.data ?? []).flatMap((event: any) =>
+      (event.golfgenius_registrations ?? []).map((person: any) => ({
+        time: person.appointment_time ?? event.start_time ?? "", category: event.event_type === "FITTING" ? "Fitting" : "Clinic",
+        name: person.participant_name ?? "", detail: event.event_name ?? "", bag: bagFor(person.participant_name),
+      }))
+    ),
+  ].sort((a, b) => a.time.localeCompare(b.time) || a.name.localeCompare(b.name));
+
   let placards =
     buildPlacards(
       slots
@@ -987,6 +1020,13 @@ export default async function PrintPlacardsPage({
       />
 
       <main className="print-page">
+        <section className="pull-list-page">
+          <h1>Lessons, Clinics &amp; Fittings</h1>
+          <h2>{new Date(`${date}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</h2>
+          {pullItems.length ? <table><thead><tr><th>Time</th><th>Type</th><th>Member / Participant</th><th>Bag Slot</th><th>Lesson / Event</th></tr></thead><tbody>
+            {pullItems.map((item, i) => <tr key={`${item.category}-${item.name}-${item.time}-${i}`}><td>{item.time ? formatTime(item.time.slice(0,5)) : "—"}</td><td>{item.category}</td><td>{item.name || "—"}</td><td>{item.bag || "—"}</td><td>{item.detail || "—"}</td></tr>)}
+          </tbody></table> : <p>No lessons, clinics, or fittings scheduled.</p>}
+        </section>
         {placards.length === 0 ? (
           <div className="empty-state">
             <h2>
@@ -1191,6 +1231,12 @@ export default async function PrintPlacardsPage({
         .print-page {
           padding: 24px 0 40px;
         }
+        .pull-list-page { width: 760px; min-height: 9.8in; margin: 0 auto 24px; padding: 28px; background: white; font-family: Arial, sans-serif; page-break-after: always; break-after: page; }
+        .pull-list-page h1 { margin: 0 0 6px; text-align: center; font-size: 24px; }
+        .pull-list-page h2 { margin: 0 0 24px; text-align: center; font-size: 15px; font-weight: normal; }
+        .pull-list-page table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .pull-list-page th, .pull-list-page td { border: 1px solid #888; padding: 7px 6px; text-align: left; }
+        .pull-list-page th { background: #e9edf3; }
 
         .placard-list {
           width: 760px;
@@ -1405,6 +1451,10 @@ export default async function PrintPlacardsPage({
             padding: 0;
           }
 
+          .pull-list-page { width: 100%; min-height: 0; height: 10.55in; margin: 0; padding: 0.15in; page-break-after: always; break-after: page; }
+          .pull-list-page h1 { font-size: 20pt; }
+          .pull-list-page table { font-size: 10pt; }
+          .pull-list-page th, .pull-list-page td { padding: 0.08in 0.06in; }
           .placard-list {
             width: 100%;
           }
