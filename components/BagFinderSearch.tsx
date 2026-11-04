@@ -16,6 +16,7 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
   const [error, setError] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const announceExactVoiceMatch = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,7 +47,30 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
           throw new Error(result?.error || "Unable to search members.");
         }
 
-        setMembers(result.members ?? []);
+        const foundMembers = (result.members ?? []) as MemberResult[];
+        setMembers(foundMembers);
+        if (kiosk && announceExactVoiceMatch.current) {
+          announceExactVoiceMatch.current = false;
+          const normalizeWords = (value: string) => value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim().split(/\s+/).filter(Boolean);
+          const spokenParts = normalizeWords(q);
+          const spokenFirst = spokenParts[0] ?? "";
+          const spokenLast = spokenParts.at(-1) ?? "";
+          const nicknames: Record<string, string[]> = {
+            ken: ["kenneth"], kenny: ["kenneth"], bill: ["william"], bob: ["robert"],
+            mike: ["michael"], jim: ["james"], joe: ["joseph"], tom: ["thomas"],
+            dick: ["richard"], rich: ["richard"], ted: ["theodore", "edward"],
+            ed: ["edward"], chuck: ["charles"], dan: ["daniel"], dave: ["david"],
+            steve: ["steven", "stephen"], matt: ["matthew"], chris: ["christopher"],
+            pat: ["patrick"], tony: ["anthony"], al: ["alan", "albert"],
+          };
+          const firstMatches = (spoken: string, actual: string) =>
+            actual === spoken || actual.startsWith(spoken) || (nicknames[spoken] ?? []).includes(actual);
+          const exactMatches = spokenParts.length >= 2 ? foundMembers.filter((member) => {
+            const actual = normalizeWords(member.full_name ?? "");
+            return actual.length >= 2 && firstMatches(spokenFirst, actual[0]) && actual.at(-1) === spokenLast;
+          }) : [];
+          if (exactMatches.length === 1) window.setTimeout(() => callOutBag(exactMatches[0]), 250);
+        }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           return;
@@ -88,6 +112,7 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
     recognition.maxAlternatives = 1;
     recognition.onstart = () => setListening(true);
     recognition.onerror = () => {
+      announceExactVoiceMatch.current = false;
       setListening(false);
       setVoiceError("I couldn’t hear that. Tap to talk and try again.");
     };
@@ -98,6 +123,7 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
         .replace(/[.,!?;:]+$/g, "")
         .trim();
       if (spoken) {
+        announceExactVoiceMatch.current = true;
         setSearch(spoken);
         searchInputRef.current?.blur();
       } else {
