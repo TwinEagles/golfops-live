@@ -10,10 +10,10 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.6.4";
+  "1.8.2";
 
 const EXTENSION_RELEASE_DATE =
-  "October 15, 2026";
+  "November 4, 2026";
 
 const extensionApplications = [
   {
@@ -67,9 +67,18 @@ const extensionWorkflowCount = extensionApplications.reduce(
 
 const releaseHistory = [
   {
+    version: "1.8.2",
+    date: "November 4, 2026",
+    current: true,
+    highlights: [
+      "Reads participant names from the Golf Genius confirmed-player roster and ignores public event-page navigation links.",
+      "Preserves the last successful participant list when a roster cannot be read; registrations are replaced only after a successful roster read.",
+    ],
+  },
+  {
     version: "1.6.4",
     date: "October 15, 2026",
-    current: true,
+    current: false,
     highlights: [
       "Imports Golf Genius clinics, fitting events, and participant registrations scheduled within the next 30 days.",
       "Displays today's Clinics & Fittings on the Tee Sheet and Operations dashboard.",

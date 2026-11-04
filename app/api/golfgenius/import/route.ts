@@ -249,28 +249,26 @@ export async function POST(request: Request) {
     const savedByKey = new Map(
       savedEvents.map((event) => [`${event.event_type}:${event.external_event_id}`, event.id])
     );
-    const completeRegistrationKeys = new Set(
-      events.filter((event) => event.participantsComplete)
-        .map((event) => `${event.type}:${event.externalId}`)
-    );
-    const savedIds = Array.from(savedByKey.entries())
-      .filter(([key]) => completeRegistrationKeys.has(key))
-      .map(([, id]) => id);
-    if (savedIds.length > 0) {
+    const registrationRefreshIds = events
+      .filter((event) => event.participantsComplete)
+      .map((event) => savedByKey.get(`${event.type}:${event.externalId}`))
+      .filter((id): id is string => Boolean(id));
+
+    if (registrationRefreshIds.length > 0) {
       const { error } = await auth.supabase
         .from("golfgenius_registrations")
         .delete()
         .eq("club_id", profile.club_id)
-        .in("event_id", savedIds);
+        .in("event_id", registrationRefreshIds);
       if (error) {
         console.error("Golf Genius registration replacement failed:", error);
         return NextResponse.json({ ok: false, error: "Existing Golf Genius registrations could not be replaced." }, { status: 500 });
       }
     }
 
-    const registrationRows = events.flatMap((event) => {
+    const registrationRows = events.filter((event) => event.participantsComplete).flatMap((event) => {
       const eventId = savedByKey.get(`${event.type}:${event.externalId}`);
-      if (!eventId || !event.participantsComplete) return [];
+      if (!eventId) return [];
       return event.participants.map((participant) => ({
         club_id: profile.club_id,
         event_id: eventId,
