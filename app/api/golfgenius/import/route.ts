@@ -23,6 +23,7 @@ type GolfGeniusEvent = {
   sourceUrl?: unknown;
   sourceText?: unknown;
   participants?: unknown;
+  participantsComplete?: unknown;
 };
 
 type GolfGeniusDirectory = {
@@ -196,6 +197,7 @@ export async function POST(request: Request) {
         sourceUrl,
         sourceText: optionalText(event.sourceText, 4000),
         participants,
+        participantsComplete: event.participantsComplete === true,
       }];
     });
 
@@ -247,7 +249,13 @@ export async function POST(request: Request) {
     const savedByKey = new Map(
       savedEvents.map((event) => [`${event.event_type}:${event.external_event_id}`, event.id])
     );
-    const savedIds = Array.from(savedByKey.values());
+    const completeRegistrationKeys = new Set(
+      events.filter((event) => event.participantsComplete)
+        .map((event) => `${event.type}:${event.externalId}`)
+    );
+    const savedIds = Array.from(savedByKey.entries())
+      .filter(([key]) => completeRegistrationKeys.has(key))
+      .map(([, id]) => id);
     if (savedIds.length > 0) {
       const { error } = await auth.supabase
         .from("golfgenius_registrations")
@@ -262,7 +270,7 @@ export async function POST(request: Request) {
 
     const registrationRows = events.flatMap((event) => {
       const eventId = savedByKey.get(`${event.type}:${event.externalId}`);
-      if (!eventId) return [];
+      if (!eventId || !event.participantsComplete) return [];
       return event.participants.map((participant) => ({
         club_id: profile.club_id,
         event_id: eventId,

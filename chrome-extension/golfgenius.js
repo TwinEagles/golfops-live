@@ -337,6 +337,12 @@ function golfGeniusParseParticipants() {
   }
 
   if (participants.length === 0) {
+    // Do not harvest generic links from public event pages. Those pages contain
+    // navigation labels (directory, member tools, sign out, etc.), not roster rows.
+    const hasRosterHeading = /confirmed\s+players\s*\(\d+\)/i.test(String(document.body?.innerText || ""));
+    if (!hasRosterHeading) {
+      return { ok: false, ready: false, expectedCount: 0, participants: [], pageUrl: window.location.href, pageTitle: document.title, checkboxCount: document.querySelectorAll("input[type='checkbox']").length };
+    }
     const roots = new Set(document.querySelectorAll(
       "main, [role='main'], [class*='participant' i], [id*='participant' i], [class*='roster' i], [id*='roster' i], [class*='player-list' i], [id*='player-list' i]"
     ));

@@ -853,12 +853,12 @@ export default async function PrintPlacardsPage({
   };
   const pullItems = [
     ...(lessonsResult.data ?? []).map((x: any) => ({
-      time: x.lesson_time ?? "", category: "Lesson", name: x.member_name ?? "", detail: x.lesson_type ?? "", bag: bagFor(x.member_name),
+      time: x.lesson_time ?? "", category: "Lesson", name: x.member_name ?? "", instructor: x.instructor_name ?? "", detail: x.lesson_type ?? "", bag: bagFor(x.member_name),
     })),
     ...(eventsResult.data ?? []).flatMap((event: any) =>
       (event.golfgenius_registrations ?? []).map((person: any) => ({
         time: person.appointment_time ?? event.start_time ?? "", category: event.event_type === "FITTING" ? "Fitting" : "Clinic",
-        name: person.participant_name ?? "", detail: event.event_name ?? "", bag: bagFor(person.participant_name),
+        name: person.participant_name ?? "", instructor: "", detail: event.event_name ?? "", bag: bagFor(person.participant_name),
       }))
     ),
   ].sort((a, b) => a.time.localeCompare(b.time) || a.name.localeCompare(b.name));
@@ -1023,8 +1023,8 @@ export default async function PrintPlacardsPage({
         <section className="pull-list-page">
           <h1>Lessons, Clinics &amp; Fittings</h1>
           <h2>{new Date(`${date}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</h2>
-          {pullItems.length ? <table><thead><tr><th>Time</th><th>Type</th><th>Member / Participant</th><th>Bag Slot</th><th>Lesson / Event</th></tr></thead><tbody>
-            {pullItems.map((item, i) => <tr key={`${item.category}-${item.name}-${item.time}-${i}`}><td>{item.time ? formatTime(item.time.slice(0,5)) : "—"}</td><td>{item.category}</td><td>{item.name || "—"}</td><td>{item.bag || "—"}</td><td>{item.detail || "—"}</td></tr>)}
+          {pullItems.length ? <table><thead><tr><th>Time</th><th>Type</th><th>Member / Participant</th><th>Instructor</th><th>Bag Slot</th><th>Lesson / Event</th></tr></thead><tbody>
+            {pullItems.map((item, i) => <tr key={`${item.category}-${item.name}-${item.time}-${i}`}><td>{item.time ? formatTime(item.time.slice(0,5)) : "—"}</td><td>{item.category}</td><td>{item.name || "—"}</td><td>{item.instructor || "—"}</td><td>{item.bag || "—"}</td><td>{item.detail || "—"}</td></tr>)}
           </tbody></table> : <p>No lessons, clinics, or fittings scheduled.</p>}
         </section>
         {placards.length === 0 ? (

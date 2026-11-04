@@ -1202,7 +1202,8 @@ async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
             ...listedEvent,
             directoryGgid: directory.ggid,
             type: directory.type,
-            participants: []
+            participants: [],
+            participantsComplete: false
           };
 
           try {
@@ -1243,6 +1244,7 @@ async function collectGolfGeniusProgramsOnce(trigger = "MANUAL") {
                 });
                 if (roster?.ok && Array.isArray(roster.participants)) {
                   event.participants = roster.participants;
+                  event.participantsComplete = true;
                 }
               } else {
                 console.warn("[GolfOps Live] Golf Genius event has no roster URL", {
