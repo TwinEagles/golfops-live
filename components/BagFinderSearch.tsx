@@ -14,6 +14,8 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
   const [members, setMembers] = useState<MemberResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -68,7 +70,47 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
 
   function clearSearch() {
     setSearch("");
+    setVoiceError(null);
     searchInputRef.current?.focus();
+  }
+
+  function startVoiceSearch() {
+    setVoiceError(null);
+    const browserWindow = window as typeof window & { webkitSpeechRecognition?: new () => any; SpeechRecognition?: new () => any };
+    const Recognition = browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition;
+    if (!Recognition) {
+      setVoiceError("Voice search is not available in this browser. Please use the touch keyboard.");
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => setListening(true);
+    recognition.onerror = () => {
+      setListening(false);
+      setVoiceError("I couldn’t hear that. Tap to talk and try again.");
+    };
+    recognition.onend = () => setListening(false);
+    recognition.onresult = (event: any) => {
+      const spoken = String(event.results?.[0]?.[0]?.transcript ?? "")
+        .replace(/^(find|search for|look up)\s+/i, "")
+        .trim();
+      if (spoken) {
+        setSearch(spoken);
+        searchInputRef.current?.blur();
+      } else {
+        setVoiceError("I didn’t catch a member name. Please try again.");
+      }
+    };
+    recognition.start();
+  }
+
+  function callOutBag(member: MemberResult) {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const location = member.bag_number ? `Bag slot ${member.bag_number}` : "No bag slot is listed";
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(`${member.full_name ?? "Member"}. ${location}.`));
   }
 
   return (
@@ -99,9 +141,16 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
             onChange={(event) => setSearch(event.target.value)}
             placeholder={kiosk ? "Touch here to search" : "Name, bag #, or member #"}
             aria-label="Search members"
-            className={`w-full border border-slate-300 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 ${kiosk ? "min-h-24 rounded-xl py-5 pl-16 pr-20 text-2xl sm:text-3xl" : "rounded-lg py-3.5 pl-12 pr-12 text-base sm:py-4 sm:text-lg"}`}
+            className={`w-full border border-slate-300 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 ${kiosk ? "min-h-24 rounded-xl py-5 pl-16 pr-36 text-2xl sm:text-3xl" : "rounded-lg py-3.5 pl-12 pr-12 text-base sm:py-4 sm:text-lg"}`}
           />
 
+          {kiosk && (
+            <button type="button" onClick={startVoiceSearch} disabled={listening}
+              className="absolute right-2 top-1/2 flex min-h-16 -translate-y-1/2 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-lg font-bold text-white shadow hover:bg-indigo-700 disabled:bg-rose-600"
+              aria-label={listening ? "Listening" : "Tap to talk"}>
+              <span aria-hidden="true">🎙</span>{listening ? "Listening…" : "Tap to Talk"}
+            </button>
+          )}
           {search && (
             <button
               type="button"
@@ -115,6 +164,8 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
           )}
         </div>
       </div>
+
+      {kiosk && voiceError && <div role="status" className="mt-3 rounded-xl bg-amber-50 px-5 py-3 text-lg font-medium text-amber-800">{voiceError}</div>}
 
       {!search && (
         <div className={`mt-5 rounded-2xl border border-slate-200 bg-white text-center ${kiosk ? "px-6 py-10 sm:mt-7 sm:px-10 sm:py-16" : "px-5 py-10 sm:mt-6 sm:px-6 sm:py-14"}`}>
@@ -233,6 +284,7 @@ export default function BagFinderSearch({ kiosk = false }: { kiosk?: boolean }) 
                       No Bag
                     </div>
                   )}
+                  {kiosk && <button type="button" onClick={() => callOutBag(member)} className="mt-3 min-h-12 rounded-lg border border-indigo-200 px-4 text-base font-bold text-indigo-700 hover:bg-indigo-50">🔊 Call Out Location</button>}
                 </div>
               </article>
             ))}

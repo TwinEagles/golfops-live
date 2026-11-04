@@ -46,7 +46,7 @@ export default async function BagFinderKioskPage() {
             </h1>
           </div>
           <p className="hidden text-lg font-medium text-slate-500 sm:block">
-            Touch the search box to begin
+            Tap to search or speak a member’s name
           </p>
         </div>
       </header>
