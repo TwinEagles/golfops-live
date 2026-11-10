@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.8.3";
+  "1.8.4";
 
 const EXTENSION_RELEASE_DATE =
   "November 10, 2026";
@@ -67,9 +67,18 @@ const extensionWorkflowCount = extensionApplications.reduce(
 
 const releaseHistory = [
   {
-    version: "1.8.3",
+    version: "1.8.4",
     date: "November 10, 2026",
     current: true,
+    highlights: [
+      "Passes large-roster confirmation details from the GolfOps API through the extension to the Tee Sheet page.",
+      "Keeps expected safety-check prompts out of Chrome's extension error log.",
+    ],
+  },
+  {
+    version: "1.8.3",
+    date: "November 10, 2026",
+    current: false,
     highlights: [
       "Adds a one-time confirmation for large, intentional roster changes after re-reading the current ForeTees sheet.",
       "Keeps the existing mass-change safeguard active unless a staff member confirms the verified refresh.",

@@ -1257,13 +1257,16 @@ function sendManualSnapshot(
           }
 
           if (!response?.ok) {
-            console.error(
-              "GolfOps Live manual refresh import error:",
-              response?.error ||
-                "Unknown import error."
-            );
+            if (!response?.requiresConfirmation) {
+              console.error(
+                "GolfOps Live manual refresh import error:",
+                response?.error ||
+                  "Unknown import error."
+              );
+            }
 
             resolve({
+              ...response,
               ok: false,
               error:
                 response?.error ||
