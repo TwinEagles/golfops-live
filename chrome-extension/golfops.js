@@ -47,7 +47,9 @@ window.addEventListener(
       {
         type:
           "PULL_FORETEES_TEE_SHEET",
-        sheetDate
+        sheetDate,
+        confirmLargeRosterUpdate:
+          event.data.confirmLargeRosterUpdate === true
       },
       (response) => {
         const result =

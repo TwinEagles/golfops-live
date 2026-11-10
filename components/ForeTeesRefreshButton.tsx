@@ -12,12 +12,16 @@ type RefreshState =
   "idle" |
   "working" |
   "success" |
-  "error";
+  "error" |
+  "confirm";
 
 type RefreshResult = {
   ok?: boolean;
   error?: string;
   changesDetected?: number;
+  requiresConfirmation?: boolean;
+  existingPlayers?: number;
+  incomingPlayers?: number;
   teeTimesFound?: number;
   playersFound?: number;
   notesImported?: number;
@@ -139,6 +143,13 @@ export default function ForeTeesRefreshButton({
         event.data.result;
 
       if (!result?.ok) {
+        if (result?.requiresConfirmation) {
+          setState("confirm");
+          setMessage(
+            `This refresh found ${result.changesDetected ?? 0} roster changes (${result.existingPlayers ?? 0} currently loaded, ${result.incomingPlayers ?? 0} on the ForeTees sheet). The sheet and change log are unchanged. Verify the selected date and Course: All, then choose Confirm and refresh to read the sheet again and apply the update.`
+          );
+          return;
+        }
         setState("error");
         setMessage(
           result?.error ||
@@ -183,7 +194,7 @@ export default function ForeTeesRefreshButton({
     };
   }, [clearTimers, router]);
 
-  function requestRefresh() {
+  function requestRefresh(confirmLargeRosterUpdate = false) {
     if (state === "working") {
       return;
     }
@@ -200,7 +211,9 @@ export default function ForeTeesRefreshButton({
     acknowledged.current = false;
     setState("working");
     setMessage(
-      "Requesting the latest ForeTees Bag Report..."
+      confirmLargeRosterUpdate
+        ? "Re-reading ForeTees to apply the confirmed roster update..."
+        : "Requesting the latest ForeTees Bag Report..."
     );
 
     window.postMessage(
@@ -210,6 +223,7 @@ export default function ForeTeesRefreshButton({
           "PULL_FORETEES_TEE_SHEET",
         requestId,
         sheetDate,
+        confirmLargeRosterUpdate,
       },
       window.location.origin
     );
@@ -225,7 +239,7 @@ export default function ForeTeesRefreshButton({
             null;
           setState("error");
           setMessage(
-            "GolfOps Chrome extension version 1.4.7 is required. Reload or update the extension and try again."
+            "GolfOps Chrome extension version 1.8.3 is required. Reload or update the extension and try again."
           );
         }
       }, 2500);
@@ -285,7 +299,7 @@ export default function ForeTeesRefreshButton({
       {state !== "idle" && message ? (
         <div
           role={
-            state === "error"
+            state === "error" || state === "confirm"
               ? "alert"
               : "status"
           }
@@ -294,12 +308,23 @@ export default function ForeTeesRefreshButton({
             "fixed bottom-5 right-5 z-[100] max-w-sm rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-xl",
             state === "success"
               ? "bg-green-700"
-              : state === "error"
-                ? "bg-red-700"
-                : "bg-slate-800",
+              : state === "confirm"
+                ? "bg-amber-700"
+                : state === "error"
+                  ? "bg-red-700"
+                  : "bg-slate-800",
           ].join(" ")}
         >
-          {message}
+          <div>{message}</div>
+          {state === "confirm" ? (
+            <button
+              type="button"
+              onClick={() => requestRefresh(true)}
+              className="mt-3 rounded-lg bg-white px-3 py-2 text-sm font-bold text-amber-900 shadow-sm hover:bg-amber-50"
+            >
+              Confirm and refresh
+            </button>
+          ) : null}
         </div>
       ) : null}
     </>

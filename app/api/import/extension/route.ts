@@ -401,6 +401,9 @@ export async function POST(request: Request) {
         ? body.teeTimeNotes as unknown[]
         : [];
 
+    const confirmLargeRosterUpdate =
+      body?.confirmLargeRosterUpdate === true;
+
     const incomingTeeTimeNotes =
       rawTeeTimeNotes
         .map((value: unknown): IncomingTeeTimeNote | null => {
@@ -2194,7 +2197,8 @@ export async function POST(request: Request) {
     if (
       !isNewDay &&
       existingOccupiedPlayerCount >= 40 &&
-      rosterChurnCount >= massChurnThreshold
+      rosterChurnCount >= massChurnThreshold &&
+      !confirmLargeRosterUpdate
     ) {
       console.warn("Blocked suspicious ForeTees roster churn.", {
         sheetDate: parsed.sheetDate,
@@ -2217,6 +2221,7 @@ export async function POST(request: Request) {
           existingPlayers: existingOccupiedPlayerCount,
           incomingPlayers: incomingOccupiedPlayerCount,
           changesDetected: rosterChurnCount,
+          requiresConfirmation: true,
         },
         { status: 409 }
       );

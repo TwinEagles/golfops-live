@@ -1207,7 +1207,8 @@ function sendManualSnapshot(
   html,
   sheetDate,
   reportUrl,
-  teeTimeNoteCapture
+  teeTimeNoteCapture,
+  confirmLargeRosterUpdate = false
 ) {
   return new Promise(
     (resolve) => {
@@ -1226,6 +1227,7 @@ function sendManualSnapshot(
               teeTimeNoteCapture.notes,
             teeTimeNotesComplete:
               teeTimeNoteCapture.complete,
+            confirmLargeRosterUpdate,
             timezone:
               "America/New_York"
           }
@@ -1337,7 +1339,8 @@ async function collectTeeTimeNotesForDate(
 
 async function pullTeeSheetOnce(
   requestedDate,
-  sharedNoteCapture = null
+  sharedNoteCapture = null,
+  confirmLargeRosterUpdate = false
 ) {
   try {
     if (!isForeTeesLiveSheetPage()) {
@@ -1433,7 +1436,8 @@ async function pullTeeSheetOnce(
         html,
         sheetDate,
         reportUrl,
-        teeTimeNoteCapture
+        teeTimeNoteCapture,
+        confirmLargeRosterUpdate
       );
 
     if (result.ok) {
@@ -1863,7 +1867,8 @@ chrome.runtime.onMessage.addListener(
     pullTeeSheetOnce(
       message.sheetDate,
       message.teeTimeNoteCapture ||
-        null
+        null,
+      message.confirmLargeRosterUpdate === true
     )
       .then(sendResponse)
       .catch((error) => {

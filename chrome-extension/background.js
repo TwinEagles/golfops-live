@@ -313,6 +313,7 @@ async function sendAuthenticatedRequest(
 
   if (!response.ok) {
     return {
+      ...result,
       ok: false,
       error:
         result?.error ||
@@ -991,7 +992,8 @@ async function sendTeeSheetWithOpenNotes(
 }
 
 async function pullForeTeesTeeSheet(
-  sheetDate
+  sheetDate,
+  confirmLargeRosterUpdate = false
 ) {
   const tabs =
     await findForeTeesTabs();
@@ -1024,6 +1026,7 @@ async function pullForeTeesTeeSheet(
           type:
             "PULL_FORETEES_TEE_SHEET",
           sheetDate,
+          confirmLargeRosterUpdate,
           teeTimeNoteCapture:
             teeTimeNoteCapture
               .hasMatchingTabs
@@ -1361,7 +1364,8 @@ chrome.runtime.onMessage.addListener(
       } else {
         operation =
           pullForeTeesTeeSheet(
-            message.sheetDate
+            message.sheetDate,
+            message.confirmLargeRosterUpdate === true
           );
       }
     } else if (

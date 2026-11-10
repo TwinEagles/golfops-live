@@ -10,10 +10,10 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.8.2";
+  "1.8.3";
 
 const EXTENSION_RELEASE_DATE =
-  "November 4, 2026";
+  "November 10, 2026";
 
 const extensionApplications = [
   {
@@ -67,9 +67,18 @@ const extensionWorkflowCount = extensionApplications.reduce(
 
 const releaseHistory = [
   {
+    version: "1.8.3",
+    date: "November 10, 2026",
+    current: true,
+    highlights: [
+      "Adds a one-time confirmation for large, intentional roster changes after re-reading the current ForeTees sheet.",
+      "Keeps the existing mass-change safeguard active unless a staff member confirms the verified refresh.",
+    ],
+  },
+  {
     version: "1.8.2",
     date: "November 4, 2026",
-    current: true,
+    current: false,
     highlights: [
       "Reads participant names from the Golf Genius confirmed-player roster and ignores public event-page navigation links.",
       "Preserves the last successful participant list when a roster cannot be read; registrations are replaced only after a successful roster read.",
