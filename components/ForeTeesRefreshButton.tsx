@@ -264,7 +264,7 @@ export default function ForeTeesRefreshButton({
     <>
       <button
         type="button"
-        onClick={requestRefresh}
+        onClick={() => requestRefresh()}
         disabled={state === "working"}
         title="Update this tee sheet from the open ForeTees live tee sheet"
         className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--golfops-border)] bg-[var(--golfops-surface)] px-3 text-sm font-semibold text-[var(--golfops-text-secondary)] shadow-sm transition hover:bg-[var(--golfops-surface-soft)] disabled:cursor-wait disabled:opacity-60 sm:h-12"
