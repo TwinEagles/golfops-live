@@ -161,5 +161,44 @@ export async function POST(request: Request) {
     );
   }
 
-  return Response.json({ ok: true, syncedCount: rows.length });
+  // Treat a successful ForeTees scrape as the current flyer set. Removing
+  // flyers that disappeared from the source prevents expired posters from
+  // lingering on the Starter display after the event has passed.
+  const currentUrls = new Set(byUrl.keys());
+  const { data: savedFlyers, error: savedFlyersError } = await supabase
+    .from("starter_flyers")
+    .select("id, source_url")
+    .eq("club_id", String(profile.club_id))
+    .eq("source", "foretees-home");
+
+  if (savedFlyersError) {
+    console.error("Starter flyer cleanup lookup failed:", savedFlyersError);
+    return Response.json(
+      { ok: false, error: "GolfOps could not check previously saved ForeTees flyers." },
+      { status: 500 }
+    );
+  }
+
+  const staleIds = (savedFlyers ?? [])
+    .filter((flyer) => !currentUrls.has(flyer.source_url))
+    .map((flyer) => flyer.id);
+
+  if (staleIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("starter_flyers")
+      .delete()
+      .eq("club_id", String(profile.club_id))
+      .eq("source", "foretees-home")
+      .in("id", staleIds);
+
+    if (deleteError) {
+      console.error("Starter flyer cleanup failed:", deleteError);
+      return Response.json(
+        { ok: false, error: "GolfOps could not remove outdated ForeTees flyers." },
+        { status: 500 }
+      );
+    }
+  }
+
+  return Response.json({ ok: true, syncedCount: rows.length, removedCount: staleIds.length });
 }
