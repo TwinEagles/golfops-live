@@ -919,7 +919,8 @@ export async function POST(request: Request) {
     if (
       existingOccupiedPlayerCount >= 20 &&
       incomingOccupiedPlayerCount < minimumExpectedPlayers &&
-      existingOccupiedPlayerCount - incomingOccupiedPlayerCount >= 15
+      existingOccupiedPlayerCount - incomingOccupiedPlayerCount >= 15 &&
+      !confirmLargeRosterUpdate
     ) {
       console.warn("Blocked incomplete ForeTees tee-sheet refresh.", {
         sheetDate: parsed.sheetDate,
@@ -931,7 +932,9 @@ export async function POST(request: Request) {
       return Response.json(
         {
           ok: false,
-          error: `GolfOps blocked this refresh because ForeTees returned only ${incomingOccupiedPlayerCount} players, compared with ${existingOccupiedPlayerCount} currently loaded. Confirm the tee sheet is set to the correct date and Course: All, then refresh ForeTees and try again. The current GolfOps tee sheet was left unchanged.`,
+          error: `ForeTees returned only ${incomingOccupiedPlayerCount} players, compared with ${existingOccupiedPlayerCount} currently loaded. If this is an intentional change, such as a rain-day schedule reduction, choose Confirm and refresh to apply it. Otherwise verify the tee-sheet date and Course: All before confirming. The current GolfOps tee sheet is unchanged.`,
+          confirmationMessage: `ForeTees returned ${incomingOccupiedPlayerCount} players, compared with ${existingOccupiedPlayerCount} currently loaded. If today's rain-day schedule reduction is intentional, choose Confirm and refresh to apply it. Otherwise verify the tee-sheet date and Course: All. The current tee sheet is unchanged.`,
+          requiresConfirmation: true,
           sheetDate: parsed.sheetDate,
           existingPlayers: existingOccupiedPlayerCount,
           incomingPlayers: incomingOccupiedPlayerCount,

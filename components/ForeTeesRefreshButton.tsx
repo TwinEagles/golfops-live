@@ -20,6 +20,7 @@ type RefreshResult = {
   error?: string;
   changesDetected?: number;
   requiresConfirmation?: boolean;
+  confirmationMessage?: string;
   existingPlayers?: number;
   incomingPlayers?: number;
   teeTimesFound?: number;
@@ -146,7 +147,8 @@ export default function ForeTeesRefreshButton({
         if (result?.requiresConfirmation) {
           setState("confirm");
           setMessage(
-            `This refresh found ${result.changesDetected ?? 0} roster changes (${result.existingPlayers ?? 0} currently loaded, ${result.incomingPlayers ?? 0} on the ForeTees sheet). The sheet and change log are unchanged. Verify the selected date and Course: All, then choose Confirm and refresh to read the sheet again and apply the update.`
+            result.confirmationMessage ||
+              `This refresh found ${result.changesDetected ?? 0} roster changes (${result.existingPlayers ?? 0} currently loaded, ${result.incomingPlayers ?? 0} on the ForeTees sheet). The sheet and change log are unchanged. Verify the selected date and Course: All, then choose Confirm and refresh to read the sheet again and apply the update.`
           );
           return;
         }
