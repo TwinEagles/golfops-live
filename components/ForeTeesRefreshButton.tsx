@@ -148,7 +148,7 @@ export default function ForeTeesRefreshButton({
           setState("confirm");
           setMessage(
             result.confirmationMessage ||
-              `This refresh found ${result.changesDetected ?? 0} roster changes (${result.existingPlayers ?? 0} currently loaded, ${result.incomingPlayers ?? 0} on the ForeTees sheet). The sheet and change log are unchanged. Verify the selected date and Course: All, then choose Confirm and refresh to read the sheet again and apply the update.`
+              `This refresh found ${result.changesDetected ?? 0} roster changes (${result.existingPlayers ?? 0} currently loaded, ${result.incomingPlayers ?? 0} on the ForeTees sheet). The sheet and change log are unchanged. Verify the selected date and Course: All, then choose Confirm and refresh to read the sheet again and apply the update. Check-ins and cart numbers for players GolfOps cannot match may reset.`
           );
           return;
         }

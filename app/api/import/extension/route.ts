@@ -933,7 +933,7 @@ export async function POST(request: Request) {
         {
           ok: false,
           error: `ForeTees returned only ${incomingOccupiedPlayerCount} players, compared with ${existingOccupiedPlayerCount} currently loaded. If this is an intentional change, such as a rain-day schedule reduction, choose Confirm and refresh to apply it. Otherwise verify the tee-sheet date and Course: All before confirming. The current GolfOps tee sheet is unchanged.`,
-          confirmationMessage: `ForeTees returned ${incomingOccupiedPlayerCount} players, compared with ${existingOccupiedPlayerCount} currently loaded. If today's rain-day schedule reduction is intentional, choose Confirm and refresh to apply it. Otherwise verify the tee-sheet date and Course: All. The current tee sheet is unchanged.`,
+          confirmationMessage: `ForeTees returned ${incomingOccupiedPlayerCount} players, compared with ${existingOccupiedPlayerCount} currently loaded. If today's rain-day schedule reduction is intentional, choose Confirm and refresh to apply it. GolfOps will preserve check-ins and cart numbers for players it can match; unmatched prior check-ins and cart numbers will reset. Otherwise verify the tee-sheet date and Course: All. The current tee sheet is unchanged.`,
           requiresConfirmation: true,
           sheetDate: parsed.sheetDate,
           existingPlayers: existingOccupiedPlayerCount,
@@ -1992,8 +1992,9 @@ export async function POST(request: Request) {
         minimumCartNumbersToRetain;
 
     if (
-      unsafeCheckInReset ||
-      unsafeCartReset
+      (unsafeCheckInReset ||
+        unsafeCartReset) &&
+      !confirmLargeRosterUpdate
     ) {
       console.error(
         "Blocked unsafe ForeTees operational-state reset.",
@@ -2026,7 +2027,13 @@ export async function POST(request: Request) {
         {
           ok: false,
           error:
-            "GolfOps protected the existing check-ins and cart numbers because this ForeTees refresh could not safely match the current players.",
+            "GolfOps could not safely match enough players to preserve all prior check-ins and cart numbers. Confirm the intentional roster change to apply the sheet; unmatched prior check-ins and cart numbers will reset.",
+          confirmationMessage:
+            `GolfOps matched ${preservedCheckIns} of ${existingCheckInCount} prior check-ins and ${preservedCartNumbers} of ${existingCartNumberCount} prior cart numbers. Choose Confirm and refresh to apply the new sheet; values for unmatched players will reset.`,
+          requiresConfirmation: true,
+          changesDetected: Math.max(existingOccupiedPlayerCount, incomingOccupiedPlayerCount) - Math.min(existingOccupiedPlayerCount, incomingOccupiedPlayerCount),
+          existingPlayers: existingOccupiedPlayerCount,
+          incomingPlayers: incomingOccupiedPlayerCount,
           sheetDate:
             parsed.sheetDate,
           existingCheckInCount,
