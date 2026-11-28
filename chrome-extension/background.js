@@ -527,6 +527,11 @@ function schedulePopEmployeeName(user, job, userId) {
 function schedulePopPhoneNumber(user) {
   if (!user || typeof user !== "object") return null;
 
+  const telephoneNumber = user.telephone?.phonenumber;
+  if ((typeof telephoneNumber === "string" || typeof telephoneNumber === "number") && String(telephoneNumber).trim()) {
+    return String(telephoneNumber).trim().slice(0, 50);
+  }
+
   const preferredKeys = [
     "phoneNumber", "phone_number", "phone", "mobilePhone", "mobile",
     "cellPhone", "cell_phone", "telephone", "phone1", "primaryPhone"
@@ -569,14 +574,14 @@ async function collectSchedulePopSchedule(payload) {
       Authorization: authorization
     };
     const base = `https://api.schedulepop.com/api/rest/admin/locations/${locationId}`;
-    const [scheduleResponse, usersResponse] = await Promise.all([
+    const [scheduleResponse, projectedUsersResponse] = await Promise.all([
       fetch(`${base}/scheduleData?scheduleDataTypes=staffView`, {
         method: "POST",
         cache: "no-store",
         headers,
         body: JSON.stringify({ start: dateStart, end: dateEnd })
       }),
-      fetch(`${base}/users?active=1`, {
+      fetch(`${base}/users?active=1&fields=id,firstname,lastname,userStatusTypeName,userDuties,userZones,telephone`, {
         method: "GET",
         cache: "no-store",
         headers: { Accept: "application/json", Authorization: authorization }
@@ -586,6 +591,17 @@ async function collectSchedulePopSchedule(payload) {
     if (!scheduleResponse.ok) {
       throw new Error(`SchedulePop schedule returned ${scheduleResponse.status}.`);
     }
+
+    // Some SchedulePop installations reject selected user fields. Fall back to
+    // the working unprojected endpoint so a phone-field mismatch never blocks shifts.
+    const usersResponse = projectedUsersResponse.ok
+      ? projectedUsersResponse
+      : await fetch(`${base}/users?active=1`, {
+          method: "GET",
+          cache: "no-store",
+          headers: { Accept: "application/json", Authorization: authorization }
+        });
+
     if (!usersResponse.ok) {
       throw new Error(`SchedulePop employees returned ${usersResponse.status}.`);
     }

@@ -59,6 +59,17 @@ function formatTime(value: string | null) {
   }`;
 }
 
+function formatPhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return value;
+}
+
 function departmentFor(person: Staff) {
   const text = `${person.duty ?? ""} ${
     person.zone ?? ""
@@ -326,7 +337,7 @@ export default function StaffScheduleManager({
                         href={`tel:${person.phone_number.replace(/[^\d+]/g, "")}`}
                         className="mt-1 inline-block text-sm font-medium text-blue-700 underline underline-offset-2"
                       >
-                        {person.phone_number}
+                        {formatPhoneNumber(person.phone_number)}
                       </a>
                     )}
 
