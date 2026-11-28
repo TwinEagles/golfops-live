@@ -10,7 +10,7 @@ const DEFAULT_SOURCE =
   "TwinEagles iPhone";
 
 const EXTENSION_VERSION =
-  "1.8.5";
+  "1.8.6";
 
 const EXTENSION_RELEASE_DATE =
   "November 28, 2026";
@@ -67,9 +67,18 @@ const extensionWorkflowCount = extensionApplications.reduce(
 
 const releaseHistory = [
   {
-    version: "1.8.5",
+    version: "1.8.6",
     date: "November 28, 2026",
     current: true,
+    highlights: [
+      "Requests SchedulePop staff phone numbers using the supported phone field.",
+      "Keeps SchedulePop schedule sync working while importing tap-to-call staff numbers.",
+    ],
+  },
+  {
+    version: "1.8.5",
+    date: "November 28, 2026",
+    current: false,
     highlights: [
       "Imports SchedulePop staff phone numbers with shift schedules.",
       "Adds tap-to-call phone numbers to the Outside Operations staff schedule.",

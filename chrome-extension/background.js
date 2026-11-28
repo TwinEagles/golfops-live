@@ -559,7 +559,7 @@ async function collectSchedulePopSchedule(payload) {
         headers,
         body: JSON.stringify({ start: dateStart, end: dateEnd })
       }),
-      fetch(`${base}/users?active=1&fields=id,firstname,lastname,userStatusTypeName,userDuties,userZones,phoneNumber`, {
+      fetch(`${base}/users?active=1&fields=id,firstname,lastname,userStatusTypeName,userDuties,userZones,phone`, {
         method: "GET",
         cache: "no-store",
         headers: { Accept: "application/json", Authorization: authorization }
