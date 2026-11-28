@@ -359,18 +359,21 @@ const today =
     selectedDate === today;
 
   /*
-    Load recently captured tee-sheet dates for the
-    date dropdown. We use imports rather than every
-    tee-sheet slot so each date appears only once.
+    Load captured tee-sheet dates from the past 60 calendar days
+    for the date dropdown. Import logs can contain multiple rows
+    per day, so use a generous row limit and deduplicate by date.
+    Tee-sheet data itself is retained per date in tee_sheet_slots.
   */
+  const firstRetainedDate = addDays(today, -59);
   const {
     data: importedDateRows,
   } = await supabase
     .from("tee_sheet_imports")
     .select("sheet_date")
     .eq("club_id", profile.club_id)
+    .gte("sheet_date", firstRetainedDate)
     .order("sheet_date", { ascending: false })
-    .limit(120);
+    .limit(5000);
 
   const availableDates = Array.from(
     new Set(
