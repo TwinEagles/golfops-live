@@ -525,8 +525,25 @@ function schedulePopEmployeeName(user, job, userId) {
 }
 
 function schedulePopPhoneNumber(user) {
-  const value = user?.phoneNumber ?? user?.phone_number ?? user?.phone ?? user?.mobilePhone ?? user?.mobile;
-  return String(value || "").trim() || null;
+  if (!user || typeof user !== "object") return null;
+
+  const preferredKeys = [
+    "phoneNumber", "phone_number", "phone", "mobilePhone", "mobile",
+    "cellPhone", "cell_phone", "telephone", "phone1", "primaryPhone"
+  ];
+  for (const key of preferredKeys) {
+    const value = user[key];
+    if ((typeof value === "string" || typeof value === "number") && String(value).trim()) {
+      return String(value).trim().slice(0, 50);
+    }
+  }
+
+  const discovered = Object.entries(user).find(([key, value]) =>
+    /phone|mobile|telephone|cell/i.test(key) &&
+    (typeof value === "string" || typeof value === "number") &&
+    String(value).trim()
+  );
+  return discovered ? String(discovered[1]).trim().slice(0, 50) : null;
 }
 
 async function collectSchedulePopSchedule(payload) {
@@ -559,7 +576,7 @@ async function collectSchedulePopSchedule(payload) {
         headers,
         body: JSON.stringify({ start: dateStart, end: dateEnd })
       }),
-      fetch(`${base}/users?active=1&fields=id,firstname,lastname,userStatusTypeName,userDuties,userZones,phone`, {
+      fetch(`${base}/users?active=1`, {
         method: "GET",
         cache: "no-store",
         headers: { Accept: "application/json", Authorization: authorization }
