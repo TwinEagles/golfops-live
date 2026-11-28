@@ -524,6 +524,11 @@ function schedulePopEmployeeName(user, job, userId) {
   return combined || String(job?.userName || job?.employeeName || `SchedulePop employee ${userId}`);
 }
 
+function schedulePopPhoneNumber(user) {
+  const value = user?.phoneNumber ?? user?.phone_number ?? user?.phone ?? user?.mobilePhone ?? user?.mobile;
+  return String(value || "").trim() || null;
+}
+
 async function collectSchedulePopSchedule(payload) {
   try {
     const authorization = String(payload?.authorization || "").trim();
@@ -554,7 +559,7 @@ async function collectSchedulePopSchedule(payload) {
         headers,
         body: JSON.stringify({ start: dateStart, end: dateEnd })
       }),
-      fetch(`${base}/users?active=1&fields=id,firstname,lastname,userStatusTypeName,userDuties,userZones`, {
+      fetch(`${base}/users?active=1&fields=id,firstname,lastname,userStatusTypeName,userDuties,userZones,phoneNumber`, {
         method: "GET",
         cache: "no-store",
         headers: { Accept: "application/json", Authorization: authorization }
@@ -594,6 +599,7 @@ async function collectSchedulePopSchedule(payload) {
           const zone = String(job.zoneName || job.zone?.name || "").trim() || null;
           shifts.push({
             employeeName: schedulePopEmployeeName(user, job, userId),
+            phoneNumber: schedulePopPhoneNumber(user),
             jobTitle: zone || duty || "SchedulePop",
             shiftDate,
             startTime: schedulePopTimePart(job.startDatetime || job.start),

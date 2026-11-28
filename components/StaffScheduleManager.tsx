@@ -7,6 +7,7 @@ import SchedulePopImporter from "@/components/SchedulePopImporter";
 type Staff = {
   id: string;
   employee_name: string;
+  phone_number: string | null;
   job_title: string;
   start_time: string | null;
   end_time: string | null;
@@ -319,6 +320,15 @@ export default function StaffScheduleManager({
                     <div className="font-semibold">
                       {person.employee_name}
                     </div>
+
+                    {person.phone_number && (
+                      <a
+                        href={`tel:${person.phone_number.replace(/[^\d+]/g, "")}`}
+                        className="mt-1 inline-block text-sm font-medium text-blue-700 underline underline-offset-2"
+                      >
+                        {person.phone_number}
+                      </a>
+                    )}
 
                     <div className="text-sm text-blue-600">
                       {formatTime(person.start_time)}

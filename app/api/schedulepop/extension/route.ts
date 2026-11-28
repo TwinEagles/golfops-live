@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 type ShiftInput = {
   employeeName?: string;
+  phoneNumber?: string | null;
   jobTitle?: string;
   shiftDate?: string;
   startTime?: string | null;
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
 
   const rows = body.shifts.map((shift) => ({
     employee_name: safeText(shift.employeeName),
+    phone_number: safeText(shift.phoneNumber, 50) || null,
     job_title: safeText(shift.jobTitle),
     shift_date: safeText(shift.shiftDate, 10),
     start_time: safeText(shift.startTime, 20) || null,

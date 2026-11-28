@@ -3,7 +3,7 @@ import { getGolfOpsAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 
 type ShiftInput = {
-  employeeName?: string; jobTitle?: string; shiftDate?: string; startTime?: string | null;
+  employeeName?: string; phoneNumber?: string | null; jobTitle?: string; shiftDate?: string; startTime?: string | null;
   endTime?: string | null; duty?: string | null; zone?: string | null; status?: string; notes?: string | null;
 };
 
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
 
   const rows = body.shifts.map((shift) => ({
     employee_name: safeText(shift.employeeName),
+    phone_number: safeText(shift.phoneNumber, 50) || null,
     job_title: safeText(shift.jobTitle),
     shift_date: safeText(shift.shiftDate, 10),
     start_time: safeText(shift.startTime, 20) || null,
